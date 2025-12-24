@@ -48,6 +48,7 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   fl_chart: ^0.71.0
   syncfusion_flutter_charts: ^29.1.38
+  google_fonts: ^6.3.3
 
 dev_dependencies:
   flutter_test:
