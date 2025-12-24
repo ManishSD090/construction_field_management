@@ -43,7 +43,7 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.0
   easy_localization: ^3.0.8
-  intl: ^0.19.0
+  intl: 0.20.2
   connectivity_plus: ^7.0.0
   flutter_secure_storage: ^10.0.0
   fl_chart: ^0.71.0
@@ -59,6 +59,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^3.0.0
+  build_runner: ^2.5.4
+  riverpod_generator: ^2.6.5
+  drift_dev: ^2.28.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
