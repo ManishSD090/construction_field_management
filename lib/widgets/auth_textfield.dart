@@ -7,6 +7,7 @@ class AuthTextField extends StatelessWidget {
   final Widget? suffixIcon; // The eye icon widget
   final TextStyle? hintStyle; // Color of the placeholder text
   final bool isPassword; // Legacy param (optional)
+  final TextInputType? keyboardType;
 
   const AuthTextField({
     super.key,
@@ -15,24 +16,28 @@ class AuthTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.hintStyle,
-    this.isPassword = false, 
+    this.isPassword = false,
+    this.keyboardType,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      obscureText: obscureText, 
+      obscureText: obscureText,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: hintStyle ?? const TextStyle(color: Colors.grey),
         suffixIcon: suffixIcon,
-        
+
         // Basic styling
         filled: true,
-        fillColor: const Color.fromARGB(255, 255, 255, 255), // Light grey background
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        
+        fillColor:
+            const Color.fromARGB(255, 255, 255, 255), // Light grey background
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+
         // Borders
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -44,7 +49,8 @@ class AuthTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(32),
-          borderSide: const BorderSide(color: Color(0xFF0A6ED1)), // Highlight color
+          borderSide:
+              const BorderSide(color: Color(0xFF0A6ED1)), // Highlight color
         ),
       ),
     );
