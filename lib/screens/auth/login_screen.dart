@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/auth_storage.dart';
-import '../../widgets/auth_header.dart';
-import '../../widgets/auth_input_field.dart';
-import '../../widgets/otp_sent_card.dart';
-import '../../widgets/auth_primary_button.dart';
-import '../home_screen.dart';
+import '../../widgets/auth_textfield.dart'; // Ensure this widget is updated
+import '../../widgets/primary_button.dart';
 import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,134 +12,161 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final phoneCtrl = TextEditingController();
-  final passwordCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
 
-  bool isOtpMode = false;
-  bool otpSent = false;
-  bool isLoading = false;
+  // State to manage visibility of text fields
+  bool _isPhoneVisible = false;
+  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
     phoneCtrl.dispose();
-    passwordCtrl.dispose();
+    passCtrl.dispose();
     super.dispose();
-  }
-
-  bool _isValidPhone(String phone) {
-    return RegExp(r'^[0-9]{10}$').hasMatch(phone);
-  }
-
-  Future<void> onContinue() async {
-    final phone = phoneCtrl.text.trim();
-
-    if (!_isValidPhone(phone)) {
-      _showError("Enter valid 10-digit phone number");
-      return;
-    }
-
-    if (isOtpMode) {
-      setState(() => otpSent = true);
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OtpScreen(phone: phone),
-        ),
-      );
-    } else {
-      final password = passwordCtrl.text.trim();
-
-      if (password.isEmpty) {
-        _showError("Password required");
-        return;
-      }
-
-      setState(() => isLoading = true);
-      final ok = await AuthStorage.verifyPassword(phone, password);
-
-      if (!mounted) return;
-      setState(() => isLoading = false);
-
-      if (ok) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      } else {
-        _showError("Invalid credentials");
-      }
-    }
-  }
-
-  void _showError(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
+    // Define the faint light blue color from the UI design
+    const faintLightBlue = Color(0xFF90CAF9);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const Spacer(),
+        // 4. Center the entire UI component
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center, // Vertically center
+                crossAxisAlignment: CrossAxisAlignment.start, // Keep labels left-aligned
+                children: [
+                  // Header Section (Centered)
+                  const Center(
+                    child: const Column(
+                      children: const [
+                        Text(
+                          "Welcome back !",
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E232C),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          "Sign In",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1E232C),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-              if (otpSent) const OtpSentCard(),
+                  const SizedBox(height: 40),
 
-              const SizedBox(height: 40),
+                  // Phone/Email Section
+                  const Text(
+                    "Phone Number/ Email",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1E232C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  AuthTextField(
+                    controller: phoneCtrl,
+                    hint: "Enter phone number/Email",
+                    // 2. Change placeholder color
+                    hintStyle: const TextStyle(color: faintLightBlue),
+                    // 1. Add eye button and toggle visibility
+                    obscureText: !_isPhoneVisible,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPhoneVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: faintLightBlue,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPhoneVisible = !_isPhoneVisible;
+                        });
+                      },
+                    ),
+                  ),
 
-              const AuthHeader(),
+                  const SizedBox(height: 20),
 
-              const SizedBox(height: 40),
+                  // Password Section
+                  const Text(
+                    "Password",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1E232C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  AuthTextField(
+                    controller: passCtrl,
+                    hint: "Enter password",
+                    // 2. Change placeholder color
+                    hintStyle: const TextStyle(color: faintLightBlue),
+                    // 1. Add eye button and toggle visibility
+                    obscureText: !_isPasswordVisible,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: faintLightBlue,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
+                  ),
 
-              AuthInputField(
-                label: "Phone Number",
-                hint: "Enter phone number",
-                controller: phoneCtrl,
+                  const SizedBox(height: 30),
+
+                  // Main Action Button
+                  PrimaryButton(
+                    title: "Continue",
+                    onTap: () {
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => OtpScreen()));
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // OTP Login Link (Centered)
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => OtpScreen()));
+                      },
+                      child: const Text(
+                        "Log in with OTP",
+                        style: TextStyle(
+                          color: Color(0xFF1E88E5),
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Color(0xFF1E88E5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 20),
-
-              if (!isOtpMode)
-                AuthInputField(
-                  label: "Password",
-                  hint: "Enter password",
-                  controller: passwordCtrl,
-                  obscure: true,
-                ),
-
-              const SizedBox(height: 30),
-
-              AuthPrimaryButton(
-                isLoading: isLoading,
-                text: "Continue",
-                onTap: onContinue,
-              ),
-
-              const SizedBox(height: 18),
-
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    isOtpMode = !isOtpMode;
-                    otpSent = false;
-                  });
-                },
-                child: Text(
-                  isOtpMode
-                      ? "Login with Password"
-                      : "Log in with OTP",
-                ),
-              ),
-
-              const Spacer(),
-            ],
+            ),
           ),
         ),
       ),
