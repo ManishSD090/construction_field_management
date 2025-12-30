@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../widgets/auth_textfield.dart';
-import '../../widgets/primary_button.dart';
+import 'package:construction_erp/widgets/auth_textfield.dart';
+import 'package:construction_erp/widgets/primary_button.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});

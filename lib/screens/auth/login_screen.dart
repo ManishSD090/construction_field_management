@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../widgets/auth_textfield.dart'; // Ensure this widget is updated
-import '../../widgets/primary_button.dart';
-import 'otp_screen.dart';
+import 'package:construction_erp/widgets/auth_textfield.dart';
+import 'package:construction_erp/widgets/primary_button.dart';
+import 'package:construction_erp/screens/auth/otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,8 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center, // Vertically center
-                crossAxisAlignment: CrossAxisAlignment.start, // Keep labels left-aligned
+                mainAxisAlignment:
+                    MainAxisAlignment.center, // Vertically center
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Keep labels left-aligned
                 children: [
                   // Header Section (Centered)
                   const Center(
