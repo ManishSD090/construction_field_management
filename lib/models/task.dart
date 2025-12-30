@@ -1,5 +1,5 @@
+import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/enums.dart';
-import 'package:construction_erp/models/user_settings.dart';
 
 class Task {
   final String id;
@@ -56,28 +56,31 @@ class Task {
       description: json['description'] as String?,
       projectId: json['projectId'] as String,
       assignedToId: json['assignedToId'] as String?,
-      assignedTo: json['assignedTo'] != null ? User.fromJson(json['assignedTo']) : null,
+      assignedTo:
+          json['assignedTo'] != null ? User.fromJson(json['assignedTo']) : null,
       createdById: json['createdById'] as String,
       creator: json['creator'] != null ? User.fromJson(json['creator']) : null,
-      status: TaskStatus.values.byName(json['status'] as String? ?? 'TODO'),
-      priority: Priority.values.byName(json['priority'] as String? ?? 'MEDIUM'),
+      status: TaskStatus.fromJson(json['status'] as String? ?? 'TODO'),
+      priority: Priority.fromJson(json['priority'] as String? ?? 'MEDIUM'),
       progress: json['progress'] as int?,
-      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
+      startDate:
+          json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
       dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
-      completedDate: json['completedDate'] != null ? DateTime.parse(json['completedDate']) : null,
-      estimatedHours: json['estimatedHours'] != null ? (json['estimatedHours'] as num).toDouble() : null,
-      actualHours: json['actualHours'] != null ? (json['actualHours'] as num).toDouble() : 0,
+      completedDate: json['completedDate'] != null
+          ? DateTime.parse(json['completedDate'])
+          : null,
+      estimatedHours: (json['estimatedHours'] as num?)?.toDouble(),
+      actualHours: (json['actualHours'] as num?)?.toDouble() ?? 0,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      subtasks: json['subtasks'] != null
-          ? (json['subtasks'] as List).map((s) => Subtask.fromJson(s)).toList()
-          : null,
-      comments: json['comments'] != null
-          ? (json['comments'] as List).map((c) => TaskComment.fromJson(c)).toList()
-          : null,
-      attachments: json['attachments'] != null
-          ? (json['attachments'] as List).map((a) => TaskAttachment.fromJson(a)).toList()
-          : null,
+      subtasks:
+          (json['subtasks'] as List?)?.map((s) => Subtask.fromJson(s)).toList(),
+      comments: (json['comments'] as List?)
+          ?.map((c) => TaskComment.fromJson(c))
+          .toList(),
+      attachments: (json['attachments'] as List?)
+          ?.map((a) => TaskAttachment.fromJson(a))
+          .toList(),
     );
   }
 
@@ -91,8 +94,8 @@ class Task {
       'assignedTo': assignedTo?.toJson(),
       'createdById': createdById,
       'creator': creator?.toJson(),
-      'status': status.name,
-      'priority': priority.name,
+      'status': status.toJson(),
+      'priority': priority.toJson(),
       'progress': progress,
       'startDate': startDate?.toIso8601String(),
       'dueDate': dueDate?.toIso8601String(),
@@ -106,9 +109,6 @@ class Task {
       'attachments': attachments?.map((a) => a.toJson()).toList(),
     };
   }
-
-  @override
-  String toString() => 'Task(id: $id, title: $title, status: ${status.name})';
 }
 
 class Subtask {
@@ -139,7 +139,8 @@ class Subtask {
       isCompleted: json['isCompleted'] as bool? ?? false,
       taskId: json['taskId'] as String,
       createdById: json['createdById'] as String?,
-      createdBy: json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      createdBy:
+          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
@@ -157,9 +158,6 @@ class Subtask {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
-
-  @override
-  String toString() => 'Subtask(id: $id, description: $description, isCompleted: $isCompleted)';
 }
 
 class TaskComment {
@@ -204,9 +202,6 @@ class TaskComment {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
-
-  @override
-  String toString() => 'TaskComment(id: $id, userId: $userId)';
 }
 
 class TaskAttachment {
@@ -241,7 +236,8 @@ class TaskAttachment {
       fileSize: json['fileSize'] as int?,
       taskId: json['taskId'] as String,
       uploadedById: json['uploadedById'] as String,
-      uploadedBy: json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
+      uploadedBy:
+          json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -259,7 +255,4 @@ class TaskAttachment {
       'createdAt': createdAt.toIso8601String(),
     };
   }
-
-  @override
-  String toString() => 'TaskAttachment(id: $id, fileName: $fileName)';
 }

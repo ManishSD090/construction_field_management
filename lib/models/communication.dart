@@ -1,5 +1,4 @@
-import 'package:construction_erp/models/enums.dart';
-import 'package:construction_erp/models/user_settings.dart';
+import 'package:construction_erp/models/user.dart';
 
 class Message {
   final String id;
@@ -32,7 +31,8 @@ class Message {
       senderId: json['senderId'] as String,
       sender: json['sender'] != null ? User.fromJson(json['sender']) : null,
       receiverId: json['receiverId'] as String,
-      receiver: json['receiver'] != null ? User.fromJson(json['receiver']) : null,
+      receiver:
+          json['receiver'] != null ? User.fromJson(json['receiver']) : null,
       projectId: json['projectId'] as String?,
       content: json['content'] as String,
       isRead: json['isRead'] as bool? ?? false,
@@ -57,7 +57,8 @@ class Message {
   }
 
   @override
-  String toString() => 'Message(id: $id, senderId: $senderId, receiverId: $receiverId)';
+  String toString() =>
+      'Message(id: $id, senderId: $senderId, receiverId: $receiverId)';
 }
 
 class Notification {
@@ -115,6 +116,28 @@ class Notification {
   String toString() => 'Notification(id: $id, userId: $userId, type: $type)';
 }
 
+enum DocumentType {
+  contract,
+  permit,
+  drawing,
+  report,
+  invoice,
+  certificate,
+  photo,
+  other;
+
+  /// Converts JSON String (SCREAMING_SNAKE_CASE) to Enum
+  static DocumentType fromJson(String name) {
+    return DocumentType.values.firstWhere(
+      (e) => e.name.toUpperCase() == name.toUpperCase(),
+      orElse: () => DocumentType.other,
+    );
+  }
+
+  /// Converts Enum to JSON String (SCREAMING_SNAKE_CASE)
+  String toJson() => name.toUpperCase();
+}
+
 class Document {
   final String id;
   final String projectId;
@@ -157,9 +180,12 @@ class Document {
       fileUrl: json['fileUrl'] as String,
       fileType: json['fileType'] as String,
       fileSize: json['fileSize'] as int?,
-      documentType: DocumentType.values.byName(json['documentType'] as String? ?? 'OTHER'),
+      // Use the static helper to handle case-insensitive mapping
+      documentType:
+          DocumentType.fromJson(json['documentType'] as String? ?? 'OTHER'),
       uploadedById: json['uploadedById'] as String,
-      uploadedBy: json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
+      uploadedBy:
+          json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
       isPublic: json['isPublic'] as bool? ?? false,
       isArchived: json['isArchived'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt']),
@@ -176,7 +202,8 @@ class Document {
       'fileUrl': fileUrl,
       'fileType': fileType,
       'fileSize': fileSize,
-      'documentType': documentType.name,
+      // Convert back to UPPERCASE for the API
+      'documentType': documentType.toJson(),
       'uploadedById': uploadedById,
       'uploadedBy': uploadedBy?.toJson(),
       'isPublic': isPublic,
@@ -187,5 +214,6 @@ class Document {
   }
 
   @override
-  String toString() => 'Document(id: $id, title: $title, projectId: $projectId)';
+  String toString() =>
+      'Document(id: $id, title: $title, projectId: $projectId)';
 }

@@ -28,18 +28,32 @@ class RolePermission {
       id: json['id'] as String,
       roleId: json['roleId'] as String,
       permissionId: json['permissionId'] as String,
-      // Handle Prisma Json type as a Map in Dart
       constraints: json['constraints'] != null
           ? Map<String, dynamic>.from(json['constraints'])
           : null,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       grantedById: json['grantedById'] as String?,
-      // Map the nested permission object if it exists in the query result
       permission: json['permission'] != null
           ? Permission.fromJson(json['permission'])
           : null,
     );
+  }
+
+  /// Converts the RolePermission instance into a Map for JSON serialization
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'roleId': roleId,
+      'permissionId': permissionId,
+      // Map<String, dynamic> is natively supported by json.encode
+      'constraints': constraints,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'grantedById': grantedById,
+      // Only include the permission JSON if the object is present
+      'permission': permission?.toJson(),
+    };
   }
 }
 
@@ -83,6 +97,22 @@ class Role {
               .toList()
           : [],
     );
+  }
+
+  /// Converts the Role instance into a Map for JSON serialization
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'companyId': companyId,
+      'isSystemAdmin': isSystemAdmin,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'createdById': createdById,
+      // Map each RolePermission object back to JSON
+      'rolePermissions': rolePermissions.map((rp) => rp.toJson()).toList(),
+    };
   }
 
   List<Permission> get permissions => rolePermissions

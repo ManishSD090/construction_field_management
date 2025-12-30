@@ -1,21 +1,19 @@
-// Import from new organized model files
-import 'package:construction_erp/models/index.dart';
+import 'package:construction_erp/models/role.dart';
+import 'package:construction_erp/models/company.dart';
+import 'package:construction_erp/models/enums.dart';
 
-// Legacy UserModel - Use User from user_settings.dart instead
-// This file is kept for backward compatibility during migration
-class UserModel {
+class User {
   final String id;
   final String? companyId;
-  final Role? role;
+  final Company? company;
   final String roleId;
-
+  final Role? role;
   final UserType userType;
 
   final String? email;
   final String phone;
   final String password;
   final String? employeeId;
-
   final String name;
 
   final String? designation;
@@ -40,6 +38,7 @@ class UserModel {
   final String? bankAccount;
   final String? ifscCode;
 
+  final String? accessToken;
   final String? refreshToken;
   final String? resetPasswordToken;
   final DateTime? resetPasswordExpiry;
@@ -50,61 +49,17 @@ class UserModel {
   final DateTime updatedAt;
 
   final String? createdById;
+  final User? createdBy;
 
   final UserSettings? settings;
 
-  // --- Relations ---
-  final List<UserModel>? createdUsers;
-
-  final List<Task>? createdTasks;
-  final List<Task>? assignedTasks;
-  final List<TaskComment>? taskComments;
-  final List<TaskAttachment>? taskAttachments;
-
-  final List<Attendance>? attendances;
-  final List<Attendance>? markedAttendances;
-  final List<Leave>? leaves;
-  final List<Leave>? approvedLeaves;
-
-  final List<DailyProgressReport>? preparedDPRs;
-  final List<DailyProgressReport>? approvedDPRs;
-  final List<DPRPhoto>? dprPhotos;
-
-  final List<Expense>? createdExpenses;
-  final List<Expense>? approvedExpenses;
-  final List<Invoice>? createdInvoices;
-  final List<Invoice>? approvedInvoices;
-  final List<Payment>? createdPayments;
-  final List<Payment>? paymentsReceived;
-
-  final List<Material>? createdMaterials;
-  final List<MaterialRequest>? materialRequests;
-  final List<MaterialRequest>? approvedMaterials;
-  final List<MaterialRequest>? orderedMaterials;
-  final List<StockTransaction>? stockTransactions;
-
-  final List<Message>? sentMessages;
-  final List<Message>? receivedMessages;
-  final List<Notification>? notifications;
-
-  final List<Document>? documentsUploaded;
-
-  final List<RolePermission>? grantedPermissions;
-  final List<AuditLog>? auditLogs;
-
-  final List<Client>? createdClients;
-  final List<Project>? createdProjects;
-  final List<Company>? createdCompanies;
-
-  final List<Subtask>? subtasks;
-  final List<Milestone>? milestones;
-
-  UserModel({
+  User({
     required this.id,
     this.companyId,
-    this.role,
+    this.company,
     required this.roleId,
-    this.userType = UserType.EMPLOYEE,
+    this.role,
+    required this.userType,
     this.email,
     required this.phone,
     required this.password,
@@ -112,9 +67,9 @@ class UserModel {
     required this.name,
     this.designation,
     this.department,
-    this.employeeStatus = EmployeeStatus.ACTIVE,
-    this.defaultLocation = AttendanceLocation.OFFICE,
-    this.salaryType = SalaryType.MONTHLY,
+    required this.employeeStatus,
+    required this.defaultLocation,
+    required this.salaryType,
     this.salary,
     this.hourlyRate,
     this.dateOfBirth,
@@ -127,58 +82,28 @@ class UserModel {
     this.panNumber,
     this.bankAccount,
     this.ifscCode,
+    this.accessToken,
     this.refreshToken,
     this.resetPasswordToken,
     this.resetPasswordExpiry,
     this.lastLogin,
-    this.isActive = true,
+    required this.isActive,
     required this.createdAt,
     required this.updatedAt,
     this.createdById,
+    this.createdBy,
     this.settings,
-    this.createdUsers,
-    this.createdTasks,
-    this.assignedTasks,
-    this.taskComments,
-    this.taskAttachments,
-    this.attendances,
-    this.markedAttendances,
-    this.leaves,
-    this.approvedLeaves,
-    this.preparedDPRs,
-    this.approvedDPRs,
-    this.dprPhotos,
-    this.createdExpenses,
-    this.approvedExpenses,
-    this.createdInvoices,
-    this.approvedInvoices,
-    this.createdPayments,
-    this.paymentsReceived,
-    this.createdMaterials,
-    this.materialRequests,
-    this.approvedMaterials,
-    this.orderedMaterials,
-    this.stockTransactions,
-    this.sentMessages,
-    this.receivedMessages,
-    this.notifications,
-    this.documentsUploaded,
-    this.grantedPermissions,
-    this.auditLogs,
-    this.createdClients,
-    this.createdProjects,
-    this.createdCompanies,
-    this.subtasks,
-    this.milestones,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
-    return UserModel(
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
       id: json['id'] as String,
       companyId: json['companyId'] as String?,
+      company:
+          json['company'] != null ? Company.fromJson(json['company']) : null,
       roleId: json['roleId'] as String,
       role: json['role'] != null ? Role.fromJson(json['role']) : null,
-      userType: UserType.values.byName(json['userType'] as String? ?? 'EMPLOYEE'),
+      userType: UserType.fromJson(json['userType'] as String? ?? 'EMPLOYEE'),
       email: json['email'] as String?,
       phone: json['phone'] as String,
       password: json['password'] as String,
@@ -186,13 +111,20 @@ class UserModel {
       name: json['name'] as String,
       designation: json['designation'] as String?,
       department: json['department'] as String?,
-      employeeStatus: EmployeeStatus.values.byName(json['employeeStatus'] as String? ?? 'ACTIVE'),
-      defaultLocation: AttendanceLocation.values.byName(json['defaultLocation'] as String? ?? 'OFFICE'),
-      salaryType: SalaryType.values.byName(json['salaryType'] as String? ?? 'MONTHLY'),
-      salary: json['salary'] != null ? (json['salary'] as num).toDouble() : null,
-      hourlyRate: json['hourlyRate'] != null ? (json['hourlyRate'] as num).toDouble() : null,
-      dateOfBirth: json['dateOfBirth'] != null ? DateTime.parse(json['dateOfBirth']) : null,
-      dateOfJoining: json['dateOfJoining'] != null ? DateTime.parse(json['dateOfJoining']) : null,
+      employeeStatus: EmployeeStatus.fromJson(
+          json['employeeStatus'] as String? ?? 'ACTIVE'),
+      defaultLocation: AttendanceLocation.values.byName(
+          (json['defaultLocation'] as String? ?? 'OFFICE').toLowerCase()),
+      salaryType:
+          SalaryType.fromJson(json['salaryType'] as String? ?? 'MONTHLY'),
+      salary: (json['salary'] as num?)?.toDouble(),
+      hourlyRate: (json['hourlyRate'] as num?)?.toDouble(),
+      dateOfBirth: json['dateOfBirth'] != null
+          ? DateTime.parse(json['dateOfBirth'])
+          : null,
+      dateOfJoining: json['dateOfJoining'] != null
+          ? DateTime.parse(json['dateOfJoining'])
+          : null,
       address: json['address'] as String?,
       emergencyContact: json['emergencyContact'] as String?,
       emergencyPhone: json['emergencyPhone'] as String?,
@@ -201,27 +133,123 @@ class UserModel {
       panNumber: json['panNumber'] as String?,
       bankAccount: json['bankAccount'] as String?,
       ifscCode: json['ifscCode'] as String?,
+      accessToken: json['accessToken'] as String?,
       refreshToken: json['refreshToken'] as String?,
       resetPasswordToken: json['resetPasswordToken'] as String?,
-      resetPasswordExpiry: json['resetPasswordExpiry'] != null ? DateTime.parse(json['resetPasswordExpiry']) : null,
-      lastLogin: json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,
+      resetPasswordExpiry: json['resetPasswordExpiry'] != null
+          ? DateTime.parse(json['resetPasswordExpiry'])
+          : null,
+      lastLogin:
+          json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,
       isActive: json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       createdById: json['createdById'] as String?,
-      settings: json['settings'] != null ? UserSettings.fromJson(json['settings']) : null,
+      createdBy:
+          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      settings: json['settings'] != null
+          ? UserSettings.fromJson(json['settings'])
+          : null,
     );
   }
 
-  List<Permission> get permissions => role?.permissions ?? [];
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'companyId': companyId,
+      'company': company?.toJson(),
+      'roleId': roleId,
+      'role': role?.toJson(),
+      'userType': userType.toJson(),
+      'email': email,
+      'phone': phone,
+      'password': password,
+      'employeeId': employeeId,
+      'name': name,
+      'designation': designation,
+      'department': department,
+      'employeeStatus': employeeStatus.toJson(),
+      'defaultLocation': defaultLocation.name.toUpperCase(),
+      'salaryType': salaryType.toJson(),
+      'salary': salary,
+      'hourlyRate': hourlyRate,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'dateOfJoining': dateOfJoining?.toIso8601String(),
+      'address': address,
+      'emergencyContact': emergencyContact,
+      'emergencyPhone': emergencyPhone,
+      'profilePicture': profilePicture,
+      'aadharNumber': aadharNumber,
+      'panNumber': panNumber,
+      'bankAccount': bankAccount,
+      'ifscCode': ifscCode,
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+      'resetPasswordToken': resetPasswordToken,
+      'resetPasswordExpiry': resetPasswordExpiry?.toIso8601String(),
+      'lastLogin': lastLogin?.toIso8601String(),
+      'isActive': isActive,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'createdById': createdById,
+      'createdBy': createdBy?.toJson(),
+      'settings': settings?.toJson(),
+    };
+  }
+}
 
-  bool can(String code) =>
-      role?.isSystemAdmin ?? false || permissions.any((p) => p.code == code);
+class UserSettings {
+  final String id;
+  final String userId;
+  final User? user;
+  final String? theme;
+  final String? language;
+  final Map<String, dynamic>? notifications;
+  final Map<String, dynamic>? dashboardLayout;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
-  bool canAny(List<String> codes) =>
-      role?.isSystemAdmin ?? false || permissions.any((p) => codes.contains(p.code));
+  UserSettings({
+    required this.id,
+    required this.userId,
+    this.user,
+    this.theme,
+    this.language,
+    this.notifications,
+    this.dashboardLayout,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
-  void initPermissionManager() {
-    PermissionManager.initFromModels(permissions);
+  factory UserSettings.fromJson(Map<String, dynamic> json) {
+    return UserSettings(
+      id: json['id'] as String,
+      userId: json['userId'] as String,
+      user: json['user'] != null ? User.fromJson(json['user']) : null,
+      theme: json['theme'] as String? ?? 'light',
+      language: json['language'] as String? ?? 'en',
+      notifications: json['notifications'] != null
+          ? Map<String, dynamic>.from(json['notifications'])
+          : null,
+      dashboardLayout: json['dashboardLayout'] != null
+          ? Map<String, dynamic>.from(json['dashboardLayout'])
+          : null,
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'user': user?.toJson(),
+      'theme': theme,
+      'language': language,
+      'notifications': notifications,
+      'dashboardLayout': dashboardLayout,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
   }
 }

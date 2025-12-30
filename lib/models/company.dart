@@ -1,102 +1,4 @@
-class CompanySettings {
-  final String id;
-  final String companyId;
-
-  final String currency;
-  final double taxPercent;
-  final double workingHours;
-  final double overtimeRate;
-
-  final int casualLeaves;
-  final int sickLeaves;
-  final int earnedLeaves;
-
-  final String projectPrefix;
-  final String invoicePrefix;
-  final String dprPrefix;
-  final String materialPrefix;
-
-  final bool enableStockAlerts;
-  final double lowStockThreshold;
-
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  CompanySettings({
-    required this.id,
-    required this.companyId,
-    required this.currency,
-    required this.taxPercent,
-    required this.workingHours,
-    required this.overtimeRate,
-    required this.casualLeaves,
-    required this.sickLeaves,
-    required this.earnedLeaves,
-    required this.projectPrefix,
-    required this.invoicePrefix,
-    required this.dprPrefix,
-    required this.materialPrefix,
-    required this.enableStockAlerts,
-    required this.lowStockThreshold,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory CompanySettings.fromJson(Map<String, dynamic> json) {
-    return CompanySettings(
-      id: json['id'],
-      companyId: json['companyId'],
-      currency: json['currency'] ?? 'INR',
-      taxPercent: (json['taxPercent'] ?? 18).toDouble(),
-      workingHours: (json['workingHours'] ?? 8).toDouble(),
-      overtimeRate: (json['overtimeRate'] ?? 1.5).toDouble(),
-      casualLeaves: json['casualLeaves'] ?? 12,
-      sickLeaves: json['sickLeaves'] ?? 12,
-      earnedLeaves: json['earnedLeaves'] ?? 15,
-      projectPrefix: json['projectPrefix'] ?? 'PROJ',
-      invoicePrefix: json['invoicePrefix'] ?? 'INV',
-      dprPrefix: json['dprPrefix'] ?? 'DPR',
-      materialPrefix: json['materialPrefix'] ?? 'MAT',
-      enableStockAlerts: json['enableStockAlerts'] ?? true,
-      lowStockThreshold: (json['lowStockThreshold'] ?? 10).toDouble(),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'companyId': companyId,
-      'currency': currency,
-      'taxPercent': taxPercent,
-      'workingHours': workingHours,
-      'overtimeRate': overtimeRate,
-      'casualLeaves': casualLeaves,
-      'sickLeaves': sickLeaves,
-      'earnedLeaves': earnedLeaves,
-      'projectPrefix': projectPrefix,
-      'invoicePrefix': invoicePrefix,
-      'dprPrefix': dprPrefix,
-      'materialPrefix': materialPrefix,
-      'enableStockAlerts': enableStockAlerts,
-      'lowStockThreshold': lowStockThreshold,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  // ================= HELPER METHODS =================
-
-  // Generate prefixed IDs for projects, invoices, DPRs, materials
-  String projectId(String number) => '$projectPrefix-$number';
-  String invoiceId(String number) => '$invoicePrefix-$number';
-  String dprId(String number) => '$dprPrefix-$number';
-  String materialId(String number) => '$materialPrefix-$number';
-
-  // Check if stock alerts are enabled
-  bool isStockAlertEnabled() => enableStockAlerts;
-}
+import 'package:construction_erp/models/user.dart';
 
 class Company {
   final String id;
@@ -104,27 +6,30 @@ class Company {
   final String? registrationNumber;
   final String? gstNumber;
 
+  // --- Office Location (For Office Staff Attendance) ---
   final String? officeAddress;
   final double? officeLatitude;
   final double? officeLongitude;
-  final double officeGeofence;
+  final double officeGeofence; // Radius in meters
 
+  // Contact & Branding
   final String? phone;
   final String? email;
   final String? website;
   final String? logo;
 
+  // Banking
   final String? bankName;
   final String? bankAccount;
   final String? bankIfsc;
   final String? bankBranch;
 
   final bool isActive;
-
   final DateTime createdAt;
   final DateTime updatedAt;
 
   final String? createdById;
+  final User? createdBy;
 
   final CompanySettings? settings;
 
@@ -136,7 +41,7 @@ class Company {
     this.officeAddress,
     this.officeLatitude,
     this.officeLongitude,
-    required this.officeGeofence,
+    this.officeGeofence = 100,
     this.phone,
     this.email,
     this.website,
@@ -149,31 +54,40 @@ class Company {
     required this.createdAt,
     required this.updatedAt,
     this.createdById,
+    this.createdBy,
     this.settings,
   });
 
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
-      id: json['id'],
-      name: json['name'],
-      registrationNumber: json['registrationNumber'],
-      gstNumber: json['gstNumber'],
-      officeAddress: json['officeAddress'],
-      officeLatitude: json['officeLatitude']?.toDouble(),
-      officeLongitude: json['officeLongitude']?.toDouble(),
-      officeGeofence: (json['officeGeofence'] ?? 100).toDouble(),
-      phone: json['phone'],
-      email: json['email'],
-      website: json['website'],
-      logo: json['logo'],
-      bankName: json['bankName'],
-      bankAccount: json['bankAccount'],
-      bankIfsc: json['bankIfsc'],
-      bankBranch: json['bankBranch'],
-      isActive: json['isActive'] ?? true,
+      id: json['id'] as String,
+      name: json['name'] as String,
+      registrationNumber: json['registrationNumber'] as String?,
+      gstNumber: json['gstNumber'] as String?,
+      officeAddress: json['officeAddress'] as String?,
+      officeLatitude: json['officeLatitude'] != null
+          ? (json['officeLatitude'] as num).toDouble()
+          : null,
+      officeLongitude: json['officeLongitude'] != null
+          ? (json['officeLongitude'] as num).toDouble()
+          : null,
+      officeGeofence: json['officeGeofence'] != null
+          ? (json['officeGeofence'] as num).toDouble()
+          : 100,
+      phone: json['phone'] as String?,
+      email: json['email'] as String?,
+      website: json['website'] as String?,
+      logo: json['logo'] as String?,
+      bankName: json['bankName'] as String?,
+      bankAccount: json['bankAccount'] as String?,
+      bankIfsc: json['bankIfsc'] as String?,
+      bankBranch: json['bankBranch'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      createdById: json['createdById'],
+      createdById: json['createdById'] as String?,
+      createdBy:
+          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
       settings: json['settings'] != null
           ? CompanySettings.fromJson(json['settings'])
           : null,
@@ -202,38 +116,112 @@ class Company {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdById': createdById,
+      'createdBy': createdBy?.toJson(),
       'settings': settings?.toJson(),
     };
   }
 
-  // ================= HELPER METHODS =================
+  @override
+  String toString() => 'Company(id: $id, name: $name, email: $email)';
+}
 
-  // Check if office coordinates exist
-  bool hasOfficeLocation() {
-    return officeLatitude != null && officeLongitude != null;
+class CompanySettings {
+  final String id;
+  final String companyId;
+  final Company? company;
+  final String? currency;
+  final double? taxPercent;
+  final double? workingHours;
+  final double? overtimeRate;
+  final int? casualLeaves;
+  final int? sickLeaves;
+  final int? earnedLeaves;
+  final String? projectPrefix;
+  final String? invoicePrefix;
+  final String? dprPrefix;
+  final String? materialPrefix;
+  final bool enableStockAlerts;
+  final double? lowStockThreshold;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  CompanySettings({
+    required this.id,
+    required this.companyId,
+    this.company,
+    this.currency,
+    this.taxPercent,
+    this.workingHours,
+    this.overtimeRate,
+    this.casualLeaves,
+    this.sickLeaves,
+    this.earnedLeaves,
+    this.projectPrefix,
+    this.invoicePrefix,
+    this.dprPrefix,
+    this.materialPrefix,
+    required this.enableStockAlerts,
+    this.lowStockThreshold,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory CompanySettings.fromJson(Map<String, dynamic> json) {
+    return CompanySettings(
+      id: json['id'] as String,
+      companyId: json['companyId'] as String,
+      company:
+          json['company'] != null ? Company.fromJson(json['company']) : null,
+      currency: json['currency'] as String? ?? 'INR',
+      taxPercent: json['taxPercent'] != null
+          ? (json['taxPercent'] as num).toDouble()
+          : 18,
+      workingHours: json['workingHours'] != null
+          ? (json['workingHours'] as num).toDouble()
+          : 8,
+      overtimeRate: json['overtimeRate'] != null
+          ? (json['overtimeRate'] as num).toDouble()
+          : 1.5,
+      casualLeaves: json['casualLeaves'] as int? ?? 12,
+      sickLeaves: json['sickLeaves'] as int? ?? 12,
+      earnedLeaves: json['earnedLeaves'] as int? ?? 15,
+      projectPrefix: json['projectPrefix'] as String? ?? 'PROJ',
+      invoicePrefix: json['invoicePrefix'] as String? ?? 'INV',
+      dprPrefix: json['dprPrefix'] as String? ?? 'DPR',
+      materialPrefix: json['materialPrefix'] as String? ?? 'MAT',
+      enableStockAlerts: json['enableStockAlerts'] as bool? ?? true,
+      lowStockThreshold: json['lowStockThreshold'] != null
+          ? (json['lowStockThreshold'] as num).toDouble()
+          : 10,
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
   }
 
-  // Get a formatted office address with coordinates
-  String officeInfo() {
-    if (officeAddress != null) {
-      return "$officeAddress (Lat: ${officeLatitude ?? '-'}, Lng: ${officeLongitude ?? '-'})";
-    }
-    return "Office info not available";
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'companyId': companyId,
+      'company': company?.toJson(),
+      'currency': currency,
+      'taxPercent': taxPercent,
+      'workingHours': workingHours,
+      'overtimeRate': overtimeRate,
+      'casualLeaves': casualLeaves,
+      'sickLeaves': sickLeaves,
+      'earnedLeaves': earnedLeaves,
+      'projectPrefix': projectPrefix,
+      'invoicePrefix': invoicePrefix,
+      'dprPrefix': dprPrefix,
+      'materialPrefix': materialPrefix,
+      'enableStockAlerts': enableStockAlerts,
+      'lowStockThreshold': lowStockThreshold,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
   }
 
-  // Check if banking info is complete
-  bool hasBankingDetails() {
-    return bankName != null && bankAccount != null && bankIfsc != null;
-  }
-
-  // Check if GST and registration info exist
-  bool hasLegalInfo() {
-    return registrationNumber != null && gstNumber != null;
-  }
-
-  // Shortcut to generate project/invoice IDs using company settings
-  String generateProjectId(String number) => settings?.projectId(number) ?? number;
-  String generateInvoiceId(String number) => settings?.invoiceId(number) ?? number;
-  String generateDPRId(String number) => settings?.dprId(number) ?? number;
-  String generateMaterialId(String number) => settings?.materialId(number) ?? number;
+  @override
+  String toString() =>
+      'CompanySettings(companyId: $companyId, currency: $currency)';
 }

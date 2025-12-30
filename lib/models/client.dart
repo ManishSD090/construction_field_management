@@ -1,4 +1,4 @@
-import 'package:construction_erp/models/user_settings.dart';
+import 'package:construction_erp/models/user.dart';
 
 class Client {
   final String id;
@@ -48,7 +48,8 @@ class Client {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       createdById: json['createdById'] as String?,
-      createdBy: json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      createdBy:
+          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
     );
   }
 
@@ -77,4 +78,6 @@ class Client {
   bool get isDeactivated => !isActive;
 
   @override
-  String toString() => 'Client(id: $id, companyName: $companyName, contactPerson: $contactPerson)';
+  String toString() =>
+      'Client(id: $id, companyName: $companyName, contactPerson: $contactPerson)';
+}

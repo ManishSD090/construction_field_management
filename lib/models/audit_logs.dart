@@ -1,4 +1,4 @@
-import 'package:construction_erp/models/user_settings.dart';
+import 'package:construction_erp/models/user.dart';
 
 class AuditLog {
   final String id;
@@ -121,6 +121,6 @@ class AuditLog {
   // Pretty print log for debugging
   @override
   String toString() {
-    return jsonEncode(toJson());
+    return toJson().toString();
   }
 }

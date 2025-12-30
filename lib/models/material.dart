@@ -1,5 +1,5 @@
+import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/enums.dart';
-import 'package:construction_erp/models/user_settings.dart';
 
 class Material {
   final String id;
@@ -7,11 +7,8 @@ class Material {
   final String companyId;
   final String name;
   final String unit;
-
-  // Stock logic
   final double? stockQuantity;
   final double? minimumStock;
-
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? createdById;
@@ -38,12 +35,13 @@ class Material {
       companyId: json['companyId'] as String,
       name: json['name'] as String,
       unit: json['unit'] as String,
-      stockQuantity: json['stockQuantity'] != null ? (json['stockQuantity'] as num).toDouble() : 0,
-      minimumStock: json['minimumStock'] != null ? (json['minimumStock'] as num).toDouble() : 10,
+      stockQuantity: (json['stockQuantity'] as num?)?.toDouble() ?? 0,
+      minimumStock: (json['minimumStock'] as num?)?.toDouble() ?? 10,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       createdById: json['createdById'] as String?,
-      createdBy: json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      createdBy:
+          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
     );
   }
 
@@ -130,19 +128,30 @@ class MaterialRequest {
       quantity: (json['quantity'] as num).toDouble(),
       unit: json['unit'] as String,
       purpose: json['purpose'] as String,
-      urgency: Priority.values.byName(json['urgency'] as String? ?? 'MEDIUM'),
+      urgency: Priority.fromJson(json['urgency'] as String? ?? 'MEDIUM'),
       requestedById: json['requestedById'] as String,
-      requestedBy: json['requestedBy'] != null ? User.fromJson(json['requestedBy']) : null,
+      requestedBy: json['requestedBy'] != null
+          ? User.fromJson(json['requestedBy'])
+          : null,
       approvedById: json['approvedById'] as String?,
-      approvedBy: json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
-      approvedAt: json['approvedAt'] != null ? DateTime.parse(json['approvedAt']) : null,
+      approvedBy:
+          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
+      approvedAt: json['approvedAt'] != null
+          ? DateTime.parse(json['approvedAt'])
+          : null,
       orderedById: json['orderedById'] as String?,
-      orderedBy: json['orderedBy'] != null ? User.fromJson(json['orderedBy']) : null,
-      orderedAt: json['orderedAt'] != null ? DateTime.parse(json['orderedAt']) : null,
+      orderedBy:
+          json['orderedBy'] != null ? User.fromJson(json['orderedBy']) : null,
+      orderedAt:
+          json['orderedAt'] != null ? DateTime.parse(json['orderedAt']) : null,
       supplier: json['supplier'] as String?,
-      expectedDelivery: json['expectedDelivery'] != null ? DateTime.parse(json['expectedDelivery']) : null,
-      actualDelivery: json['actualDelivery'] != null ? DateTime.parse(json['actualDelivery']) : null,
-      status: MaterialStatus.values.byName(json['status'] as String? ?? 'REQUESTED'),
+      expectedDelivery: json['expectedDelivery'] != null
+          ? DateTime.parse(json['expectedDelivery'])
+          : null,
+      actualDelivery: json['actualDelivery'] != null
+          ? DateTime.parse(json['actualDelivery'])
+          : null,
+      status: MaterialStatus.fromJson(json['status'] as String? ?? 'REQUESTED'),
       rejectionReason: json['rejectionReason'] as String?,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
@@ -159,7 +168,7 @@ class MaterialRequest {
       'quantity': quantity,
       'unit': unit,
       'purpose': purpose,
-      'urgency': urgency.name,
+      'urgency': urgency.toJson(),
       'requestedById': requestedById,
       'requestedBy': requestedBy?.toJson(),
       'approvedById': approvedById,
@@ -171,15 +180,12 @@ class MaterialRequest {
       'supplier': supplier,
       'expectedDelivery': expectedDelivery?.toIso8601String(),
       'actualDelivery': actualDelivery?.toIso8601String(),
-      'status': status.name,
+      'status': status.toJson(),
       'rejectionReason': rejectionReason,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
-
-  @override
-  String toString() => 'MaterialRequest(id: $id, requestNo: $requestNo, status: ${status.name})';
 }
 
 class StockTransaction {
@@ -226,7 +232,8 @@ class StockTransaction {
       referenceType: json['referenceType'] as String?,
       notes: json['notes'] as String?,
       createdById: json['createdById'] as String?,
-      createdBy: json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      createdBy:
+          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -248,9 +255,6 @@ class StockTransaction {
       'createdAt': createdAt.toIso8601String(),
     };
   }
-
-  @override
-  String toString() => 'StockTransaction(id: $id, materialId: $materialId, transactionType: $transactionType)';
 }
 
 class StockAlert {
@@ -289,7 +293,9 @@ class StockAlert {
       isResolved: json['isResolved'] as bool? ?? false,
       isNotified: json['isNotified'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt']),
-      resolvedAt: json['resolvedAt'] != null ? DateTime.parse(json['resolvedAt']) : null,
+      resolvedAt: json['resolvedAt'] != null
+          ? DateTime.parse(json['resolvedAt'])
+          : null,
     );
   }
 
@@ -307,7 +313,4 @@ class StockAlert {
       'resolvedAt': resolvedAt?.toIso8601String(),
     };
   }
-
-  @override
-  String toString() => 'StockAlert(id: $id, materialId: $materialId, alertType: $alertType)';
 }

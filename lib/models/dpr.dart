@@ -1,5 +1,5 @@
 import 'package:construction_erp/models/enums.dart';
-import 'package:construction_erp/models/user_settings.dart';
+import 'package:construction_erp/models/user.dart';
 
 class DailyProgressReport {
   final String id;
@@ -75,7 +75,8 @@ class DailyProgressReport {
       reportNo: json['reportNo'] as String,
       projectId: json['projectId'] as String,
       preparedById: json['preparedById'] as String,
-      preparedBy: json['preparedBy'] != null ? User.fromJson(json['preparedBy']) : null,
+      preparedBy:
+          json['preparedBy'] != null ? User.fromJson(json['preparedBy']) : null,
       date: DateTime.parse(json['date']),
       weather: json['weather'] as String?,
       temperature: json['temperature'] as String?,
@@ -96,8 +97,11 @@ class DailyProgressReport {
       issuesFound: json['issuesFound'] as String?,
       nextDayPlan: json['nextDayPlan'] as String?,
       approvedById: json['approvedById'] as String?,
-      approvedBy: json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
-      approvedAt: json['approvedAt'] != null ? DateTime.parse(json['approvedAt']) : null,
+      approvedBy:
+          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
+      approvedAt: json['approvedAt'] != null
+          ? DateTime.parse(json['approvedAt'])
+          : null,
       status: TaskStatus.values.byName(json['status'] as String? ?? 'TODO'),
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
@@ -144,7 +148,8 @@ class DailyProgressReport {
   }
 
   @override
-  String toString() => 'DailyProgressReport(id: $id, reportNo: $reportNo, projectId: $projectId)';
+  String toString() =>
+      'DailyProgressReport(id: $id, reportNo: $reportNo, projectId: $projectId)';
 }
 
 class DPRPhoto {
@@ -179,7 +184,8 @@ class DPRPhoto {
       thumbnailUrl: json['thumbnailUrl'] as String?,
       dprId: json['dprId'] as String,
       uploadedById: json['uploadedById'] as String,
-      uploadedBy: json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
+      uploadedBy:
+          json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
