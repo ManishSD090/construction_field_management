@@ -2297,6 +2297,774 @@ class SyncRegistryCompanion extends UpdateCompanion<SyncRegistryData> {
   }
 }
 
+class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UsersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _emailMeta = const VerificationMeta('email');
+  @override
+  late final GeneratedColumn<String> email = GeneratedColumn<String>(
+      'email', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+      'phone', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _companyIdMeta =
+      const VerificationMeta('companyId');
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+      'company_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _roleIdMeta = const VerificationMeta('roleId');
+  @override
+  late final GeneratedColumn<String> roleId = GeneratedColumn<String>(
+      'role_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _employeeIdMeta =
+      const VerificationMeta('employeeId');
+  @override
+  late final GeneratedColumn<String> employeeId = GeneratedColumn<String>(
+      'employee_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _designationMeta =
+      const VerificationMeta('designation');
+  @override
+  late final GeneratedColumn<String> designation = GeneratedColumn<String>(
+      'designation', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _departmentMeta =
+      const VerificationMeta('department');
+  @override
+  late final GeneratedColumn<String> department = GeneratedColumn<String>(
+      'department', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _profilePictureMeta =
+      const VerificationMeta('profilePicture');
+  @override
+  late final GeneratedColumn<String> profilePicture = GeneratedColumn<String>(
+      'profile_picture', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _userTypeMeta =
+      const VerificationMeta('userType');
+  @override
+  late final GeneratedColumn<String> userType = GeneratedColumn<String>(
+      'user_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _employeeStatusMeta =
+      const VerificationMeta('employeeStatus');
+  @override
+  late final GeneratedColumn<String> employeeStatus = GeneratedColumn<String>(
+      'employee_status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _defaultLocationMeta =
+      const VerificationMeta('defaultLocation');
+  @override
+  late final GeneratedColumn<String> defaultLocation = GeneratedColumn<String>(
+      'default_location', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _themeMeta = const VerificationMeta('theme');
+  @override
+  late final GeneratedColumn<String> theme = GeneratedColumn<String>(
+      'theme', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('light'));
+  static const VerificationMeta _languageMeta =
+      const VerificationMeta('language');
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+      'language', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('en'));
+  static const VerificationMeta _lastLoginMeta =
+      const VerificationMeta('lastLogin');
+  @override
+  late final GeneratedColumn<DateTime> lastLogin = GeneratedColumn<DateTime>(
+      'last_login', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        name,
+        email,
+        phone,
+        companyId,
+        roleId,
+        employeeId,
+        designation,
+        department,
+        profilePicture,
+        userType,
+        employeeStatus,
+        defaultLocation,
+        theme,
+        language,
+        lastLogin
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'users';
+  @override
+  VerificationContext validateIntegrity(Insertable<UserEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('email')) {
+      context.handle(
+          _emailMeta, email.isAcceptableOrUnknown(data['email']!, _emailMeta));
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+          _phoneMeta, phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta));
+    } else if (isInserting) {
+      context.missing(_phoneMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(_companyIdMeta,
+          companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta));
+    }
+    if (data.containsKey('role_id')) {
+      context.handle(_roleIdMeta,
+          roleId.isAcceptableOrUnknown(data['role_id']!, _roleIdMeta));
+    } else if (isInserting) {
+      context.missing(_roleIdMeta);
+    }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+          _employeeIdMeta,
+          employeeId.isAcceptableOrUnknown(
+              data['employee_id']!, _employeeIdMeta));
+    }
+    if (data.containsKey('designation')) {
+      context.handle(
+          _designationMeta,
+          designation.isAcceptableOrUnknown(
+              data['designation']!, _designationMeta));
+    }
+    if (data.containsKey('department')) {
+      context.handle(
+          _departmentMeta,
+          department.isAcceptableOrUnknown(
+              data['department']!, _departmentMeta));
+    }
+    if (data.containsKey('profile_picture')) {
+      context.handle(
+          _profilePictureMeta,
+          profilePicture.isAcceptableOrUnknown(
+              data['profile_picture']!, _profilePictureMeta));
+    }
+    if (data.containsKey('user_type')) {
+      context.handle(_userTypeMeta,
+          userType.isAcceptableOrUnknown(data['user_type']!, _userTypeMeta));
+    } else if (isInserting) {
+      context.missing(_userTypeMeta);
+    }
+    if (data.containsKey('employee_status')) {
+      context.handle(
+          _employeeStatusMeta,
+          employeeStatus.isAcceptableOrUnknown(
+              data['employee_status']!, _employeeStatusMeta));
+    } else if (isInserting) {
+      context.missing(_employeeStatusMeta);
+    }
+    if (data.containsKey('default_location')) {
+      context.handle(
+          _defaultLocationMeta,
+          defaultLocation.isAcceptableOrUnknown(
+              data['default_location']!, _defaultLocationMeta));
+    } else if (isInserting) {
+      context.missing(_defaultLocationMeta);
+    }
+    if (data.containsKey('theme')) {
+      context.handle(
+          _themeMeta, theme.isAcceptableOrUnknown(data['theme']!, _themeMeta));
+    }
+    if (data.containsKey('language')) {
+      context.handle(_languageMeta,
+          language.isAcceptableOrUnknown(data['language']!, _languageMeta));
+    }
+    if (data.containsKey('last_login')) {
+      context.handle(_lastLoginMeta,
+          lastLogin.isAcceptableOrUnknown(data['last_login']!, _lastLoginMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UserEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserEntity(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      email: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}email']),
+      phone: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phone'])!,
+      companyId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}company_id']),
+      roleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role_id'])!,
+      employeeId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}employee_id']),
+      designation: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}designation']),
+      department: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}department']),
+      profilePicture: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}profile_picture']),
+      userType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_type'])!,
+      employeeStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}employee_status'])!,
+      defaultLocation: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}default_location'])!,
+      theme: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}theme'])!,
+      language: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language'])!,
+      lastLogin: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_login']),
+    );
+  }
+
+  @override
+  $UsersTable createAlias(String alias) {
+    return $UsersTable(attachedDatabase, alias);
+  }
+}
+
+class UserEntity extends DataClass implements Insertable<UserEntity> {
+  final String id;
+  final String name;
+  final String? email;
+  final String phone;
+  final String? companyId;
+  final String roleId;
+  final String? employeeId;
+  final String? designation;
+  final String? department;
+  final String? profilePicture;
+  final String userType;
+  final String employeeStatus;
+  final String defaultLocation;
+  final String theme;
+  final String language;
+  final DateTime? lastLogin;
+  const UserEntity(
+      {required this.id,
+      required this.name,
+      this.email,
+      required this.phone,
+      this.companyId,
+      required this.roleId,
+      this.employeeId,
+      this.designation,
+      this.department,
+      this.profilePicture,
+      required this.userType,
+      required this.employeeStatus,
+      required this.defaultLocation,
+      required this.theme,
+      required this.language,
+      this.lastLogin});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || email != null) {
+      map['email'] = Variable<String>(email);
+    }
+    map['phone'] = Variable<String>(phone);
+    if (!nullToAbsent || companyId != null) {
+      map['company_id'] = Variable<String>(companyId);
+    }
+    map['role_id'] = Variable<String>(roleId);
+    if (!nullToAbsent || employeeId != null) {
+      map['employee_id'] = Variable<String>(employeeId);
+    }
+    if (!nullToAbsent || designation != null) {
+      map['designation'] = Variable<String>(designation);
+    }
+    if (!nullToAbsent || department != null) {
+      map['department'] = Variable<String>(department);
+    }
+    if (!nullToAbsent || profilePicture != null) {
+      map['profile_picture'] = Variable<String>(profilePicture);
+    }
+    map['user_type'] = Variable<String>(userType);
+    map['employee_status'] = Variable<String>(employeeStatus);
+    map['default_location'] = Variable<String>(defaultLocation);
+    map['theme'] = Variable<String>(theme);
+    map['language'] = Variable<String>(language);
+    if (!nullToAbsent || lastLogin != null) {
+      map['last_login'] = Variable<DateTime>(lastLogin);
+    }
+    return map;
+  }
+
+  UsersCompanion toCompanion(bool nullToAbsent) {
+    return UsersCompanion(
+      id: Value(id),
+      name: Value(name),
+      email:
+          email == null && nullToAbsent ? const Value.absent() : Value(email),
+      phone: Value(phone),
+      companyId: companyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(companyId),
+      roleId: Value(roleId),
+      employeeId: employeeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeId),
+      designation: designation == null && nullToAbsent
+          ? const Value.absent()
+          : Value(designation),
+      department: department == null && nullToAbsent
+          ? const Value.absent()
+          : Value(department),
+      profilePicture: profilePicture == null && nullToAbsent
+          ? const Value.absent()
+          : Value(profilePicture),
+      userType: Value(userType),
+      employeeStatus: Value(employeeStatus),
+      defaultLocation: Value(defaultLocation),
+      theme: Value(theme),
+      language: Value(language),
+      lastLogin: lastLogin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastLogin),
+    );
+  }
+
+  factory UserEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserEntity(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      email: serializer.fromJson<String?>(json['email']),
+      phone: serializer.fromJson<String>(json['phone']),
+      companyId: serializer.fromJson<String?>(json['companyId']),
+      roleId: serializer.fromJson<String>(json['roleId']),
+      employeeId: serializer.fromJson<String?>(json['employeeId']),
+      designation: serializer.fromJson<String?>(json['designation']),
+      department: serializer.fromJson<String?>(json['department']),
+      profilePicture: serializer.fromJson<String?>(json['profilePicture']),
+      userType: serializer.fromJson<String>(json['userType']),
+      employeeStatus: serializer.fromJson<String>(json['employeeStatus']),
+      defaultLocation: serializer.fromJson<String>(json['defaultLocation']),
+      theme: serializer.fromJson<String>(json['theme']),
+      language: serializer.fromJson<String>(json['language']),
+      lastLogin: serializer.fromJson<DateTime?>(json['lastLogin']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'email': serializer.toJson<String?>(email),
+      'phone': serializer.toJson<String>(phone),
+      'companyId': serializer.toJson<String?>(companyId),
+      'roleId': serializer.toJson<String>(roleId),
+      'employeeId': serializer.toJson<String?>(employeeId),
+      'designation': serializer.toJson<String?>(designation),
+      'department': serializer.toJson<String?>(department),
+      'profilePicture': serializer.toJson<String?>(profilePicture),
+      'userType': serializer.toJson<String>(userType),
+      'employeeStatus': serializer.toJson<String>(employeeStatus),
+      'defaultLocation': serializer.toJson<String>(defaultLocation),
+      'theme': serializer.toJson<String>(theme),
+      'language': serializer.toJson<String>(language),
+      'lastLogin': serializer.toJson<DateTime?>(lastLogin),
+    };
+  }
+
+  UserEntity copyWith(
+          {String? id,
+          String? name,
+          Value<String?> email = const Value.absent(),
+          String? phone,
+          Value<String?> companyId = const Value.absent(),
+          String? roleId,
+          Value<String?> employeeId = const Value.absent(),
+          Value<String?> designation = const Value.absent(),
+          Value<String?> department = const Value.absent(),
+          Value<String?> profilePicture = const Value.absent(),
+          String? userType,
+          String? employeeStatus,
+          String? defaultLocation,
+          String? theme,
+          String? language,
+          Value<DateTime?> lastLogin = const Value.absent()}) =>
+      UserEntity(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        email: email.present ? email.value : this.email,
+        phone: phone ?? this.phone,
+        companyId: companyId.present ? companyId.value : this.companyId,
+        roleId: roleId ?? this.roleId,
+        employeeId: employeeId.present ? employeeId.value : this.employeeId,
+        designation: designation.present ? designation.value : this.designation,
+        department: department.present ? department.value : this.department,
+        profilePicture:
+            profilePicture.present ? profilePicture.value : this.profilePicture,
+        userType: userType ?? this.userType,
+        employeeStatus: employeeStatus ?? this.employeeStatus,
+        defaultLocation: defaultLocation ?? this.defaultLocation,
+        theme: theme ?? this.theme,
+        language: language ?? this.language,
+        lastLogin: lastLogin.present ? lastLogin.value : this.lastLogin,
+      );
+  UserEntity copyWithCompanion(UsersCompanion data) {
+    return UserEntity(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      email: data.email.present ? data.email.value : this.email,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      roleId: data.roleId.present ? data.roleId.value : this.roleId,
+      employeeId:
+          data.employeeId.present ? data.employeeId.value : this.employeeId,
+      designation:
+          data.designation.present ? data.designation.value : this.designation,
+      department:
+          data.department.present ? data.department.value : this.department,
+      profilePicture: data.profilePicture.present
+          ? data.profilePicture.value
+          : this.profilePicture,
+      userType: data.userType.present ? data.userType.value : this.userType,
+      employeeStatus: data.employeeStatus.present
+          ? data.employeeStatus.value
+          : this.employeeStatus,
+      defaultLocation: data.defaultLocation.present
+          ? data.defaultLocation.value
+          : this.defaultLocation,
+      theme: data.theme.present ? data.theme.value : this.theme,
+      language: data.language.present ? data.language.value : this.language,
+      lastLogin: data.lastLogin.present ? data.lastLogin.value : this.lastLogin,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserEntity(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('email: $email, ')
+          ..write('phone: $phone, ')
+          ..write('companyId: $companyId, ')
+          ..write('roleId: $roleId, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('designation: $designation, ')
+          ..write('department: $department, ')
+          ..write('profilePicture: $profilePicture, ')
+          ..write('userType: $userType, ')
+          ..write('employeeStatus: $employeeStatus, ')
+          ..write('defaultLocation: $defaultLocation, ')
+          ..write('theme: $theme, ')
+          ..write('language: $language, ')
+          ..write('lastLogin: $lastLogin')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      name,
+      email,
+      phone,
+      companyId,
+      roleId,
+      employeeId,
+      designation,
+      department,
+      profilePicture,
+      userType,
+      employeeStatus,
+      defaultLocation,
+      theme,
+      language,
+      lastLogin);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserEntity &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.email == this.email &&
+          other.phone == this.phone &&
+          other.companyId == this.companyId &&
+          other.roleId == this.roleId &&
+          other.employeeId == this.employeeId &&
+          other.designation == this.designation &&
+          other.department == this.department &&
+          other.profilePicture == this.profilePicture &&
+          other.userType == this.userType &&
+          other.employeeStatus == this.employeeStatus &&
+          other.defaultLocation == this.defaultLocation &&
+          other.theme == this.theme &&
+          other.language == this.language &&
+          other.lastLogin == this.lastLogin);
+}
+
+class UsersCompanion extends UpdateCompanion<UserEntity> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String?> email;
+  final Value<String> phone;
+  final Value<String?> companyId;
+  final Value<String> roleId;
+  final Value<String?> employeeId;
+  final Value<String?> designation;
+  final Value<String?> department;
+  final Value<String?> profilePicture;
+  final Value<String> userType;
+  final Value<String> employeeStatus;
+  final Value<String> defaultLocation;
+  final Value<String> theme;
+  final Value<String> language;
+  final Value<DateTime?> lastLogin;
+  final Value<int> rowid;
+  const UsersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.email = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.roleId = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.designation = const Value.absent(),
+    this.department = const Value.absent(),
+    this.profilePicture = const Value.absent(),
+    this.userType = const Value.absent(),
+    this.employeeStatus = const Value.absent(),
+    this.defaultLocation = const Value.absent(),
+    this.theme = const Value.absent(),
+    this.language = const Value.absent(),
+    this.lastLogin = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UsersCompanion.insert({
+    required String id,
+    required String name,
+    this.email = const Value.absent(),
+    required String phone,
+    this.companyId = const Value.absent(),
+    required String roleId,
+    this.employeeId = const Value.absent(),
+    this.designation = const Value.absent(),
+    this.department = const Value.absent(),
+    this.profilePicture = const Value.absent(),
+    required String userType,
+    required String employeeStatus,
+    required String defaultLocation,
+    this.theme = const Value.absent(),
+    this.language = const Value.absent(),
+    this.lastLogin = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name),
+        phone = Value(phone),
+        roleId = Value(roleId),
+        userType = Value(userType),
+        employeeStatus = Value(employeeStatus),
+        defaultLocation = Value(defaultLocation);
+  static Insertable<UserEntity> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? email,
+    Expression<String>? phone,
+    Expression<String>? companyId,
+    Expression<String>? roleId,
+    Expression<String>? employeeId,
+    Expression<String>? designation,
+    Expression<String>? department,
+    Expression<String>? profilePicture,
+    Expression<String>? userType,
+    Expression<String>? employeeStatus,
+    Expression<String>? defaultLocation,
+    Expression<String>? theme,
+    Expression<String>? language,
+    Expression<DateTime>? lastLogin,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (email != null) 'email': email,
+      if (phone != null) 'phone': phone,
+      if (companyId != null) 'company_id': companyId,
+      if (roleId != null) 'role_id': roleId,
+      if (employeeId != null) 'employee_id': employeeId,
+      if (designation != null) 'designation': designation,
+      if (department != null) 'department': department,
+      if (profilePicture != null) 'profile_picture': profilePicture,
+      if (userType != null) 'user_type': userType,
+      if (employeeStatus != null) 'employee_status': employeeStatus,
+      if (defaultLocation != null) 'default_location': defaultLocation,
+      if (theme != null) 'theme': theme,
+      if (language != null) 'language': language,
+      if (lastLogin != null) 'last_login': lastLogin,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UsersCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String?>? email,
+      Value<String>? phone,
+      Value<String?>? companyId,
+      Value<String>? roleId,
+      Value<String?>? employeeId,
+      Value<String?>? designation,
+      Value<String?>? department,
+      Value<String?>? profilePicture,
+      Value<String>? userType,
+      Value<String>? employeeStatus,
+      Value<String>? defaultLocation,
+      Value<String>? theme,
+      Value<String>? language,
+      Value<DateTime?>? lastLogin,
+      Value<int>? rowid}) {
+    return UsersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      companyId: companyId ?? this.companyId,
+      roleId: roleId ?? this.roleId,
+      employeeId: employeeId ?? this.employeeId,
+      designation: designation ?? this.designation,
+      department: department ?? this.department,
+      profilePicture: profilePicture ?? this.profilePicture,
+      userType: userType ?? this.userType,
+      employeeStatus: employeeStatus ?? this.employeeStatus,
+      defaultLocation: defaultLocation ?? this.defaultLocation,
+      theme: theme ?? this.theme,
+      language: language ?? this.language,
+      lastLogin: lastLogin ?? this.lastLogin,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (email.present) {
+      map['email'] = Variable<String>(email.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (roleId.present) {
+      map['role_id'] = Variable<String>(roleId.value);
+    }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<String>(employeeId.value);
+    }
+    if (designation.present) {
+      map['designation'] = Variable<String>(designation.value);
+    }
+    if (department.present) {
+      map['department'] = Variable<String>(department.value);
+    }
+    if (profilePicture.present) {
+      map['profile_picture'] = Variable<String>(profilePicture.value);
+    }
+    if (userType.present) {
+      map['user_type'] = Variable<String>(userType.value);
+    }
+    if (employeeStatus.present) {
+      map['employee_status'] = Variable<String>(employeeStatus.value);
+    }
+    if (defaultLocation.present) {
+      map['default_location'] = Variable<String>(defaultLocation.value);
+    }
+    if (theme.present) {
+      map['theme'] = Variable<String>(theme.value);
+    }
+    if (language.present) {
+      map['language'] = Variable<String>(language.value);
+    }
+    if (lastLogin.present) {
+      map['last_login'] = Variable<DateTime>(lastLogin.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UsersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('email: $email, ')
+          ..write('phone: $phone, ')
+          ..write('companyId: $companyId, ')
+          ..write('roleId: $roleId, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('designation: $designation, ')
+          ..write('department: $department, ')
+          ..write('profilePicture: $profilePicture, ')
+          ..write('userType: $userType, ')
+          ..write('employeeStatus: $employeeStatus, ')
+          ..write('defaultLocation: $defaultLocation, ')
+          ..write('theme: $theme, ')
+          ..write('language: $language, ')
+          ..write('lastLogin: $lastLogin, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2306,12 +3074,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DailyProgressReportsTable dailyProgressReports =
       $DailyProgressReportsTable(this);
   late final $SyncRegistryTable syncRegistry = $SyncRegistryTable(this);
+  late final $UsersTable users = $UsersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [projects, attendances, tasks, dailyProgressReports, syncRegistry];
+      [projects, attendances, tasks, dailyProgressReports, syncRegistry, users];
 }
 
 typedef $$ProjectsTableCreateCompanionBuilder = ProjectsCompanion Function({
@@ -3445,6 +4214,341 @@ typedef $$SyncRegistryTableProcessedTableManager = ProcessedTableManager<
     ),
     SyncRegistryData,
     PrefetchHooks Function()>;
+typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
+  required String id,
+  required String name,
+  Value<String?> email,
+  required String phone,
+  Value<String?> companyId,
+  required String roleId,
+  Value<String?> employeeId,
+  Value<String?> designation,
+  Value<String?> department,
+  Value<String?> profilePicture,
+  required String userType,
+  required String employeeStatus,
+  required String defaultLocation,
+  Value<String> theme,
+  Value<String> language,
+  Value<DateTime?> lastLogin,
+  Value<int> rowid,
+});
+typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String?> email,
+  Value<String> phone,
+  Value<String?> companyId,
+  Value<String> roleId,
+  Value<String?> employeeId,
+  Value<String?> designation,
+  Value<String?> department,
+  Value<String?> profilePicture,
+  Value<String> userType,
+  Value<String> employeeStatus,
+  Value<String> defaultLocation,
+  Value<String> theme,
+  Value<String> language,
+  Value<DateTime?> lastLogin,
+  Value<int> rowid,
+});
+
+class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
+  $$UsersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get email => $composableBuilder(
+      column: $table.email, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get phone => $composableBuilder(
+      column: $table.phone, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+      column: $table.companyId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get roleId => $composableBuilder(
+      column: $table.roleId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get employeeId => $composableBuilder(
+      column: $table.employeeId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get designation => $composableBuilder(
+      column: $table.designation, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get department => $composableBuilder(
+      column: $table.department, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get profilePicture => $composableBuilder(
+      column: $table.profilePicture,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userType => $composableBuilder(
+      column: $table.userType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get employeeStatus => $composableBuilder(
+      column: $table.employeeStatus,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get defaultLocation => $composableBuilder(
+      column: $table.defaultLocation,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get theme => $composableBuilder(
+      column: $table.theme, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get language => $composableBuilder(
+      column: $table.language, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastLogin => $composableBuilder(
+      column: $table.lastLogin, builder: (column) => ColumnFilters(column));
+}
+
+class $$UsersTableOrderingComposer
+    extends Composer<_$AppDatabase, $UsersTable> {
+  $$UsersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get email => $composableBuilder(
+      column: $table.email, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+      column: $table.phone, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+      column: $table.companyId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get roleId => $composableBuilder(
+      column: $table.roleId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get employeeId => $composableBuilder(
+      column: $table.employeeId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get designation => $composableBuilder(
+      column: $table.designation, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get department => $composableBuilder(
+      column: $table.department, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get profilePicture => $composableBuilder(
+      column: $table.profilePicture,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userType => $composableBuilder(
+      column: $table.userType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get employeeStatus => $composableBuilder(
+      column: $table.employeeStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get defaultLocation => $composableBuilder(
+      column: $table.defaultLocation,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get theme => $composableBuilder(
+      column: $table.theme, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get language => $composableBuilder(
+      column: $table.language, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastLogin => $composableBuilder(
+      column: $table.lastLogin, builder: (column) => ColumnOrderings(column));
+}
+
+class $$UsersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UsersTable> {
+  $$UsersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get email =>
+      $composableBuilder(column: $table.email, builder: (column) => column);
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get roleId =>
+      $composableBuilder(column: $table.roleId, builder: (column) => column);
+
+  GeneratedColumn<String> get employeeId => $composableBuilder(
+      column: $table.employeeId, builder: (column) => column);
+
+  GeneratedColumn<String> get designation => $composableBuilder(
+      column: $table.designation, builder: (column) => column);
+
+  GeneratedColumn<String> get department => $composableBuilder(
+      column: $table.department, builder: (column) => column);
+
+  GeneratedColumn<String> get profilePicture => $composableBuilder(
+      column: $table.profilePicture, builder: (column) => column);
+
+  GeneratedColumn<String> get userType =>
+      $composableBuilder(column: $table.userType, builder: (column) => column);
+
+  GeneratedColumn<String> get employeeStatus => $composableBuilder(
+      column: $table.employeeStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get defaultLocation => $composableBuilder(
+      column: $table.defaultLocation, builder: (column) => column);
+
+  GeneratedColumn<String> get theme =>
+      $composableBuilder(column: $table.theme, builder: (column) => column);
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastLogin =>
+      $composableBuilder(column: $table.lastLogin, builder: (column) => column);
+}
+
+class $$UsersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $UsersTable,
+    UserEntity,
+    $$UsersTableFilterComposer,
+    $$UsersTableOrderingComposer,
+    $$UsersTableAnnotationComposer,
+    $$UsersTableCreateCompanionBuilder,
+    $$UsersTableUpdateCompanionBuilder,
+    (UserEntity, BaseReferences<_$AppDatabase, $UsersTable, UserEntity>),
+    UserEntity,
+    PrefetchHooks Function()> {
+  $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UsersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UsersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UsersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> email = const Value.absent(),
+            Value<String> phone = const Value.absent(),
+            Value<String?> companyId = const Value.absent(),
+            Value<String> roleId = const Value.absent(),
+            Value<String?> employeeId = const Value.absent(),
+            Value<String?> designation = const Value.absent(),
+            Value<String?> department = const Value.absent(),
+            Value<String?> profilePicture = const Value.absent(),
+            Value<String> userType = const Value.absent(),
+            Value<String> employeeStatus = const Value.absent(),
+            Value<String> defaultLocation = const Value.absent(),
+            Value<String> theme = const Value.absent(),
+            Value<String> language = const Value.absent(),
+            Value<DateTime?> lastLogin = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              UsersCompanion(
+            id: id,
+            name: name,
+            email: email,
+            phone: phone,
+            companyId: companyId,
+            roleId: roleId,
+            employeeId: employeeId,
+            designation: designation,
+            department: department,
+            profilePicture: profilePicture,
+            userType: userType,
+            employeeStatus: employeeStatus,
+            defaultLocation: defaultLocation,
+            theme: theme,
+            language: language,
+            lastLogin: lastLogin,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            Value<String?> email = const Value.absent(),
+            required String phone,
+            Value<String?> companyId = const Value.absent(),
+            required String roleId,
+            Value<String?> employeeId = const Value.absent(),
+            Value<String?> designation = const Value.absent(),
+            Value<String?> department = const Value.absent(),
+            Value<String?> profilePicture = const Value.absent(),
+            required String userType,
+            required String employeeStatus,
+            required String defaultLocation,
+            Value<String> theme = const Value.absent(),
+            Value<String> language = const Value.absent(),
+            Value<DateTime?> lastLogin = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              UsersCompanion.insert(
+            id: id,
+            name: name,
+            email: email,
+            phone: phone,
+            companyId: companyId,
+            roleId: roleId,
+            employeeId: employeeId,
+            designation: designation,
+            department: department,
+            profilePicture: profilePicture,
+            userType: userType,
+            employeeStatus: employeeStatus,
+            defaultLocation: defaultLocation,
+            theme: theme,
+            language: language,
+            lastLogin: lastLogin,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$UsersTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $UsersTable,
+    UserEntity,
+    $$UsersTableFilterComposer,
+    $$UsersTableOrderingComposer,
+    $$UsersTableAnnotationComposer,
+    $$UsersTableCreateCompanionBuilder,
+    $$UsersTableUpdateCompanionBuilder,
+    (UserEntity, BaseReferences<_$AppDatabase, $UsersTable, UserEntity>),
+    UserEntity,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3459,4 +4563,6 @@ class $AppDatabaseManager {
       $$DailyProgressReportsTableTableManager(_db, _db.dailyProgressReports);
   $$SyncRegistryTableTableManager get syncRegistry =>
       $$SyncRegistryTableTableManager(_db, _db.syncRegistry);
+  $$UsersTableTableManager get users =>
+      $$UsersTableTableManager(_db, _db.users);
 }

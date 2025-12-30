@@ -121,3 +121,43 @@ class SyncRegistry extends Table {
   @override
   Set<Column> get primaryKey => {model};
 }
+
+// ==========================================
+// 6. CURRENT USER (Offline Read-Only cache)
+// ==========================================
+// Strategy: Upsert on Login. Delete on Logout.
+// Only contains the currently logged-in user.
+@DataClassName('UserEntity')
+class Users extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get email => text().nullable()();
+  TextColumn get phone => text()();
+
+  // IDs for logic
+  TextColumn get companyId => text().nullable()();
+  TextColumn get roleId => text()();
+  TextColumn get employeeId => text().nullable()();
+
+  // Display fields for UI
+  TextColumn get designation => text().nullable()();
+  TextColumn get department => text().nullable()();
+  TextColumn get profilePicture =>
+      text().nullable()(); // Store URL or local path
+
+  // Logic fields (Stored as Strings/Enums)
+  TextColumn get userType => text()(); // 'EMPLOYEE', 'ADMIN', etc.
+  TextColumn get employeeStatus => text()(); // 'ACTIVE', etc.
+  TextColumn get defaultLocation =>
+      text()(); // 'OFFICE', 'SITE' - Crucial for attendance logic
+
+  // Settings (Optional: You can store this as a JSON string using a TypeConverter if needed)
+  TextColumn get theme => text().withDefault(const Constant('light'))();
+  TextColumn get language => text().withDefault(const Constant('en'))();
+
+  // Meta
+  DateTimeColumn get lastLogin => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
