@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'auth/login_screen.dart'; // Ensure this matches your folder structure
+import 'package:construction_erp/screens/auth/login_screen.dart'; // Ensure this matches your folder structure
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
