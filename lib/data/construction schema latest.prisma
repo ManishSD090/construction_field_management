@@ -9,8 +9,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// ================= ENUMS =================
-
 enum UserType {
   SUPER_ADMIN     // The platform owner
   COMPANY_ADMIN   // Created by Super Admin
@@ -138,6 +136,34 @@ enum SalaryType {
   PROJECT_BASED
 }
 
+enum EquipmentStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  REPAIR
+  DECOMMISSIONED
+}
+
+enum MaintenanceType {
+  SCHEDULED
+  BREAKDOWN
+  EMERGENCY
+  UPGRADE
+}
+
+enum PayrollStatus {
+  PENDING
+  PROCESSED
+  PAID
+  CANCELLED
+}
+
+enum SafetyStatus {
+  PASSED
+  FAILED
+  CONDITIONAL
+}
+
 model Permission {
   id          String   @id @default(uuid())
   code        String   @unique // e.g., "CREATE_PROJECT", "VIEW_FINANCE"
@@ -174,6 +200,7 @@ model Role {
   
   users            User[]
   rolePermissions  RolePermission[]
+  projectAssignments ProjectAssignment[]
   
   // Unique name per company to prevent confusion
   @@unique([companyId, name]) 
@@ -198,10 +225,10 @@ model RolePermission {
   
   @@unique([roleId, permissionId])
   @@index([roleId])
-  users User[] @relation("PermissionGranter")
+  @@index([grantedById])
+  
+  grantedBy    User?      @relation("PermissionGranter", fields: [grantedById], references: [id])
 }
-
-// ================= CORE IDENTITY =================
 
 model Company {
   id                 String   @id @default(uuid())
@@ -240,9 +267,14 @@ model Company {
   clients            Client[]
   projects           Project[]
   materials          Material[]
+  equipment          Equipment[]
   settings           CompanySettings?
+  payrolls           Payroll[]
+  safetyChecks       SafetyCheck[]
   
   @@index([name])
+  @@index([createdById])
+  auditLogs AuditLog[]
 }
 
 model User {
@@ -298,6 +330,13 @@ model User {
   resetPasswordToken  String?
   resetPasswordExpiry DateTime?
   lastLogin           DateTime?
+
+  emailVerified       Boolean        @default(false)
+  emailVerifiedAt     DateTime?
+  phoneVerified       Boolean        @default(false)
+  phoneVerifiedAt     DateTime?
+  accountSetupCompleted Boolean      @default(false)
+  accountSetupCompletedAt DateTime?
   
   isActive            Boolean        @default(true)
   createdAt           DateTime       @default(now())
@@ -310,6 +349,9 @@ model User {
 
   // --- Operational Relations ---
   
+  // Project Assignments
+  projectAssignments  ProjectAssignment[]
+  
   // Tasks
   createdTasks        Task[]         @relation("TaskCreator")
   assignedTasks       Task[]         @relation("TaskAssignee")
@@ -321,6 +363,8 @@ model User {
   markedAttendances   Attendance[]   @relation("AttendanceMarker")
   leaves              Leave[]        @relation("LeaveUser")
   approvedLeaves      Leave[]        @relation("LeaveApprover")
+  timesheets          Timesheet[]    @relation("TimesheetUser") 
+  approvedTimesheets  Timesheet[]    @relation("TimesheetApprover") 
   
   // DPR
   preparedDPRs        DailyProgressReport[] @relation("DPRPreparer")
@@ -334,6 +378,8 @@ model User {
   approvedInvoices    Invoice[]      @relation("InvoiceApprover")
   createdPayments     Payment[]      @relation("PaymentCreator")
   paymentsReceived    Payment[]      @relation("PaymentReceiver")
+  payrolls            Payroll[]
+  approvedPayrolls    Payroll[]      @relation("PayrollApprover")
   
   // Materials
   createdMaterials    Material[]     @relation("MaterialCreator")
@@ -341,7 +387,11 @@ model User {
   approvedMaterials   MaterialRequest[] @relation("MaterialApprover")
   orderedMaterials    MaterialRequest[] @relation("MaterialOrderer")
   stockTransactions   StockTransaction[]
-
+  
+  // Equipment
+  assignedEquipment   Equipment[]    @relation("EquipmentUser")
+  maintenanceRecords  EquipmentMaintenance[] @relation("MaintenancePerformer")
+  
   // Communication
   sentMessages        Message[]      @relation("MessageSender")
   receivedMessages    Message[]      @relation("MessageReceiver")
@@ -349,6 +399,9 @@ model User {
   
   // Docs
   documentsUploaded   Document[]
+  
+  // Safety
+  conductedSafetyChecks SafetyCheck[] @relation("SafetyConductor")
   
   // System
   grantedPermissions  RolePermission[] @relation("PermissionGranter")
@@ -373,9 +426,11 @@ model User {
   @@index([phone])
   @@index([companyId])
   @@index([roleId])
+  @@index([createdById])
+  equipment Equipment[]
+  safetyChecks SafetyCheck[]
+  stockAlerts StockAlert[]
 }
-
-// ================= PROJECT & SITE MANAGEMENT =================
 
 model Client {
   id            String   @id @default(uuid())
@@ -403,6 +458,7 @@ model Client {
   
   @@unique([companyId, email]) // Unique email per company's client list
   @@index([companyId])
+  @@index([createdById])
 }
 
 model Project {
@@ -444,6 +500,7 @@ model Project {
   createdBy        User?         @relation("ProjectCreator", fields: [createdById], references: [id])
   
   // Relations
+  projectAssignments ProjectAssignment[]
   milestones       Milestone[]
   tasks            Task[]
   dprs             DailyProgressReport[]
@@ -455,10 +512,36 @@ model Project {
   messages         Message[]
   projectSettings  ProjectSettings?
   stockTransactions StockTransaction[]
+  equipmentAssignments Equipment[]
+  timesheets       Timesheet[]
+  safetyChecks     SafetyCheck[]
 
   @@unique([companyId, projectId])
   @@index([companyId])
   @@index([clientId])
+  @@index([createdById])
+}
+
+model ProjectAssignment {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  roleId      String?
+  role        Role?    @relation(fields: [roleId], references: [id])
+  designation String?  // "Site Engineer", "Foreman", "Supervisor"
+  startDate   DateTime
+  endDate     DateTime?
+  isPrimary   Boolean  @default(false) // Primary project assignment
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, projectId, startDate])
+  @@index([projectId])
+  @@index([userId])
+  @@index([roleId])
 }
 
 model Attendance {
@@ -486,8 +569,10 @@ model Attendance {
   checkInLongitude  Float?
   checkInAccuracy   Float?           // GPS accuracy in meters
   
-  // Logic: 0 if inside geofence, otherwise distance in meters
-  distanceFromBase  Float?           
+  // Geofence validation
+  isWithinGeofence  Boolean?         // Calculated based on distance
+  geofenceType      String?          // "COMPANY" or "PROJECT"
+  distanceFromBase  Float?           // 0 if inside geofence, otherwise distance in meters
   
   checkOutLatitude  Float?
   checkOutLongitude Float?
@@ -505,6 +590,10 @@ model Attendance {
   leaveReason       String?
   notes             String?
 
+  // Link to timesheet
+  timesheetId       String?
+  timesheet         Timesheet?       @relation(fields: [timesheetId], references: [id])
+
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -512,49 +601,158 @@ model Attendance {
   @@index([userId])
   @@index([projectId])
   @@index([date])
+  @@index([markedById])
+  @@index([timesheetId])
 }
 
-model Material {
-  id              String   @id @default(uuid())
-  materialCode    String?  
+model Timesheet {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], name: "TimesheetUser")
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id])
+  weekStartDate DateTime @db.Date
+  weekEndDate   DateTime @db.Date
+  regularHours  Float    @default(0)
+  overtimeHours Float    @default(0)
+  totalHours    Float    @default(0)
+  status        String   @default("PENDING")
+  approvedById  String?
+  approvedBy    User?    @relation(fields: [approvedById], references: [id], name: "TimesheetApprover")
+  approvedAt    DateTime?
+  rejectionReason String?
   
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id])
+  // Relations
+  attendances   Attendance[]
   
-  name            String
-  unit            String
-  
-  // Stock logic
-  stockQuantity   Float?   @default(0)
-  minimumStock    Float?   @default(10)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String?
-  createdBy       User?    @relation("MaterialCreator", fields: [createdById], references: [id])
+  @@unique([userId, projectId, weekStartDate])
+  @@index([userId])
+  @@index([projectId])
+  @@index([approvedById])
+}
 
-  requests           MaterialRequest[]
-  stockAlerts        StockAlert[]
-  stockTransactions  StockTransaction[]
-
-  @@unique([companyId, materialCode])
+model Payroll {
+  id           String       @id @default(uuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id])
+  month        Int
+  year         Int
+  basicSalary  Float
+  allowances   Json?        // { "housing": 5000, "transport": 3000 }
+  deductions   Json?        // { "tax": 2000, "insurance": 1000 }
+  overtimePay  Float?       @default(0)
+  bonus        Float?       @default(0)
+  netSalary    Float
+  status       PayrollStatus @default(PENDING)
+  paidDate     DateTime?
+  approvedById String?
+  approvedBy   User?        @relation("PayrollApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  transactionId String?
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  @@unique([userId, companyId, month, year])
+  @@index([userId])
   @@index([companyId])
+  @@index([approvedById])
 }
 
-model ProjectSettings {
-  id                 String   @id @default(uuid())
-  projectId          String   @unique
-  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  checkInStart       String?  @default("08:00")
-  checkInEnd         String?  @default("09:00")
-  checkOutStart      String?  @default("17:00")
-  checkOutEnd        String?  @default("18:00")
-  requireLocation    Boolean  @default(true)
-  maxDistance        Float?   @default(100)
-  notifyManagerOnDPR Boolean  @default(true)
-  notifyOnDelay      Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+model Equipment {
+  id           String         @id @default(uuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id])
+  name         String
+  type         String         // "Excavator", "Crane", "Generator", "Concrete Mixer"
+  model        String?
+  serialNumber String?        @unique
+  registrationNumber String?  // For vehicles
+  status       EquipmentStatus @default(AVAILABLE)
+  
+  // Current assignment
+  projectId    String?
+  project      Project?       @relation(fields: [projectId], references: [id])
+  assignedToId String?
+  assignedTo   User?          @relation("EquipmentUser", fields: [assignedToId], references: [id])
+  assignedDate DateTime?
+  
+  // Specifications
+  manufacturer String?
+  year         Int?
+  capacity     String?
+  fuelType     String?
+  lastServiceDate DateTime?
+  nextServiceDate DateTime?
+  
+  purchaseDate DateTime?
+  purchaseCost Float?
+  currentValue Float?
+  
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  createdById  String?
+  createdBy    User?          @relation(fields: [createdById], references: [id])
+  
+  // Relations
+  maintenanceRecords EquipmentMaintenance[]
+  
+  @@index([companyId])
+  @@index([projectId])
+  @@index([assignedToId])
+  @@index([status])
+}
+
+model EquipmentMaintenance {
+  id              String          @id @default(uuid())
+  equipmentId     String
+  equipment       Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  maintenanceDate DateTime
+  type            MaintenanceType
+  description     String
+  cost            Float?
+  partsReplaced   Json?           // { "part": "Filter", "cost": 500 }
+  performedById   String?
+  performedBy     User?           @relation("MaintenancePerformer", fields: [performedById], references: [id])
+  nextDueDate     DateTime?
+  notes           String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([equipmentId])
+  @@index([performedById])
+  @@index([maintenanceDate])
+}
+
+model SafetyCheck {
+  id                 String       @id @default(uuid())
+  projectId          String
+  project            Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company      @relation(fields: [companyId], references: [id])
+  conductedById      String
+  conductedBy        User         @relation("SafetyConductor", fields: [conductedById], references: [id])
+  date               DateTime
+  checklist          Json         // Array of safety items with status
+  status             SafetyStatus
+  issuesFound        String?
+  correctiveActions  String?
+  followUpDate       DateTime?
+  isResolved         Boolean      @default(false)
+  resolvedAt         DateTime?
+  resolvedById       String?
+  resolvedBy         User?        @relation(fields: [resolvedById], references: [id])
+  
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  
+  @@index([projectId])
+  @@index([companyId])
+  @@index([conductedById])
+  @@index([date])
 }
 
 model Milestone {
@@ -572,6 +770,7 @@ model Milestone {
   createdById   String?
   createdBy     User?      @relation("MilestoneCreator", fields: [createdById], references: [id])
   @@index([projectId])
+  @@index([createdById])
 }
 
 model Task {
@@ -599,6 +798,7 @@ model Task {
   updatedAt      DateTime       @updatedAt
   @@index([projectId])
   @@index([assignedToId])
+  @@index([createdById])
 }
 
 model Subtask {
@@ -612,6 +812,7 @@ model Subtask {
   createdById String?
   createdBy   User?    @relation("SubtaskCreator", fields: [createdById], references: [id])
   @@index([taskId])
+  @@index([createdById])
 }
 
 model TaskComment {
@@ -624,6 +825,7 @@ model TaskComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([taskId])
+  @@index([userId])
 }
 
 model TaskAttachment {
@@ -638,6 +840,7 @@ model TaskAttachment {
   uploadedBy   User     @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
   @@index([taskId])
+  @@index([uploadedById])
 }
 
 model DailyProgressReport {
@@ -675,6 +878,8 @@ model DailyProgressReport {
   photos             DPRPhoto[]
   @@unique([projectId, date])
   @@index([projectId])
+  @@index([preparedById])
+  @@index([approvedById])
 }
 
 model DPRPhoto {
@@ -689,6 +894,7 @@ model DPRPhoto {
   uploadedBy   User                @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime            @default(now())
   @@index([dprId])
+  @@index([uploadedById])
 }
 
 model Leave {
@@ -710,6 +916,7 @@ model Leave {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   @@index([userId])
+  @@index([approvedById])
 }
 
 model Expense {
@@ -733,6 +940,8 @@ model Expense {
   createdById   String?
   createdBy     User?           @relation("ExpenseCreator", fields: [createdById], references: [id])
   @@index([projectId])
+  @@index([createdById])
+  @@index([approvedById])
 }
 
 model Invoice {
@@ -762,6 +971,9 @@ model Invoice {
   items        InvoiceItem[]
   payments     Payment[]
   @@index([projectId])
+  @@index([clientId])
+  @@index([createdById])
+  @@index([approvedById])
 }
 
 model InvoiceItem {
@@ -796,40 +1008,42 @@ model Payment {
   createdById   String?
   createdBy     User?         @relation("PaymentCreator", fields: [createdById], references: [id])
   @@index([invoiceId])
+  @@index([clientId])
+  @@index([receivedById])
+  @@index([createdById])
 }
 
-model StockAlert {
-  id           String    @id @default(uuid())
-  materialId   String
-  material     Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  alertType    String
-  currentStock Float
-  threshold    Float
-  message      String
-  isResolved   Boolean   @default(false)
-  isNotified   Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  resolvedAt   DateTime?
-  @@index([materialId])
-}
-
-model StockTransaction {
-  id              String    @id @default(uuid())
-  materialId      String
-  material        Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  transactionType String
-  quantity        Float
-  previousStock   Float
-  newStock        Float
-  projectId       String?
-  project         Project?  @relation(fields: [projectId], references: [id])
-  referenceId     String?
-  referenceType   String?
-  notes           String?
+model Material {
+  id              String   @id @default(uuid())
+  materialCode    String?  
+  
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  
+  name            String
+  unit            String
+  
+  // Stock logic
+  stockQuantity   Float?   @default(0)
+  minimumStock    Float?   @default(10)
+  
+  // Pricing
+  unitPrice       Float?
+  supplier        String?
+  supplierContact String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   createdById     String?
-  createdBy       User?     @relation(fields: [createdById], references: [id])
-  createdAt       DateTime  @default(now())
-  @@index([materialId])
+  createdBy       User?    @relation("MaterialCreator", fields: [createdById], references: [id])
+
+  requests           MaterialRequest[]
+  stockAlerts        StockAlert[]
+  stockTransactions  StockTransaction[]
+
+  @@unique([companyId, materialCode])
+  @@index([companyId])
+  @@index([createdById])
 }
 
 model MaterialRequest {
@@ -860,6 +1074,49 @@ model MaterialRequest {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   @@index([projectId])
+  @@index([materialId])
+  @@index([requestedById])
+  @@index([approvedById])
+  @@index([orderedById])
+}
+
+model StockAlert {
+  id           String    @id @default(uuid())
+  materialId   String
+  material     Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  alertType    String    // "LOW_STOCK", "OUT_OF_STOCK", "EXPIRING"
+  currentStock Float
+  threshold    Float
+  message      String
+  isResolved   Boolean   @default(false)
+  isNotified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation(fields: [resolvedById], references: [id])
+  @@index([materialId])
+  @@index([resolvedById])
+}
+
+model StockTransaction {
+  id              String    @id @default(uuid())
+  materialId      String
+  material        Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  transactionType String    // "PURCHASE", "CONSUMPTION", "RETURN", "ADJUSTMENT"
+  quantity        Float
+  previousStock   Float
+  newStock        Float
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  referenceId     String?   // Link to MaterialRequest or other document
+  referenceType   String?   // "MATERIAL_REQUEST", "EXPENSE", "RETURN"
+  notes           String?
+  createdById     String?
+  createdBy       User?     @relation(fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now())
+  @@index([materialId])
+  @@index([projectId])
+  @@index([createdById])
 }
 
 model Document {
@@ -879,6 +1136,8 @@ model Document {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   @@index([projectId])
+  @@index([uploadedById])
+  @@index([documentType])
 }
 
 model Message {
@@ -894,6 +1153,8 @@ model Message {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   @@index([senderId])
+  @@index([receiverId])
+  @@index([projectId])
 }
 
 model Notification {
@@ -902,11 +1163,13 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   title     String
   message   String
-  type      String
+  type      String   // "ATTENDANCE", "TASK", "APPROVAL", "ALERT"
   relatedId String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   @@index([userId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model UserSettings {
@@ -915,8 +1178,9 @@ model UserSettings {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   theme           String?  @default("light")
   language        String?  @default("en")
-  notifications   Json?
+  notifications   Json?    // Notification preferences
   dashboardLayout Json?
+  emailPreferences Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -936,21 +1200,87 @@ model CompanySettings {
   invoicePrefix     String?  @default("INV")
   dprPrefix         String?  @default("DPR")
   materialPrefix    String?  @default("MAT")
+  leavePrefix       String?  @default("LEAVE")
+  paymentPrefix     String?  @default("PAY")
   enableStockAlerts Boolean  @default(true)
   lowStockThreshold Float?   @default(10)
+  attendanceGeofence Boolean @default(true)
+  requirePhotoProof Boolean  @default(false)
+  safetyCheckFrequency String? @default("WEEKLY")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model ProjectSettings {
+  id                 String   @id @default(uuid())
+  projectId          String   @unique
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  checkInStart       String?  @default("08:00")
+  checkInEnd         String?  @default("09:00")
+  checkOutStart      String?  @default("17:00")
+  checkOutEnd        String?  @default("18:00")
+  requireLocation    Boolean  @default(true)
+  maxDistance        Float?   @default(100)
+  notifyManagerOnDPR Boolean  @default(true)
+  notifyOnDelay      Boolean  @default(true)
+  safetyRequirements Json?    // Project-specific safety checklist
+  qualityStandards   Json?    // Quality control parameters
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model AuditLog {
   id         String   @id @default(uuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id])
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id])
   action     String
   entityType String
   entityId   String?
   oldData    Json?
   newData    Json?
+  ipAddress  String?
+  userAgent  String?
   timestamp  DateTime @default(now())
   @@index([userId])
+  @@index([companyId])
+  @@index([entityType])
+  @@index([timestamp])
+  @@index([action])
+}
+
+model OTP {
+  id            String   @id @default(uuid())
+  identifier    String   // Email or phone number
+  otp           String
+  type          String   // "EMAIL_VERIFICATION", "PHONE_VERIFICATION", "PASSWORD_RESET"
+  expiresAt     DateTime
+  isUsed        Boolean  @default(false)
+  attempts      Int      @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([identifier, type])
+  @@index([expiresAt])
+}
+
+model TempUser {
+  id            String   @id @default(uuid())
+  email         String?
+  phone         String
+  name          String
+  companyId     String
+  roleId        String?
+  permissions   Json?    // Store assigned permissions temporarily
+  token         String   @unique
+  expiresAt     DateTime
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([phone])
+  @@index([email])
+  @@index([expiresAt])
 }

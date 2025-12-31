@@ -4,24 +4,27 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-// Import the tables we just defined
+// Import your schema
 import 'package:construction_erp/database/schema.dart';
 
-// 1. Generate the part file
-// Run: dart run build_runner build --delete-conflicting-outputs
 part 'database.g.dart';
 
+// Typedefs for cleaner usage
 typedef ProjectEntityCompanion = ProjectsCompanion;
 typedef AttendanceEntityCompanion = AttendancesCompanion;
 typedef TaskEntityCompanion = TasksCompanion;
+typedef SubtaskEntityCompanion = SubtasksCompanion;
 typedef DPREntityCompanion = DailyProgressReportsCompanion;
+typedef DprPhotosEntityCompanion = DprPhotosCompanion;
 typedef UserEntityCompanion = UsersCompanion;
 
 @DriftDatabase(tables: [
   Projects,
   Attendances,
   Tasks,
+  Subtasks,
   DailyProgressReports,
+  DprPhotos,
   SyncRegistry,
   Users
 ])
@@ -32,49 +35,41 @@ class AppDatabase extends _$AppDatabase {
   int get schemaVersion => 1;
 
   // ==========================================================
-  // REGION: AUTH & USER (Hybrid Strategy)
+  // REGION: AUTH & USER
   // ==========================================================
 
-  /// Login: Wipes old user data and saves the new one.
-  /// Call this immediately after a successful API login.
   Future<void> saveUserOnLogin(UserEntity user) {
     return transaction(() async {
-      await delete(users).go(); // Clear any previous session
+      await delete(users).go();
       await into(users).insert(user);
     });
   }
 
-  /// Get the currently logged-in user. Returns null if logged out.
-  /// Use this to populate your App Drawer / Profile Page instantly.
-  Future<UserEntity?> getCurrentUser() {
-    return select(users).getSingleOrNull();
-  }
+  Future<UserEntity?> getCurrentUser() => select(users).getSingleOrNull();
 
-  /// Logout: Clears the local user cache.
-  Future<void> logout() {
-    return delete(users).go();
-  }
+  Future<void> logout() => delete(users).go();
 
   // ==========================================================
-  // REGION: PROJECTS (Read-Only Reference Data)
+  // REGION: PROJECTS (Read-Only from App perspective)
   // ==========================================================
 
-  /// Get all projects for the Project List screen.
-  Future<List<ProjectEntity>> getAllProjects() {
-    return select(projects).get();
+  // [REFACTOR] Added stream for Reactive UI
+  Stream<List<ProjectEntity>> watchAllProjects() {
+    return select(projects).watch();
   }
 
-  /// Get specific project details (e.g., for Geofencing checks).
+  Future<List<ProjectEntity>> getAllProjects() => select(projects).get();
+
   Future<ProjectEntity?> getProjectById(String projectId) {
     return (select(projects)..where((tbl) => tbl.id.equals(projectId)))
         .getSingleOrNull();
   }
 
-  /// Sync: Batch insert/update projects coming from the Server.
-  /// This deletes projects that are marked 'isDeleted' on the server.
+  // [REFACTOR] Wrapped in transaction for safety
   Future<void> syncProjectsFromServer(
       List<ProjectEntity> serverProjects) async {
     await batch((batch) {
+      // insertAllOnConflictUpdate is perfect for "Server Wins" strategy
       batch.insertAllOnConflictUpdate(projects, serverProjects);
     });
   }
@@ -83,25 +78,22 @@ class AppDatabase extends _$AppDatabase {
   // REGION: ATTENDANCE (Offline Write -> Sync Push)
   // ==========================================================
 
-  /// 1. CHECK-IN: Creates a new attendance record locally.
-  Future<int> checkIn(AttendanceEntityCompanion entry) {
+  // [REFACTOR] Changed return to void, relying on ID in the Companion
+  Future<void> checkIn(AttendanceEntityCompanion entry) {
     return into(attendances).insert(entry);
   }
 
-  /// 2. CHECK-OUT: Updates the existing record with checkout time.
   Future<void> checkOut(
       String attendanceId, DateTime time, double? lat, double? long) {
     return (update(attendances)..where((tbl) => tbl.id.equals(attendanceId)))
-        .write(
-      AttendancesCompanion(
-        checkOutTime: Value(time),
-        // If you capture location on checkout, add those columns to update here
-        // isSynced: Value(false), // Mark as unsynced again if you sync per-action
-      ),
-    );
+        .write(AttendancesCompanion(
+      checkOutTime: Value(time),
+      // Add location updates here if your schema has them
+      checkOutLatitude: Value(lat),
+      checkOutLongitude: Value(long),
+    ));
   }
 
-  /// 3. GET ACTIVE: Check if user is currently checked in (has checkIn but no checkOut).
   Future<AttendanceEntity?> getActiveAttendance(String userId) {
     return (select(attendances)
           ..where(
@@ -109,101 +101,250 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
-  /// 4. SYNC FETCH: Get all unsynced attendance records to push to server.
   Future<List<AttendanceEntity>> getUnsyncedAttendance() {
     return (select(attendances)..where((tbl) => tbl.isSynced.equals(false)))
         .get();
   }
 
-  /// 5. SYNC MARK: Mark records as synced after server confirms receipt.
   Future<void> markAttendanceSynced(List<String> ids) {
     return (update(attendances)..where((tbl) => tbl.id.isIn(ids))).write(
       const AttendancesCompanion(isSynced: Value(true)),
     );
   }
 
-  /// 6. HISTORY: Get past attendance for the specific user (UI Display).
-  Future<List<AttendanceEntity>> getUserAttendanceHistory(String userId) {
+  Stream<List<AttendanceEntity>> watchUserAttendanceHistory(String userId) {
     return (select(attendances)
           ..where((tbl) => tbl.userId.equals(userId))
           ..orderBy([
             (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)
           ]))
-        .get();
+        .watch();
   }
 
   // ==========================================================
   // REGION: TASKS (Two-Way Sync)
   // ==========================================================
 
-  /// Get tasks for a specific project.
-  Future<List<TaskEntity>> getTasksForProject(String projectId) {
-    return (select(tasks)..where((tbl) => tbl.projectId.equals(projectId)))
-        .get();
+  // 1. READ: Stream tasks (Filters out locally deleted items)
+  Stream<List<TaskEntity>> watchTasksForProject(String projectId) {
+    return (select(tasks)
+          ..where((t) => t.projectId.equals(projectId))
+          ..where((t) => t.isDeleted.equals(false)) // Hides deleted tasks
+          ..orderBy([
+            (t) => OrderingTerm(
+                expression: t.localUpdatedAt, mode: OrderingMode.desc)
+          ]))
+        .watch();
   }
 
-  /// Create a new task locally (Offline).
-  Future<int> createTask(TaskEntityCompanion task) {
+  // 2. CREATE: Insert Task
+  Future<void> createTask(TaskEntityCompanion task) {
     return into(tasks).insert(task);
   }
 
-  /// Update task status (e.g., TODO -> DONE).
-  /// Sets 'isDirty' to true so the sync service knows to push this.
+  // 3. UPDATE: Status (Mark as Dirty)
   Future<void> updateTaskStatus(String taskId, String newStatus) {
-    return (update(tasks)..where((tbl) => tbl.id.equals(taskId))).write(
+    return (update(tasks)..where((t) => t.id.equals(taskId))).write(
       TasksCompanion(
         status: Value(newStatus),
-        isDirty: const Value(true), // Important for sync!
+        isDirty: const Value(true),
         localUpdatedAt: Value(DateTime.now()),
       ),
     );
   }
 
-  /// SYNC PUSH: Get tasks modified locally ('isDirty' = true).
-  Future<List<TaskEntity>> getDirtyTasks() {
-    return (select(tasks)..where((tbl) => tbl.isDirty.equals(true))).get();
+  // 4. UPDATE: Edit Details
+  Future<void> updateTaskDetails(String taskId, String title, String? desc) {
+    return (update(tasks)..where((t) => t.id.equals(taskId))).write(
+      TasksCompanion(
+        title: Value(title),
+        description: Value(desc),
+        isDirty: const Value(true),
+        localUpdatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
-  /// SYNC PULL: Save tasks fetched from server.
+  // 5. DELETE: Soft Delete (Mark isDeleted = true, isDirty = true)
+  // We DO NOT remove the row yet. We wait for Sync to tell server, then server confirms.
+  Future<void> deleteTaskLocally(String taskId) {
+    return (update(tasks)..where((t) => t.id.equals(taskId))).write(
+      TasksCompanion(
+        isDeleted: const Value(true),
+        isDirty: const Value(true),
+        localUpdatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  // 6. SYNC GET: Get all changed items (Modified OR Deleted)
+  Future<List<TaskEntity>> getDirtyTasks() {
+    return (select(tasks)..where((t) => t.isDirty.equals(true))).get();
+  }
+
+  // 7. SYNC PULL: Save from Server
   Future<void> syncTasksFromServer(List<TaskEntity> serverTasks) async {
     await batch((batch) {
       batch.insertAllOnConflictUpdate(tasks, serverTasks);
     });
   }
 
-  /// SYNC CLEANUP: After pushing changes, mark them as clean.
+  // 8. SYNC CLEANUP: Mark as clean
   Future<void> markTasksClean(List<String> ids) {
-    return (update(tasks)..where((tbl) => tbl.id.isIn(ids))).write(
+    return (update(tasks)..where((t) => t.id.isIn(ids))).write(
       const TasksCompanion(isDirty: Value(false)),
     );
   }
 
-  // ==========================================================
-  // REGION: DAILY PROGRESS REPORTS (Heavy Write)
-  // ==========================================================
-
-  Future<int> createDPR(DPREntityCompanion report) {
-    return into(dailyProgressReports).insert(report);
+  // 9. HARD DELETE: Clean up items that are fully deleted on server
+  // Call this if the server sends a "Deleted IDs" list or after a full sync
+  Future<void> purgeDeletedTasks() {
+    return (delete(tasks)..where((t) => t.isDeleted.equals(true))).go();
   }
 
+  // ==========================================================
+  // REGION: SUBTASKS (Two-Way Sync)
+  // ==========================================================
+
+  // 1. READ: Stream subtasks for a specific task
+  Stream<List<SubtaskEntity>> watchSubtasksForTask(String taskId) {
+    return (select(subtasks)
+          ..where((s) => s.taskId.equals(taskId))
+          ..where((s) => s.isDeleted.equals(false))
+          ..orderBy([(s) => OrderingTerm(expression: s.createdAt)]))
+        .watch();
+  }
+
+  // 2. CREATE
+  Future<void> createSubtask(SubtaskEntityCompanion subtask) {
+    return into(subtasks).insert(subtask);
+  }
+
+  // 3. TOGGLE COMPLETE
+  Future<void> toggleSubtask(String subtaskId, bool isCompleted) {
+    return (update(subtasks)..where((s) => s.id.equals(subtaskId))).write(
+      SubtasksCompanion(
+        isCompleted: Value(isCompleted),
+        isDirty: const Value(true),
+        localUpdatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  // 4. SOFT DELETE
+  Future<void> deleteSubtaskLocally(String subtaskId) {
+    return (update(subtasks)..where((s) => s.id.equals(subtaskId))).write(
+      SubtasksCompanion(
+        isDeleted: const Value(true),
+        isDirty: const Value(true),
+        localUpdatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  // 5. SYNC GET
+  Future<List<SubtaskEntity>> getDirtySubtasks() {
+    return (select(subtasks)..where((s) => s.isDirty.equals(true))).get();
+  }
+
+  // 6. SYNC PULL
+  Future<void> syncSubtasksFromServer(
+      List<SubtaskEntity> serverSubtasks) async {
+    await batch((batch) {
+      batch.insertAllOnConflictUpdate(subtasks, serverSubtasks);
+    });
+  }
+
+  // 7. SYNC CLEANUP
+  Future<void> markSubtasksClean(List<String> ids) {
+    return (update(subtasks)..where((s) => s.id.isIn(ids))).write(
+      const SubtasksCompanion(isDirty: Value(false)),
+    );
+  }
+
+// ==========================================================
+  // REGION: DAILY PROGRESS REPORTS (DPR)
+  // ==========================================================
+
+  // 1. Create a Full Report (Text + Photos) Transactionally
+  Future<void> createFullDPR(
+      DPREntityCompanion report, List<DprPhotosCompanion> photos) {
+    return transaction(() async {
+      // A. Insert the main report
+      await into(dailyProgressReports).insert(report);
+
+      // B. Insert all associated photos
+      for (var photo in photos) {
+        await into(dprPhotos).insert(photo);
+      }
+    });
+  }
+
+  // 2. Get specific DPR by ID
+  Future<DPREntity?> getDPRById(String id) {
+    return (select(dailyProgressReports)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  // 3. Get all DPRs for a specific Project (Reactive Stream)
+  Stream<List<DPREntity>> watchDPRsForProject(String projectId) {
+    return (select(dailyProgressReports)
+          ..where((t) => t.projectId.equals(projectId))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)
+          ]))
+        .watch();
+  }
+
+  // 4. Get Unsynced Reports (For Sync Job)
   Future<List<DPREntity>> getUnsyncedDPRs() {
     return (select(dailyProgressReports)
-          ..where((tbl) => tbl.isSynced.equals(false)))
+          ..where((t) => t.isSynced.equals(false)))
         .get();
   }
 
+  // 5. Mark Reports as Synced (Batch Update)
   Future<void> markDPRSynced(List<String> ids) {
-    return (update(dailyProgressReports)..where((tbl) => tbl.id.isIn(ids)))
-        .write(
-      const DailyProgressReportsCompanion(isSynced: Value(true)),
+    return (update(dailyProgressReports)..where((t) => t.id.isIn(ids)))
+        .write(const DailyProgressReportsCompanion(isSynced: Value(true)));
+  }
+
+  // ==========================================================
+  // REGION: DPR PHOTOS
+  // ==========================================================
+
+  // 1. Get all photos for a specific report (Reactive Stream for UI)
+  Stream<List<DPRPhotoEntity>> watchPhotosForDPR(String reportId) {
+    return (select(dprPhotos)..where((t) => t.dprId.equals(reportId))).watch();
+  }
+
+  // 2. Get Unsynced Photos (For Sync Job - ONLY photos that aren't synced yet)
+  Future<List<DPRPhotoEntity>> getUnsyncedPhotos() {
+    return (select(dprPhotos)..where((t) => t.isSynced.equals(false))).get();
+  }
+
+  // 3. Update Photo after Upload (Swap Local Path -> Server URL)
+  Future<void> markPhotoAsSynced(
+      String photoId, String serverUrl, String? thumbUrl) {
+    return (update(dprPhotos)..where((t) => t.id.equals(photoId))).write(
+      DprPhotosCompanion(
+        imageUrl: Value(serverUrl),
+        thumbnailUrl: Value(thumbUrl),
+        localPath: const Value(null), // Clean up local path
+        isSynced: const Value(true),
+      ),
     );
+  }
+
+  // 4. Delete a photo locally
+  Future<void> deletePhoto(String photoId) {
+    return (delete(dprPhotos)..where((t) => t.id.equals(photoId))).go();
   }
 
   // ==========================================================
   // REGION: SYNC METADATA
   // ==========================================================
 
-  /// Get the last time we synced a specific model (e.g., 'Projects').
   Future<DateTime?> getLastSyncTime(String modelName) async {
     final record = await (select(syncRegistry)
           ..where((tbl) => tbl.model.equals(modelName)))
@@ -211,7 +352,6 @@ class AppDatabase extends _$AppDatabase {
     return record?.lastSyncedAt;
   }
 
-  /// Update the sync time after a successful pull.
   Future<void> updateLastSyncTime(String modelName, DateTime time) {
     return into(syncRegistry).insertOnConflictUpdate(
       SyncRegistryCompanion(
@@ -227,16 +367,8 @@ class AppDatabase extends _$AppDatabase {
 // ==========================================================
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    // Put the database file, called db.sqlite here, into the documents folder
-    // for your app.
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'app_erp.sqlite'));
-
-    // Also work around limitations on old Android versions
-    if (Platform.isAndroid) {
-      // await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
-    }
-
     return NativeDatabase.createInBackground(file);
   });
 }
