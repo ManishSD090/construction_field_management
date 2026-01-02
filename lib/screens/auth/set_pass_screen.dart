@@ -1,5 +1,5 @@
+import 'package:construction_erp/routes.dart';
 import 'package:flutter/material.dart';
-import '../home_screen.dart'; // Import to navigate back to Home after success
 
 class SetPasswordScreen extends StatefulWidget {
   const SetPasswordScreen({super.key});
@@ -55,12 +55,8 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
 
     // Navigate to Dashboard (as a logged-in user)
     // We pass isNewUser: false so the popup doesn't show again
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-          builder: (context) => const HomeScreen(isNewUser: false)),
-      (route) => false, // Remove all previous routes
-    );
+    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.dashboard,
+        (route) => false); // Remove all previous routes
   }
 
   @override

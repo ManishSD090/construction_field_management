@@ -4,8 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
 
 // Import your auth controller and model
 import 'package:construction_erp/controllers/auth_controller.dart'; // Adjust path
-import 'package:construction_erp/models/user.dart'; // Adjust path
-import 'package:construction_erp/screens/auth/login_screen.dart';
+import 'package:construction_erp/models/user.dart';
 
 // 2. Change StatelessWidget to ConsumerWidget
 class DashboardScreen extends ConsumerWidget {
@@ -97,7 +96,6 @@ class DashboardScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
       decoration: const BoxDecoration(
         color: Color(0xFF0D6EFD),
-        color: Color(0xFF0D6EFD),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(25),
           bottomRight: Radius.circular(25),
@@ -167,7 +165,6 @@ class DashboardScreen extends ConsumerWidget {
                       height: 10,
                       decoration: const BoxDecoration(
                         color: Colors.red,
-                        color: Colors.red,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -190,7 +187,6 @@ class DashboardScreen extends ConsumerWidget {
       crossAxisCount: 2,
       crossAxisSpacing: 15,
       mainAxisSpacing: 15,
-      childAspectRatio: 1.5,
       childAspectRatio: 1.5,
       children: [
         _buildActionCard(Icons.person_outline, Colors.blue[50]!, Colors.blue,
