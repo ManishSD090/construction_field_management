@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:construction_erp/widgets/auth_textfield.dart';
-import 'package:construction_erp/widgets/primary_button.dart';
+import 'package:construction_erp/widgets/auth/auth_textfield.dart';
+import 'package:construction_erp/widgets/auth/primary_button.dart';
 import 'package:construction_erp/screens/auth/otp_screen.dart';
 import 'package:construction_erp/screens/home_screen.dart'; // <--- 1. Import your HomeScreen
 
