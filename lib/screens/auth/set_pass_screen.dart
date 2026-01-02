@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
+import 'package:construction_erp/screens/home_screen.dart';
 
 class SetPasswordScreen extends StatefulWidget {
   const SetPasswordScreen({super.key});
@@ -10,36 +11,66 @@ class SetPasswordScreen extends StatefulWidget {
 }
 
 class _SetPasswordScreenState extends State<SetPasswordScreen> {
-  final newPassCtrl = TextEditingController();
-  final confirmPassCtrl = TextEditingController();
+  final _newPassController = TextEditingController();
+  final _confirmPassController = TextEditingController();
 
-  // State to toggle visibility for both fields independently
   bool _isNewPassVisible = false;
   bool _isConfirmPassVisible = false;
 
   @override
-  Widget build(BuildContext context) {
-    const faintLightBlue = Color(0xFF90CAF9);
+  void dispose() {
+    _newPassController.dispose();
+    _confirmPassController.dispose();
+    super.dispose();
+  }
 
+  void _validateAndSubmit() {
+    String newPass = _newPassController.text.trim();
+    String confirmPass = _confirmPassController.text.trim();
+
+    if (newPass.isEmpty || confirmPass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in both fields")),
+      );
+      return;
+    }
+
+    if (newPass != confirmPass) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Passwords do not match"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Password set successfully!"),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+          builder: (context) => const HomeScreen(isNewUser: false)),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- HEADER ---
                 const Center(
                   child: Text(
                     "Set Password",
@@ -50,86 +81,51 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 50),
 
-                const SizedBox(height: 40),
-
-                // --- NEW PASSWORD SECTION ---
-                const Text(
-                  "New Password",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1E232C),
-                  ),
-                ),
+                const Text("New Password",
+                    style:
+                        TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
                 const SizedBox(height: 8),
                 AuthTextField(
-                  controller: newPassCtrl,
+                  controller: _newPassController,
                   hint: "New password",
-                  hintStyle: const TextStyle(color: faintLightBlue),
-                  obscureText: !_isNewPassVisible, // Hides text by default
+                  obscureText: !_isNewPassVisible,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _isNewPassVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: faintLightBlue,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isNewPassVisible = !_isNewPassVisible;
-                      });
-                    },
+                        _isNewPassVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: const Color(0xFF90CAF9)),
+                    onPressed: () =>
+                        setState(() => _isNewPassVisible = !_isNewPassVisible),
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
-                // --- CONFIRM PASSWORD SECTION ---
-                const Text(
-                  "Confirm Password",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1E232C),
-                  ),
-                ),
+                const Text("Confirm Password",
+                    style:
+                        TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
                 const SizedBox(height: 8),
                 AuthTextField(
-                  controller: confirmPassCtrl,
+                  controller: _confirmPassController,
                   hint: "Confirm password",
-                  hintStyle: const TextStyle(color: faintLightBlue),
-                  obscureText: !_isConfirmPassVisible, // Hides text by default
+                  obscureText: !_isConfirmPassVisible,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _isConfirmPassVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: faintLightBlue,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isConfirmPassVisible = !_isConfirmPassVisible;
-                      });
-                    },
+                        _isConfirmPassVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: const Color(0xFF90CAF9)),
+                    onPressed: () => setState(
+                        () => _isConfirmPassVisible = !_isConfirmPassVisible),
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 40),
 
-                // --- ACTION BUTTON ---
-                PrimaryButton(
-                  title: "Continue",
-                  onTap: () {
-                    // Logic to save password goes here
-                    if (newPassCtrl.text == confirmPassCtrl.text) {
-                      print("Passwords match. Saving...");
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Passwords do not match!")),
-                      );
-                    }
-                  },
-                ),
+                PrimaryButton(title: "Continue", onTap: _validateAndSubmit),
               ],
             ),
           ),
