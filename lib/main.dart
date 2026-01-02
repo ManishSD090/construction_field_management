@@ -1,18 +1,64 @@
 import 'package:flutter/material.dart';
-import 'screens/auth/login_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'routes.dart';
+import 'package:construction_erp/controllers/auth_controller.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  // 1. Ensure bindings are initialized first
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. PRESERVE the Native Splash Screen
+  // This tells the native OS: "Don't remove the splash image yet, I'm busy."
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // 3. Create a temporary Riverpod Container
+  // We need this to read providers before the widget tree (ProviderScope) exists.
+  final container = ProviderContainer();
+
+  try {
+    // 4. Await the Auth Check
+    // We read the .future of the provider to wait for the build() method to finish.
+    // This will check SecureStorage and SQLite.
+    final user = await container.read(authControllerProvider.future);
+
+    // 5. Determine the start screen based on the result
+    final String initialRoute =
+        (user != null) ? AppRoutes.dashboard : AppRoutes.login;
+
+    // 6. Run App with the pre-calculated state
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: MyApp(initialRoute: initialRoute),
+      ),
+    );
+  } catch (e) {
+    // Fallback in case of DB error: Go to Login
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MyApp(initialRoute: AppRoutes.login),
+      ),
+    );
+  }
+
+  // 7. REMOVE the Native Splash Screen
+  // Now that the app is ready and the correct route is set, we lift the curtain.
+  FlutterNativeSplash.remove();
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Construction ERP',
+      initialRoute: initialRoute,
       debugShowCheckedModeBanner: false,
-      home: LoginScreen(),
+      routes: AppRoutes.routes,
     );
   }
 }

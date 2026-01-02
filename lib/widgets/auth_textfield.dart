@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class AuthTextField extends StatelessWidget {
   final String hint;
   final TextEditingController controller;
-  final bool obscureText; // Controls visibility (dots vs text)
-  final Widget? suffixIcon; // The eye icon widget
-  final TextStyle? hintStyle; // Color of the placeholder text
-  final bool isPassword; // Legacy param (optional)
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final TextStyle? hintStyle;
   final TextInputType? keyboardType;
+
+  // 1. Add Validator Function
+  final String? Function(String?)? validator;
 
   const AuthTextField({
     super.key,
@@ -16,25 +18,26 @@ class AuthTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.hintStyle,
-    this.isPassword = false,
     this.keyboardType,
+    this.validator, // 2. Add to constructor
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    // 3. Change TextField -> TextFormField to support validation
+    return TextFormField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      validator: validator, // 4. Connect the validator
+
+      // Basic styling (Kept exactly as you had it)
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: hintStyle ?? const TextStyle(color: Colors.grey),
         suffixIcon: suffixIcon,
-
-        // Basic styling
         filled: true,
-        fillColor:
-            const Color.fromARGB(255, 255, 255, 255), // Light grey background
+        fillColor: const Color.fromARGB(255, 255, 255, 255),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 
@@ -49,8 +52,17 @@ class AuthTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(32),
-          borderSide:
-              const BorderSide(color: Color(0xFF0A6ED1)), // Highlight color
+          borderSide: const BorderSide(color: Color(0xFF0A6ED1)),
+        ),
+
+        // Error Border (Style for when validation fails)
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(32),
+          borderSide: const BorderSide(color: Colors.redAccent),
         ),
       ),
     );
