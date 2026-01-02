@@ -1,22 +1,28 @@
 import 'package:construction_erp/routes.dart';
 import 'package:flutter/material.dart';
-import 'dart:async'; // Required for Timer
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Import Widgets
 import 'package:construction_erp/widgets/auth_textfield.dart';
 import 'package:construction_erp/widgets/primary_button.dart';
 
-class OtpScreen extends StatefulWidget {
+// Import Controller
+import 'package:construction_erp/controllers/auth_controller.dart'; // Adjust path if needed
+
+class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen>
+class _OtpScreenState extends ConsumerState<OtpScreen>
     with SingleTickerProviderStateMixin {
-  final phoneCtrl = TextEditingController();
+  final identifierCtrl = TextEditingController();
   final otpCtrl = TextEditingController();
 
-  bool _isPhoneVisible = true;
+  bool _isIdentifierVisible = true;
   bool _isOtpVisible = false;
   bool _otpSent = false;
 
@@ -35,11 +41,11 @@ class _OtpScreenState extends State<OtpScreen>
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1.5), // Start above the screen
-      end: const Offset(0, 0.1), // End slightly down from the top
+      begin: const Offset(0, -1.5),
+      end: const Offset(0, 0.1),
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: Curves.elasticOut, // Bouncy effect
+      curve: Curves.elasticOut,
       reverseCurve: Curves.easeIn,
     ));
   }
@@ -47,8 +53,8 @@ class _OtpScreenState extends State<OtpScreen>
   @override
   void dispose() {
     _animationController.dispose();
-    _removeOverlay(); // Ensure overlay is removed when leaving screen
-    phoneCtrl.dispose();
+    _removeOverlay();
+    identifierCtrl.dispose();
     otpCtrl.dispose();
     super.dispose();
   }
@@ -58,15 +64,64 @@ class _OtpScreenState extends State<OtpScreen>
     _overlayEntry = null;
   }
 
+  // --- LOGIC: SEND OTP ---
+  Future<void> _handleSendOtp() async {
+    final identifier = identifierCtrl.text.trim();
+    if (identifier.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enter a phone number")));
+      return;
+    }
+
+    try {
+      // 1. Call Controller
+      await ref
+          .read(authControllerProvider.notifier)
+          .requestLoginOtp(identifier: identifier);
+
+      // 2. On Success: Update UI
+      if (mounted) {
+        setState(() {
+          _otpSent = true;
+        });
+        _showTopSuccess(context);
+      }
+    } catch (e) {
+      // 3. Handle Error (e.g., API failure)
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Failed to send OTP: $e")));
+      }
+    }
+  }
+
+  // --- LOGIC: VERIFY OTP ---
+  Future<void> _handleVerifyOtp() async {
+    final identifier = identifierCtrl.text.trim();
+    final otp = otpCtrl.text.trim();
+
+    if (otp.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Please enter the OTP")));
+      return;
+    }
+
+    // 1. Call Controller (This updates the global state)
+    await ref
+        .read(authControllerProvider.notifier)
+        .verifyLoginOtp(identifier: identifier, otp: otp);
+
+    // Note: Navigation is handled by the ref.listen below
+  }
+
   // --- CUSTOM POPUP LOGIC ---
   void _showTopSuccess(BuildContext context) {
-    // If an overlay already exists, remove it first
     if (_overlayEntry != null) _removeOverlay();
 
     OverlayState? overlayState = Overlay.of(context);
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: 60, // Position from top
+        top: 60,
         left: 0,
         right: 0,
         child: Material(
@@ -75,13 +130,9 @@ class _OtpScreenState extends State<OtpScreen>
             position: _slideAnimation,
             child: Center(
               child: Container(
-                // 1. DECREASED WIDTH (0.70 of screen width)
                 width: MediaQuery.of(context).size.width * 0.70,
-
-                // 2. INCREASED HEIGHT via padding (vertical 35 makes it taller)
                 padding:
                     const EdgeInsets.symmetric(vertical: 35, horizontal: 24),
-
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -106,12 +157,11 @@ class _OtpScreenState extends State<OtpScreen>
                       ),
                     ),
                     const SizedBox(height: 15),
-                    // Green Check Icon
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFF26A69A), // Teal/Green color
+                        color: Color(0xFF26A69A),
                       ),
                       child: const Icon(Icons.check,
                           color: Colors.white, size: 28),
@@ -125,12 +175,9 @@ class _OtpScreenState extends State<OtpScreen>
       ),
     );
 
-    // Insert the overlay
     overlayState.insert(_overlayEntry!);
-    // Start animation
     _animationController.forward();
 
-    // Remove automatically after 3 seconds
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
         _animationController.reverse().then((value) => _removeOverlay());
@@ -141,6 +188,23 @@ class _OtpScreenState extends State<OtpScreen>
   @override
   Widget build(BuildContext context) {
     const faintLightBlue = Color(0xFF90CAF9);
+
+    // 1. Listen for Auth State Changes (Navigation & Errors)
+    ref.listen(authControllerProvider, (previous, next) {
+      if (next is AsyncError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login Failed: ${next.error}")),
+        );
+      } else if (next is AsyncData && next.value != null) {
+        // Login Successful -> Navigate
+        _removeOverlay();
+        Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+      }
+    });
+
+    // 2. Watch for Loading State
+    final authState = ref.watch(authControllerProvider);
+    final isLoading = authState.isLoading;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -179,26 +243,28 @@ class _OtpScreenState extends State<OtpScreen>
 
                 // --- PHONE FIELD ---
                 const Text(
-                  "Phone Number",
+                  "Phone Number/ Email",
                   style: TextStyle(
                       fontWeight: FontWeight.w500, color: Color(0xFF1E232C)),
                 ),
                 const SizedBox(height: 8),
                 AuthTextField(
-                  controller: phoneCtrl,
-                  keyboardType: TextInputType.phone,
+                  controller: identifierCtrl,
+                  keyboardType: TextInputType.text,
                   hint: _otpSent ? "XXXXX XXXXX" : "Enter phone number",
                   hintStyle: TextStyle(
                       color: _otpSent ? Colors.black87 : faintLightBlue),
-                  obscureText: !_isPhoneVisible,
+                  obscureText: !_isIdentifierVisible,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _isPhoneVisible ? Icons.visibility : Icons.visibility_off,
+                      _isIdentifierVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                       color: faintLightBlue,
                     ),
                     onPressed: () {
                       setState(() {
-                        _isPhoneVisible = !_isPhoneVisible;
+                        _isIdentifierVisible = !_isIdentifierVisible;
                       });
                     },
                   ),
@@ -238,20 +304,16 @@ class _OtpScreenState extends State<OtpScreen>
                 // --- BUTTON ---
                 PrimaryButton(
                   title: _otpSent ? "Continue" : "Send OTP",
-                  onTap: () {
-                    if (!_otpSent) {
-                      setState(() {
-                        _otpSent = true;
-                        // Trigger the Top Popup
-                        _showTopSuccess(context);
-                      });
-                    } else {
-                      // Navigate to Dashboard
-                      _removeOverlay(); // Clean up overlay before navigating
-                      Navigator.pushReplacementNamed(
-                          context, AppRoutes.dashboard);
-                    }
-                  },
+                  isLoading: isLoading, // Show loading spinner
+                  onTap: isLoading
+                      ? () {} // Disable tap while loading
+                      : () {
+                          if (!_otpSent) {
+                            _handleSendOtp();
+                          } else {
+                            _handleVerifyOtp();
+                          }
+                        },
                 ),
               ],
             ),

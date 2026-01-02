@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 // Import your existing files
 import 'package:construction_erp/core/dio_client.dart';
@@ -12,12 +13,10 @@ import 'package:construction_erp/models/user.dart';
 // PROVIDERS
 // ==============================================================================
 
-/// Dependency Injection
 final dioClientProvider = Provider((ref) => DioClient());
 final secureStorageProvider = Provider((ref) => SecureStorageService());
 final databaseProvider = Provider((ref) => AppDatabase());
 
-/// The Main Auth Controller
 final authControllerProvider = AsyncNotifierProvider<AuthController, User?>(() {
   return AuthController();
 });
@@ -27,79 +26,123 @@ final authControllerProvider = AsyncNotifierProvider<AuthController, User?>(() {
 // ==============================================================================
 
 class AuthController extends AsyncNotifier<User?> {
-  // Dependencies (Lazy loaded)
   DioClient get _dioClient => ref.read(dioClientProvider);
   SecureStorageService get _storage => ref.read(secureStorageProvider);
   AppDatabase get _db => ref.read(databaseProvider);
 
-  /// 1. Initialization: Check for local session on app start
+  /// 1. Initialization
   @override
   Future<User?> build() async {
-    // A. Check if we have a valid session token
     final hasSession = await _storage.hasSession();
     if (!hasSession) return null;
 
-    // B. If yes, try to get the user from the local Offline DB
-    final userEntity = await _db.getCurrentUser();
+    final connectivityResults = await Connectivity().checkConnectivity();
+    final isOnline = !connectivityResults.contains(ConnectivityResult.none);
 
-    // C. If local data exists, return it (Domain mapping required)
+    if (isOnline) {
+      try {
+        return await _fetchAndSyncProfile();
+      } catch (e) {
+        print('Sync failed: $e');
+      }
+    }
+
+    final userEntity = await _db.getCurrentUser();
     if (userEntity != null) {
       return userEntity.toDomain();
     }
 
-    // D. Edge case: Token exists but DB is empty? (Optional: Fetch profile from API)
-    // For now, we force logout to be safe
     await logout();
     return null;
   }
 
-  /// 2. Login Method
-  Future<void> login(
-      {required String identifier, required String password}) async {
-    // Set state to loading
-    state = const AsyncValue.loading();
+  /// Helper: Fetch profile, update DB, return Domain User
+  Future<User> _fetchAndSyncProfile() async {
+    final response = await _dioClient.dio.get('/auth/profile');
+    final data = response.data['data'];
+    final userDomain = User.fromJson(data['user'] ?? data);
+    await _db.saveUserOnLogin(userDomain.toEntity());
+    return userDomain;
+  }
 
-    // Guard handles try/catch automatically
+  // ============================================================================
+  // PASSWORD LOGIN
+  // ============================================================================
+
+  Future<void> loginWithPassword(
+      {required String identifier, required String password}) async {
+    state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      // A. Call API
       final response = await _dioClient.dio.post('/auth/login', data: {
         'identifier': identifier,
         'password': password,
       });
 
-      // B. Parse User (Domain Model) from Response
-      // Assuming response structure: { "data": { "user": ..., "tokens" : { "accessToken": "...", "refreshToken": "..." } } }
-      final data = response.data['data'];
-
-      final userDomain = User.fromJson(data['user']);
-
-      final accessToken = data['tokens']['accessToken'];
-      final refreshToken = data['tokens']['refreshToken'];
-
-      // C. Save Tokens Securely
-      await _storage.saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      );
-
-      // D. Save User to Offline DB (Convert Domain -> Entity)
-      // Note: We use the helper method _mapDomainToEntity defined below
-      await _db.saveUserOnLogin(userDomain.toEntity());
-
-      // E. Return the authenticated user to update the state
-      return userDomain;
+      return _handleAuthResponse(response.data);
     });
   }
 
-  /// 3. Logout Method
+  // ============================================================================
+  // OTP LOGIN (NEW)
+  // ============================================================================
+
+  /// Step 1: Request OTP
+  /// This does NOT update the state (User is not logged in yet).
+  /// Returns void on success, throws error on failure for UI to handle.
+  Future<void> requestLoginOtp({required String identifier}) async {
+    // We do not set state = loading here because this is usually an intermediate step
+    // and we don't want to replace the global User state with null/loading yet.
+    await _dioClient.dio.post('/auth/login-with-otp', data: {
+      'identifier': identifier,
+    });
+  }
+
+  /// Step 2: Verify OTP
+  /// This performs the actual login and updates the state.
+  Future<void> verifyLoginOtp({
+    required String identifier,
+    required String otp,
+  }) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final response =
+          await _dioClient.dio.post('/auth/verify-otp-login', data: {
+        'identifier': identifier,
+        'otp': otp,
+      });
+
+      return _handleAuthResponse(response.data);
+    });
+  }
+
+  // ============================================================================
+  // HELPERS & LOGOUT
+  // ============================================================================
+
+  /// Shared method to parse response, save tokens/DB, and return User
+  Future<User> _handleAuthResponse(Map<String, dynamic> data) async {
+    final responseData = data['data']; // Adjust based on your API wrapper
+
+    // 1. Parse Data
+    final userDomain = User.fromJson(responseData['user']);
+    final accessToken = responseData['tokens']['accessToken'];
+    final refreshToken = responseData['tokens']['refreshToken'];
+
+    // 2. Save Secure Tokens
+    await _storage.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
+
+    // 3. Save User to Local DB
+    await _db.saveUserOnLogin(userDomain.toEntity());
+
+    return userDomain;
+  }
+
   Future<void> logout() async {
-    // A. Clear Local DB
     await _db.logout();
-
-    // B. Clear Secure Storage
     await _storage.deleteAll();
-
-    // C. Reset State to null
     state = const AsyncValue.data(null);
   }
 }

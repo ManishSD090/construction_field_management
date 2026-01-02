@@ -36,7 +36,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // 1. Validate inputs
     if (_formKey.currentState!.validate()) {
       // 2. Trigger Controller
-      ref.read(authControllerProvider.notifier).login(
+      ref.read(authControllerProvider.notifier).loginWithPassword(
             identifier: _identifierCtrl.text.trim(),
             password: _passCtrl.text,
           );

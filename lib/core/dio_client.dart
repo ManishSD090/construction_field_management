@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
+// Import your SecureStorageService
+import 'package:construction_erp/core/services/secure_storage_service.dart';
+
 class DioClient {
   // 1. Singleton pattern
   static final DioClient _instance = DioClient._internal();
@@ -32,9 +35,9 @@ class DioClient {
   void _configureDio() {
     // Base options for all requests
     _dio.options = BaseOptions(
-      baseUrl: getBaseUrl(), // Replace with your URL
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      baseUrl: getBaseUrl(),
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 20),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -52,16 +55,28 @@ class DioClient {
       maxWidth: 90,
     ));
 
-    // Optional: Add an interceptor for Auth Tokens
+    // Auth Interceptor
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // e.g., String token = await Storage.getToken();
-        // options.headers['Authorization'] = 'Bearer $token';
+        // A. Instantiate Storage Service
+        // Since DioClient is a singleton, we create the storage instance here
+        // to ensure we get the latest state/reference.
+        final storage = SecureStorageService();
+
+        // B. Get Token
+        final token = await storage.getAccessToken();
+
+        // C. Attach to Header if token exists
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+
         return handler.next(options);
       },
       onError: (DioException e, handler) {
         if (e.response?.statusCode == 401) {
-          // Handle token expiry (e.g., logout user)
+          // TODO: Handle 401 (Token Expired)
+          // Usually trigger a refresh token flow or force logout here
         }
         return handler.next(e);
       },

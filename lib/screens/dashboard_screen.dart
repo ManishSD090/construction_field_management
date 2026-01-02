@@ -29,14 +29,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   void _checkNewUserStatus() {
     // 1. Get current user from Riverpod state
-    // final user = ref.read(authControllerProvider).value;
+    final user = ref.read(authControllerProvider).value;
 
     // 2. Check logic (Assuming your User model has an 'isNewUser' or similar flag)
     // You can adjust this condition based on your actual User model
     // For now, I'm simulating it as always true for demonstration if needed,
     // or you can check: if (user?.isNewUser == true)
 
-    bool isNewUser = true; // REPLACE THIS with: user?.isNewUser ?? false;
+    bool isNewUser = user != null && user.lastLogin == null;
 
     if (isNewUser) {
       Future.delayed(const Duration(seconds: 1), () {
