@@ -8,6 +8,7 @@ import 'package:construction_erp/core/services/secure_storage_service.dart';
 import 'package:construction_erp/database/database.dart';
 import 'package:construction_erp/core/mappers/user_mapper.dart';
 import 'package:construction_erp/models/user.dart';
+import 'package:construction_erp/models/permission.dart';
 
 // ==============================================================================
 // PROVIDERS
@@ -49,7 +50,11 @@ class AuthController extends AsyncNotifier<User?> {
 
     final userEntity = await _db.getCurrentUser();
     if (userEntity != null) {
-      return userEntity.toDomain();
+      final user = userEntity.toDomain();
+
+      PermissionManager.initFromCodes(user.permissions ?? []);
+
+      return user;
     }
 
     await logout();
@@ -62,6 +67,7 @@ class AuthController extends AsyncNotifier<User?> {
     final data = response.data['data'];
     final userDomain = User.fromJson(data['user'] ?? data);
     await _db.saveUserOnLogin(userDomain.toEntity());
+    PermissionManager.initFromCodes(userDomain.permissions ?? []);
     return userDomain;
   }
 
@@ -136,6 +142,7 @@ class AuthController extends AsyncNotifier<User?> {
 
     // 3. Save User to Local DB
     await _db.saveUserOnLogin(userDomain.toEntity());
+    PermissionManager.initFromCodes(userDomain.permissions ?? []);
 
     return userDomain;
   }

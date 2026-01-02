@@ -53,6 +53,8 @@ class User {
 
   final UserSettings? settings;
 
+  final List<String>? permissions;
+
   User({
     required this.id,
     this.companyId,
@@ -93,9 +95,22 @@ class User {
     this.createdById,
     this.createdBy,
     this.settings,
+    this.permissions,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    List<String>? extractPermissions() {
+      // 1. Check inside 'role' object (Most likely based on your API)
+      if (json['role'] != null && json['role']['permissions'] != null) {
+        return List<String>.from(json['role']['permissions']);
+      }
+      // 2. Fallback: Check at root level (Just in case API changes)
+      if (json['permissions'] != null) {
+        return List<String>.from(json['permissions']);
+      }
+      return null;
+    }
+
     return User(
       id: json['id']?.toString() ?? '',
       companyId: json['company']?['id']?.toString(),
@@ -154,6 +169,7 @@ class User {
       settings: json['settings'] != null
           ? UserSettings.fromJson(json['settings'])
           : null,
+      permissions: extractPermissions(),
     );
   }
 
@@ -198,6 +214,7 @@ class User {
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
       'settings': settings?.toJson(),
+      'permissions': permissions,
     };
   }
 }

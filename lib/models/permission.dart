@@ -73,6 +73,8 @@ class PermissionManager {
   static bool canAny(List<String> codes) =>
       codes.any((c) => _userPermissionCodes.contains(c));
 
+  static Set<String> get activePermissionCodes => _userPermissionCodes;
+
   static List<Permission> get allPermissions => _allPermissions;
 
   static void clear() {

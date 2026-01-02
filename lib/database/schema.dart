@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:construction_erp/core/converters/string_list_converter.dart';
 
 // ==========================================
 // 1. PROJECTS (Reference Data)
@@ -273,6 +274,11 @@ class Users extends Table {
 
   BoolColumn get isSystemAdmin =>
       boolean().withDefault(const Constant(false))();
+
+  TextColumn get permissions => text()
+      .map(const StringListConverter())
+      .nullable()
+      .withDefault(const Constant('[]'))();
 
   // Settings (Optional: You can store this as a JSON string using a TypeConverter if needed)
   TextColumn get theme =>

@@ -4768,8 +4768,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
       const VerificationMeta('salaryType');
   @override
   late final GeneratedColumn<String> salaryType = GeneratedColumn<String>(
-      'salary_type', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+      'salary_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isActiveMeta =
       const VerificationMeta('isActive');
   @override
@@ -4804,6 +4804,13 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("is_system_admin" IN (0, 1))'),
       defaultValue: const Constant(false));
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>?, String>
+      permissions = GeneratedColumn<String>('permissions', aliasedName, true,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>?>($UsersTable.$converterpermissionsn);
   static const VerificationMeta _themeMeta = const VerificationMeta('theme');
   @override
   late final GeneratedColumn<String> theme = GeneratedColumn<String>(
@@ -4847,6 +4854,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
         createdAt,
         updatedAt,
         isSystemAdmin,
+        permissions,
         theme,
         language,
         lastLogin
@@ -4953,8 +4961,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
           _salaryTypeMeta,
           salaryType.isAcceptableOrUnknown(
               data['salary_type']!, _salaryTypeMeta));
-    } else if (isInserting) {
-      context.missing(_salaryTypeMeta);
     }
     if (data.containsKey('is_active')) {
       context.handle(_isActiveMeta,
@@ -5026,7 +5032,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
       defaultLocation: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}default_location'])!,
       salaryType: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}salary_type'])!,
+          .read(DriftSqlType.string, data['${effectivePrefix}salary_type']),
       isActive: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
       createdAt: attachedDatabase.typeMapping
@@ -5035,6 +5041,9 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
       isSystemAdmin: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_system_admin'])!,
+      permissions: $UsersTable.$converterpermissionsn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}permissions'])),
       theme: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}theme']),
       language: attachedDatabase.typeMapping
@@ -5048,6 +5057,11 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
   $UsersTable createAlias(String alias) {
     return $UsersTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<String>, String> $converterpermissions =
+      const StringListConverter();
+  static TypeConverter<List<String>?, String?> $converterpermissionsn =
+      NullAwareTypeConverter.wrap($converterpermissions);
 }
 
 class UserEntity extends DataClass implements Insertable<UserEntity> {
@@ -5066,11 +5080,12 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
   final String userType;
   final String employeeStatus;
   final String defaultLocation;
-  final String salaryType;
+  final String? salaryType;
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isSystemAdmin;
+  final List<String>? permissions;
   final String? theme;
   final String? language;
   final DateTime? lastLogin;
@@ -5090,11 +5105,12 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
       required this.userType,
       required this.employeeStatus,
       required this.defaultLocation,
-      required this.salaryType,
+      this.salaryType,
       required this.isActive,
       this.createdAt,
       this.updatedAt,
       required this.isSystemAdmin,
+      this.permissions,
       this.theme,
       this.language,
       this.lastLogin});
@@ -5132,7 +5148,9 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
     map['user_type'] = Variable<String>(userType);
     map['employee_status'] = Variable<String>(employeeStatus);
     map['default_location'] = Variable<String>(defaultLocation);
-    map['salary_type'] = Variable<String>(salaryType);
+    if (!nullToAbsent || salaryType != null) {
+      map['salary_type'] = Variable<String>(salaryType);
+    }
     map['is_active'] = Variable<bool>(isActive);
     if (!nullToAbsent || createdAt != null) {
       map['created_at'] = Variable<DateTime>(createdAt);
@@ -5141,6 +5159,10 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
       map['updated_at'] = Variable<DateTime>(updatedAt);
     }
     map['is_system_admin'] = Variable<bool>(isSystemAdmin);
+    if (!nullToAbsent || permissions != null) {
+      map['permissions'] = Variable<String>(
+          $UsersTable.$converterpermissionsn.toSql(permissions));
+    }
     if (!nullToAbsent || theme != null) {
       map['theme'] = Variable<String>(theme);
     }
@@ -5185,7 +5207,9 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
       userType: Value(userType),
       employeeStatus: Value(employeeStatus),
       defaultLocation: Value(defaultLocation),
-      salaryType: Value(salaryType),
+      salaryType: salaryType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(salaryType),
       isActive: Value(isActive),
       createdAt: createdAt == null && nullToAbsent
           ? const Value.absent()
@@ -5194,6 +5218,9 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
           ? const Value.absent()
           : Value(updatedAt),
       isSystemAdmin: Value(isSystemAdmin),
+      permissions: permissions == null && nullToAbsent
+          ? const Value.absent()
+          : Value(permissions),
       theme:
           theme == null && nullToAbsent ? const Value.absent() : Value(theme),
       language: language == null && nullToAbsent
@@ -5224,11 +5251,12 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
       userType: serializer.fromJson<String>(json['userType']),
       employeeStatus: serializer.fromJson<String>(json['employeeStatus']),
       defaultLocation: serializer.fromJson<String>(json['defaultLocation']),
-      salaryType: serializer.fromJson<String>(json['salaryType']),
+      salaryType: serializer.fromJson<String?>(json['salaryType']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       isSystemAdmin: serializer.fromJson<bool>(json['isSystemAdmin']),
+      permissions: serializer.fromJson<List<String>?>(json['permissions']),
       theme: serializer.fromJson<String?>(json['theme']),
       language: serializer.fromJson<String?>(json['language']),
       lastLogin: serializer.fromJson<DateTime?>(json['lastLogin']),
@@ -5253,11 +5281,12 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
       'userType': serializer.toJson<String>(userType),
       'employeeStatus': serializer.toJson<String>(employeeStatus),
       'defaultLocation': serializer.toJson<String>(defaultLocation),
-      'salaryType': serializer.toJson<String>(salaryType),
+      'salaryType': serializer.toJson<String?>(salaryType),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime?>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'isSystemAdmin': serializer.toJson<bool>(isSystemAdmin),
+      'permissions': serializer.toJson<List<String>?>(permissions),
       'theme': serializer.toJson<String?>(theme),
       'language': serializer.toJson<String?>(language),
       'lastLogin': serializer.toJson<DateTime?>(lastLogin),
@@ -5280,11 +5309,12 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
           String? userType,
           String? employeeStatus,
           String? defaultLocation,
-          String? salaryType,
+          Value<String?> salaryType = const Value.absent(),
           bool? isActive,
           Value<DateTime?> createdAt = const Value.absent(),
           Value<DateTime?> updatedAt = const Value.absent(),
           bool? isSystemAdmin,
+          Value<List<String>?> permissions = const Value.absent(),
           Value<String?> theme = const Value.absent(),
           Value<String?> language = const Value.absent(),
           Value<DateTime?> lastLogin = const Value.absent()}) =>
@@ -5305,11 +5335,12 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
         userType: userType ?? this.userType,
         employeeStatus: employeeStatus ?? this.employeeStatus,
         defaultLocation: defaultLocation ?? this.defaultLocation,
-        salaryType: salaryType ?? this.salaryType,
+        salaryType: salaryType.present ? salaryType.value : this.salaryType,
         isActive: isActive ?? this.isActive,
         createdAt: createdAt.present ? createdAt.value : this.createdAt,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
         isSystemAdmin: isSystemAdmin ?? this.isSystemAdmin,
+        permissions: permissions.present ? permissions.value : this.permissions,
         theme: theme.present ? theme.value : this.theme,
         language: language.present ? language.value : this.language,
         lastLogin: lastLogin.present ? lastLogin.value : this.lastLogin,
@@ -5349,6 +5380,8 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
       isSystemAdmin: data.isSystemAdmin.present
           ? data.isSystemAdmin.value
           : this.isSystemAdmin,
+      permissions:
+          data.permissions.present ? data.permissions.value : this.permissions,
       theme: data.theme.present ? data.theme.value : this.theme,
       language: data.language.present ? data.language.value : this.language,
       lastLogin: data.lastLogin.present ? data.lastLogin.value : this.lastLogin,
@@ -5378,6 +5411,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSystemAdmin: $isSystemAdmin, ')
+          ..write('permissions: $permissions, ')
           ..write('theme: $theme, ')
           ..write('language: $language, ')
           ..write('lastLogin: $lastLogin')
@@ -5407,6 +5441,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
         createdAt,
         updatedAt,
         isSystemAdmin,
+        permissions,
         theme,
         language,
         lastLogin
@@ -5435,6 +5470,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isSystemAdmin == this.isSystemAdmin &&
+          other.permissions == this.permissions &&
           other.theme == this.theme &&
           other.language == this.language &&
           other.lastLogin == this.lastLogin);
@@ -5456,11 +5492,12 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
   final Value<String> userType;
   final Value<String> employeeStatus;
   final Value<String> defaultLocation;
-  final Value<String> salaryType;
+  final Value<String?> salaryType;
   final Value<bool> isActive;
   final Value<DateTime?> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<bool> isSystemAdmin;
+  final Value<List<String>?> permissions;
   final Value<String?> theme;
   final Value<String?> language;
   final Value<DateTime?> lastLogin;
@@ -5486,6 +5523,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isSystemAdmin = const Value.absent(),
+    this.permissions = const Value.absent(),
     this.theme = const Value.absent(),
     this.language = const Value.absent(),
     this.lastLogin = const Value.absent(),
@@ -5507,11 +5545,12 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
     required String userType,
     required String employeeStatus,
     required String defaultLocation,
-    required String salaryType,
+    this.salaryType = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isSystemAdmin = const Value.absent(),
+    this.permissions = const Value.absent(),
     this.theme = const Value.absent(),
     this.language = const Value.absent(),
     this.lastLogin = const Value.absent(),
@@ -5522,8 +5561,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
         roleId = Value(roleId),
         userType = Value(userType),
         employeeStatus = Value(employeeStatus),
-        defaultLocation = Value(defaultLocation),
-        salaryType = Value(salaryType);
+        defaultLocation = Value(defaultLocation);
   static Insertable<UserEntity> custom({
     Expression<String>? id,
     Expression<String>? name,
@@ -5545,6 +5583,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isSystemAdmin,
+    Expression<String>? permissions,
     Expression<String>? theme,
     Expression<String>? language,
     Expression<DateTime>? lastLogin,
@@ -5571,6 +5610,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isSystemAdmin != null) 'is_system_admin': isSystemAdmin,
+      if (permissions != null) 'permissions': permissions,
       if (theme != null) 'theme': theme,
       if (language != null) 'language': language,
       if (lastLogin != null) 'last_login': lastLogin,
@@ -5594,11 +5634,12 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
       Value<String>? userType,
       Value<String>? employeeStatus,
       Value<String>? defaultLocation,
-      Value<String>? salaryType,
+      Value<String?>? salaryType,
       Value<bool>? isActive,
       Value<DateTime?>? createdAt,
       Value<DateTime?>? updatedAt,
       Value<bool>? isSystemAdmin,
+      Value<List<String>?>? permissions,
       Value<String?>? theme,
       Value<String?>? language,
       Value<DateTime?>? lastLogin,
@@ -5624,6 +5665,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isSystemAdmin: isSystemAdmin ?? this.isSystemAdmin,
+      permissions: permissions ?? this.permissions,
       theme: theme ?? this.theme,
       language: language ?? this.language,
       lastLogin: lastLogin ?? this.lastLogin,
@@ -5694,6 +5736,10 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
     if (isSystemAdmin.present) {
       map['is_system_admin'] = Variable<bool>(isSystemAdmin.value);
     }
+    if (permissions.present) {
+      map['permissions'] = Variable<String>(
+          $UsersTable.$converterpermissionsn.toSql(permissions.value));
+    }
     if (theme.present) {
       map['theme'] = Variable<String>(theme.value);
     }
@@ -5732,6 +5778,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSystemAdmin: $isSystemAdmin, ')
+          ..write('permissions: $permissions, ')
           ..write('theme: $theme, ')
           ..write('language: $language, ')
           ..write('lastLogin: $lastLogin, ')
@@ -8284,11 +8331,12 @@ typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   required String userType,
   required String employeeStatus,
   required String defaultLocation,
-  required String salaryType,
+  Value<String?> salaryType,
   Value<bool> isActive,
   Value<DateTime?> createdAt,
   Value<DateTime?> updatedAt,
   Value<bool> isSystemAdmin,
+  Value<List<String>?> permissions,
   Value<String?> theme,
   Value<String?> language,
   Value<DateTime?> lastLogin,
@@ -8310,11 +8358,12 @@ typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
   Value<String> userType,
   Value<String> employeeStatus,
   Value<String> defaultLocation,
-  Value<String> salaryType,
+  Value<String?> salaryType,
   Value<bool> isActive,
   Value<DateTime?> createdAt,
   Value<DateTime?> updatedAt,
   Value<bool> isSystemAdmin,
+  Value<List<String>?> permissions,
   Value<String?> theme,
   Value<String?> language,
   Value<DateTime?> lastLogin,
@@ -8391,6 +8440,11 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
 
   ColumnFilters<bool> get isSystemAdmin => $composableBuilder(
       column: $table.isSystemAdmin, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>?, List<String>, String>
+      get permissions => $composableBuilder(
+          column: $table.permissions,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<String> get theme => $composableBuilder(
       column: $table.theme, builder: (column) => ColumnFilters(column));
@@ -8475,6 +8529,9 @@ class $$UsersTableOrderingComposer
       column: $table.isSystemAdmin,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get permissions => $composableBuilder(
+      column: $table.permissions, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get theme => $composableBuilder(
       column: $table.theme, builder: (column) => ColumnOrderings(column));
 
@@ -8554,6 +8611,10 @@ class $$UsersTableAnnotationComposer
   GeneratedColumn<bool> get isSystemAdmin => $composableBuilder(
       column: $table.isSystemAdmin, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<List<String>?, String> get permissions =>
+      $composableBuilder(
+          column: $table.permissions, builder: (column) => column);
+
   GeneratedColumn<String> get theme =>
       $composableBuilder(column: $table.theme, builder: (column) => column);
 
@@ -8602,11 +8663,12 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<String> userType = const Value.absent(),
             Value<String> employeeStatus = const Value.absent(),
             Value<String> defaultLocation = const Value.absent(),
-            Value<String> salaryType = const Value.absent(),
+            Value<String?> salaryType = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
             Value<DateTime?> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
             Value<bool> isSystemAdmin = const Value.absent(),
+            Value<List<String>?> permissions = const Value.absent(),
             Value<String?> theme = const Value.absent(),
             Value<String?> language = const Value.absent(),
             Value<DateTime?> lastLogin = const Value.absent(),
@@ -8633,6 +8695,7 @@ class $$UsersTableTableManager extends RootTableManager<
             createdAt: createdAt,
             updatedAt: updatedAt,
             isSystemAdmin: isSystemAdmin,
+            permissions: permissions,
             theme: theme,
             language: language,
             lastLogin: lastLogin,
@@ -8654,11 +8717,12 @@ class $$UsersTableTableManager extends RootTableManager<
             required String userType,
             required String employeeStatus,
             required String defaultLocation,
-            required String salaryType,
+            Value<String?> salaryType = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
             Value<DateTime?> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
             Value<bool> isSystemAdmin = const Value.absent(),
+            Value<List<String>?> permissions = const Value.absent(),
             Value<String?> theme = const Value.absent(),
             Value<String?> language = const Value.absent(),
             Value<DateTime?> lastLogin = const Value.absent(),
@@ -8685,6 +8749,7 @@ class $$UsersTableTableManager extends RootTableManager<
             createdAt: createdAt,
             updatedAt: updatedAt,
             isSystemAdmin: isSystemAdmin,
+            permissions: permissions,
             theme: theme,
             language: language,
             lastLogin: lastLogin,

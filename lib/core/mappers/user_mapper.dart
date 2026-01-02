@@ -16,6 +16,9 @@ extension UserEntityMapper on UserEntity {
       designation: designation,
       department: department,
       profilePicture: profilePicture,
+
+      permissions: permissions ?? [],
+
       userType: UserType.fromJson(userType),
       employeeStatus: EmployeeStatus.fromJson(employeeStatus),
       defaultLocation: AttendanceLocation.fromJson(defaultLocation),
@@ -47,7 +50,7 @@ extension UserDomainMapper on User {
   UserEntity toEntity() {
     return UserEntity(
       id: id,
-      name: name, // Map 'name' back to 'fullname'
+      name: name,
       email: email ?? '',
       phone: phone,
       roleId: roleId,
@@ -56,6 +59,7 @@ extension UserDomainMapper on User {
       designation: designation,
       department: department,
       profilePicture: profilePicture,
+      permissions: permissions ?? [],
       userType: userType.toJson(),
       employeeStatus: employeeStatus.toJson(),
       defaultLocation: defaultLocation.toJson(),

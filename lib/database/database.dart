@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 // Import your schema
 import 'package:construction_erp/database/schema.dart';
+import 'package:construction_erp/core/converters/string_list_converter.dart';
 
 part 'database.g.dart';
 
