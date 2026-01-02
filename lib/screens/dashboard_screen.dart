@@ -1,97 +1,250 @@
-import 'package:construction_erp/routes.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Import your auth controller and model
-import 'package:construction_erp/controllers/auth_controller.dart'; // Adjust path
+// Imports
+import 'package:construction_erp/controllers/auth_controller.dart';
 import 'package:construction_erp/models/user.dart';
+import 'package:construction_erp/screens/auth/login_screen.dart';
+import 'package:construction_erp/screens/auth/set_pass_screen.dart'; // Ensure this exists
 
-// 2. Change StatelessWidget to ConsumerWidget
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  // 3. Add WidgetRef to build method
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 4. Watch the Auth State to get User data
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  // Local state for popup visibility
+  bool _showPasswordPopup = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check if we need to show the popup after the widget mounts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNewUserStatus();
+    });
+  }
+
+  void _checkNewUserStatus() {
+    // 1. Get current user from Riverpod state
+    // final user = ref.read(authControllerProvider).value;
+
+    // 2. Check logic (Assuming your User model has an 'isNewUser' or similar flag)
+    // You can adjust this condition based on your actual User model
+    // For now, I'm simulating it as always true for demonstration if needed,
+    // or you can check: if (user?.isNewUser == true)
+
+    bool isNewUser = true; // REPLACE THIS with: user?.isNewUser ?? false;
+
+    if (isNewUser) {
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          setState(() {
+            _showPasswordPopup = true;
+          });
+        }
+      });
+    }
+  }
+
+  void _closePopup() {
+    setState(() {
+      _showPasswordPopup = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch Auth State for UI updates (Name/Role)
     final authState = ref.watch(authControllerProvider);
-    final user = authState.value; // Access the User object safely
+    final user = authState.value;
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 5. Pass user and ref to the header
-            _buildHeader(context, ref, user),
-
-            const SizedBox(height: 20),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Quick actions",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 15),
-                  _buildQuickActionsGrid(),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    // Use Stack to overlay the popup
+    return Stack(
+      children: [
+        // --- LAYER 1: Main Dashboard Content ---
+        Scaffold(
+          backgroundColor: Colors.grey[50],
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, user),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        "Recent activity",
+                        "Quick actions",
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text("View all",
-                            style: TextStyle(color: Colors.blue)),
-                      )
+                      const SizedBox(height: 15),
+                      _buildQuickActionsGrid(),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  _buildRecentActivityList(),
-                ],
+                ),
+                const SizedBox(height: 25),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Recent activity",
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          TextButton(
+                            onPressed: () {},
+                            child: const Text("View all",
+                                style: TextStyle(color: Colors.blue)),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _buildRecentActivityList(),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
+          bottomNavigationBar: _buildBottomNavBar(),
+          // Optional: FAB to trigger popup manually for testing
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              setState(() {
+                _showPasswordPopup = true;
+              });
+            },
+            backgroundColor: Colors.white,
+            elevation: 4,
+            shape: const CircleBorder(),
+            child: const Icon(Icons.add, color: Colors.blue),
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
+        ),
+
+        // --- LAYER 2: Dimmed Background (Visible only when popup is shown) ---
+        if (_showPasswordPopup)
+          GestureDetector(
+            onTap: _closePopup,
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+
+        // --- LAYER 3: The Floating Popup ---
+        if (_showPasswordPopup)
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                width: 220,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Continue to login\nwith password ?",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // --- SET PASSWORD BUTTON ---
+                    SizedBox(
+                      width: double.infinity,
+                      height: 35,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _closePopup();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const SetPasswordScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D6EFD),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "SET PASSWORD",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    // --- NO THANKS BUTTON ---
+                    TextButton(
+                      onPressed: _closePopup,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        "No Thanks",
+                        style: TextStyle(
+                          color: Color(0xFF0D6EFD),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 80),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavBar(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Trigger actions
-        },
-        backgroundColor: Colors.white,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.blue),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          ),
+      ],
     );
   }
 
-  // --- WIDGET COMPONENTS ---
+  // --- COMPONENT WIDGETS ---
 
-  // 6. Updated Header Signature
-  Widget _buildHeader(BuildContext context, WidgetRef ref, User? user) {
+  Widget _buildHeader(BuildContext context, User? user) {
     return Container(
       padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
       decoration: const BoxDecoration(
@@ -115,41 +268,35 @@ class DashboardScreen extends ConsumerWidget {
                     fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 5),
-              // 7. Bind Real User Name
               Text(
-                user?.name ?? "Loading...", // Fallback if null
+                user?.name ?? "Loading...",
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold),
               ),
-              // 8. Bind Real User Role
               Text(
-                user?.role?.name ?? "Staff", // Fallback if null
+                user?.role?.name ?? "Contractor",
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
           Row(
             children: [
-              // --- LOGOUT BUTTON IMPLEMENTATION ---
               IconButton(
                 onPressed: () async {
-                  // A. Call the controller logout logic
                   await ref.read(authControllerProvider.notifier).logout();
-
-                  // B. Navigate to Login (Check if context is still valid)
                   if (context.mounted) {
-                    Navigator.pushReplacementNamed(
+                    Navigator.pushReplacement(
                       context,
-                      AppRoutes.login,
+                      MaterialPageRoute(
+                          builder: (context) => const LoginScreen()),
                     );
                   }
                 },
                 icon: const Icon(Icons.logout, color: Colors.white),
               ),
               const SizedBox(width: 5),
-
               Stack(
                 children: [
                   IconButton(
@@ -177,8 +324,6 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-
-  // ... [Keep _buildQuickActionsGrid, _buildActionCard, _buildRecentActivityList, etc. exactly as they were] ...
 
   Widget _buildQuickActionsGrid() {
     return GridView.count(
