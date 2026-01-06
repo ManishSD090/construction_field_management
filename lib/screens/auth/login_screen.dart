@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
 import 'package:construction_erp/screens/auth/otp_screen.dart';
-import 'package:construction_erp/screens/home_screen.dart'; // <--- 1. Import your HomeScreen
+import 'package:construction_erp/screens/home_screen.dart';
+import '../super_admin/super_admin_layout.dart'; // <--- 1. Import your HomeScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -134,7 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       // <--- 2. UPDATED NAVIGATION LOGIC
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const SuperAdminLayout()),
                       );
                     },
                   ),

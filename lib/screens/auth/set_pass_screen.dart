@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
-import 'package:construction_erp/screens/home_screen.dart';
+// import 'package:construction_erp/screens/home_screen.dart';
+import '../super_admin/super_admin_layout.dart';
 
 class SetPasswordScreen extends StatefulWidget {
   const SetPasswordScreen({super.key});
@@ -55,7 +56,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-          builder: (context) => const HomeScreen(isNewUser: false)),
+          builder: (context) => const SuperAdminLayout()), // FIXED
       (route) => false,
     );
   }
@@ -82,7 +83,6 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 50),
-
                 const Text("New Password",
                     style:
                         TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
@@ -101,9 +101,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                         setState(() => _isNewPassVisible = !_isNewPassVisible),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 const Text("Confirm Password",
                     style:
                         TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
@@ -122,9 +120,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                         () => _isConfirmPassVisible = !_isConfirmPassVisible),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 PrimaryButton(title: "Continue", onTap: _validateAndSubmit),
               ],
             ),

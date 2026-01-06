@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
 import 'package:construction_erp/screens/home_screen.dart';
-
+import '../super_admin/super_admin_layout.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -254,8 +254,7 @@ class _OtpScreenState extends State<OtpScreen>
                       Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                              builder: (context) =>
-                                  const HomeScreen(isNewUser: true)));
+                              builder: (context) => const SuperAdminLayout()));
                     }
                   },
                 ),
