@@ -1,9 +1,9 @@
+import 'package:dio/dio.dart'; // <--- IMPORT THIS
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Imports from your project structure
-import 'package:construction_erp/routes.dart'; // Your named routes file
-import 'package:construction_erp/controllers/auth_controller.dart'; // Your Auth Controller
+import 'package:construction_erp/routes.dart';
+import 'package:construction_erp/controllers/auth_controller.dart';
 import 'package:construction_erp/widgets/auth_textfield.dart';
 import 'package:construction_erp/widgets/primary_button.dart';
 
@@ -17,11 +17,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _identifierCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _formKey = GlobalKey<FormState>(); // Added for validation
+  final _formKey = GlobalKey<FormState>();
 
   bool _isPasswordVisible = false;
 
-  // Constants for colors to keep build method clean
   static const _faintLightBlue = Color(0xFF90CAF9);
   static const _textColor = Color(0xFF1E232C);
 
@@ -33,9 +32,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _handleLogin() {
-    // 1. Validate inputs
     if (_formKey.currentState!.validate()) {
-      // 2. Trigger Controller
       ref.read(authControllerProvider.notifier).loginWithPassword(
             identifier: _identifierCtrl.text.trim(),
             password: _passCtrl.text,
@@ -43,26 +40,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Helper to generate user-friendly error messages
+  String _getErrorMessage(Object error) {
+    if (error is DioException) {
+      // 1. Handle 401 (Invalid Credentials)
+      if (error.response?.statusCode == 401) {
+        return "Invalid Credentials. Please try again.";
+      }
+
+      // 2. Handle Server Connection Issues
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return "Unable to connect to server. Check your internet.";
+      }
+
+      // 3. Try to extract backend error message (e.g., {"message": "User blocked"})
+      if (error.response?.data != null && error.response!.data is Map) {
+        return error.response!.data['message'] ?? "Server error occurred.";
+      }
+    }
+
+    // 4. Fallback
+    return error.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 3. Watch Auth State (for loading indicator)
     final authState = ref.watch(authControllerProvider);
 
-    // 4. Listen for Side Effects (Navigation or Error)
+    // --- UPDATED LISTENER ---
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasError && !next.isLoading) {
-        // Show Error SnackBar
+        // Get the friendly message
+        final message = _getErrorMessage(next.error!);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.error.toString()),
+            content: Text(message),
             backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else if (next.value != null && !next.isLoading) {
-        // Success: Navigate to Dashboard using Named Route
         Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
       }
     });
+    // -----------------------
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -77,7 +100,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- HEADER ---
                     const Center(
                       child: Column(
                         children: [
@@ -101,10 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 40),
-
-                    // --- EMAIL/PHONE FIELD ---
                     const Text(
                       "Phone Number/ Email",
                       style: TextStyle(
@@ -117,13 +136,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _identifierCtrl,
                       hint: "Enter phone number/Email",
                       hintStyle: const TextStyle(color: _faintLightBlue),
-                      // Add basic validation
                       validator: (value) => value!.isEmpty ? "Required" : null,
+                      textInputAction: TextInputAction.next,
                     ),
-
                     const SizedBox(height: 20),
-
-                    // --- PASSWORD FIELD ---
                     const Text(
                       "Password",
                       style: TextStyle(
@@ -138,6 +154,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       hintStyle: const TextStyle(color: _faintLightBlue),
                       obscureText: !_isPasswordVisible,
                       validator: (value) => value!.isEmpty ? "Required" : null,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _handleLogin(),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordVisible
@@ -152,25 +170,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         },
                       ),
                     ),
-
                     const SizedBox(height: 30),
-
-                    // --- LOGIN BUTTON ---
-                    // If loading, show spinner. Else show button.
                     authState.isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : PrimaryButton(
                             title: "Continue",
                             onTap: _handleLogin,
                           ),
-
                     const SizedBox(height: 20),
-
-                    // --- OTP LOGIN LINK ---
                     Center(
                       child: GestureDetector(
                         onTap: () {
-                          // Standard Push for OTP screen (Back button enabled)
                           Navigator.pushNamed(
                             context,
                             AppRoutes.otp,

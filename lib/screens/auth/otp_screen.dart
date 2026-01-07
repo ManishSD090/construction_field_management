@@ -1,14 +1,12 @@
-import 'package:construction_erp/routes.dart';
-import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Import Widgets
+import 'package:construction_erp/routes.dart';
+import 'package:construction_erp/controllers/auth_controller.dart';
 import 'package:construction_erp/widgets/auth_textfield.dart';
 import 'package:construction_erp/widgets/primary_button.dart';
-
-// Import Controller
-import 'package:construction_erp/controllers/auth_controller.dart'; // Adjust path if needed
 
 class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
@@ -26,6 +24,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
   bool _isOtpVisible = false;
   bool _otpSent = false;
 
+  // 1. ADD LOCAL LOADING STATE
+  bool _isSendingOtp = false;
+
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
   OverlayEntry? _overlayEntry;
@@ -33,7 +34,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
   @override
   void initState() {
     super.initState();
-    // Animation controller for the popup slide effect
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -64,22 +64,58 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
     _overlayEntry = null;
   }
 
+  String _getErrorMessage(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return "Unable to connect. Check your internet.";
+      }
+      if (error.response?.statusCode == 404) {
+        return "Phone number not registered.";
+      }
+      if (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 401) {
+        if (_otpSent) {
+          return "Invalid OTP. Please try again.";
+        }
+        return "Invalid request.";
+      }
+      if (error.response?.data != null && error.response!.data is Map) {
+        return error.response!.data['message'] ?? "An error occurred.";
+      }
+    }
+    return error.toString();
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   // --- LOGIC: SEND OTP ---
   Future<void> _handleSendOtp() async {
     final identifier = identifierCtrl.text.trim();
     if (identifier.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter a phone number")));
+      _showErrorSnackBar("Please enter a phone number");
       return;
     }
 
+    // 2. START LOADING
+    setState(() {
+      _isSendingOtp = true;
+    });
+
     try {
-      // 1. Call Controller
       await ref
           .read(authControllerProvider.notifier)
           .requestLoginOtp(identifier: identifier);
 
-      // 2. On Success: Update UI
       if (mounted) {
         setState(() {
           _otpSent = true;
@@ -87,10 +123,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
         _showTopSuccess(context);
       }
     } catch (e) {
-      // 3. Handle Error (e.g., API failure)
+      _showErrorSnackBar(_getErrorMessage(e));
+    } finally {
+      // 3. STOP LOADING (Always execute)
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Failed to send OTP: $e")));
+        setState(() {
+          _isSendingOtp = false;
+        });
       }
     }
   }
@@ -101,20 +140,16 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
     final otp = otpCtrl.text.trim();
 
     if (otp.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Please enter the OTP")));
+      _showErrorSnackBar("Please enter the OTP");
       return;
     }
 
-    // 1. Call Controller (This updates the global state)
+    // No local loading state needed here; global Riverpod state handles it
     await ref
         .read(authControllerProvider.notifier)
         .verifyLoginOtp(identifier: identifier, otp: otp);
-
-    // Note: Navigation is handled by the ref.listen below
   }
 
-  // --- CUSTOM POPUP LOGIC ---
   void _showTopSuccess(BuildContext context) {
     if (_overlayEntry != null) _removeOverlay();
 
@@ -189,22 +224,20 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
   Widget build(BuildContext context) {
     const faintLightBlue = Color(0xFF90CAF9);
 
-    // 1. Listen for Auth State Changes (Navigation & Errors)
     ref.listen(authControllerProvider, (previous, next) {
-      if (next is AsyncError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login Failed: ${next.error}")),
-        );
+      if (next is AsyncError && !next.isLoading) {
+        _showErrorSnackBar(_getErrorMessage(next.error!));
       } else if (next is AsyncData && next.value != null) {
-        // Login Successful -> Navigate
         _removeOverlay();
         Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
       }
     });
 
-    // 2. Watch for Loading State
     final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
+
+    // 4. COMBINE LOADING STATES
+    // isLoading is TRUE if either the Controller is working OR we are sending OTP locally
+    final isLoading = authState.isLoading || _isSendingOtp;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -213,10 +246,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            _removeOverlay();
-            Navigator.pop(context);
-          },
+          // Disable back button if loading
+          onPressed: isLoading
+              ? null
+              : () {
+                  _removeOverlay();
+                  Navigator.pop(context);
+                },
         ),
       ),
       body: SafeArea(
@@ -227,7 +263,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- HEADER ---
                 const Center(
                   child: Text(
                     "Sign In",
@@ -255,6 +290,20 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                   hintStyle: TextStyle(
                       color: _otpSent ? Colors.black87 : faintLightBlue),
                   obscureText: !_isIdentifierVisible,
+
+                  // Disable input if loading (optional UX improvement)
+                  // enabled: !isLoading,
+
+                  textInputAction:
+                      _otpSent ? TextInputAction.next : TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!isLoading) {
+                      if (!_otpSent) {
+                        _handleSendOtp();
+                      }
+                    }
+                  },
+
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isIdentifierVisible
@@ -270,7 +319,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                   ),
                 ),
 
-                // --- OTP FIELD (Visible after sent) ---
+                // --- OTP FIELD ---
                 if (_otpSent) ...[
                   const SizedBox(height: 20),
                   const Text(
@@ -285,6 +334,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                     hint: "Enter OTP code",
                     hintStyle: const TextStyle(color: faintLightBlue),
                     obscureText: !_isOtpVisible,
+
+                    // enabled: !isLoading,
+
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) {
+                      if (!isLoading) _handleVerifyOtp();
+                    },
+
                     suffixIcon: IconButton(
                       icon: Icon(
                         _isOtpVisible ? Icons.visibility : Icons.visibility_off,
@@ -304,9 +361,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                 // --- BUTTON ---
                 PrimaryButton(
                   title: _otpSent ? "Continue" : "Send OTP",
-                  isLoading: isLoading, // Show loading spinner
+                  // 5. PASS COMBINED LOADING STATE
+                  isLoading: isLoading,
+
+                  // Disable tap if loading
                   onTap: isLoading
-                      ? () {} // Disable tap while loading
+                      ? null // Setting to null often visually disables buttons
                       : () {
                           if (!_otpSent) {
                             _handleSendOtp();

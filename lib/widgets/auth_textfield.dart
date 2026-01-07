@@ -7,9 +7,11 @@ class AuthTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final TextStyle? hintStyle;
   final TextInputType? keyboardType;
-
-  // 1. Add Validator Function
   final String? Function(String?)? validator;
+
+  // 1. Add new properties for keyboard actions
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const AuthTextField({
     super.key,
@@ -19,19 +21,23 @@ class AuthTextField extends StatelessWidget {
     this.suffixIcon,
     this.hintStyle,
     this.keyboardType,
-    this.validator, // 2. Add to constructor
+    this.validator,
+    this.textInputAction, // 2. Add to constructor
+    this.onFieldSubmitted, // 2. Add to constructor
   });
 
   @override
   Widget build(BuildContext context) {
-    // 3. Change TextField -> TextFormField to support validation
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      validator: validator, // 4. Connect the validator
+      validator: validator,
 
-      // Basic styling (Kept exactly as you had it)
+      // 3. Connect properties to TextFormField
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
+
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: hintStyle ?? const TextStyle(color: Colors.grey),
@@ -40,8 +46,6 @@ class AuthTextField extends StatelessWidget {
         fillColor: const Color.fromARGB(255, 255, 255, 255),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-
-        // Borders
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFE8ECF4)),
@@ -54,8 +58,6 @@ class AuthTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           borderSide: const BorderSide(color: Color(0xFF0A6ED1)),
         ),
-
-        // Error Border (Style for when validation fails)
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.redAccent),

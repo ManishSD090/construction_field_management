@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 class PrimaryButton extends StatelessWidget {
   final String title;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool isLoading;
 
   const PrimaryButton({
     super.key,
     required this.title,
-    required this.onTap,
+    this.onTap,
     this.isLoading = false,
   });
 
@@ -18,7 +18,7 @@ class PrimaryButton extends StatelessWidget {
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: onTap,
+        onPressed: isLoading ? null : onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0A6ED1),
           shape:
