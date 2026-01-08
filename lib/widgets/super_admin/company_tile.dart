@@ -16,11 +16,12 @@ class CompanyTile extends StatelessWidget {
   Widget build(BuildContext context) {
     // Determine colors based on status (Active vs Suspended)
     final bool isActive = company.isActive ?? true;
-    final Color statusColor =
-        isActive ? AppColors.successGreen : AppColors.alertRed;
+    final Color statusColor = isActive
+        ? const Color.fromARGB(255, 255, 255, 255)
+        : const Color.fromARGB(255, 255, 255, 255);
     final Color statusBg = isActive
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFFFEBEE); // Light Green vs Light Red
+        ? const Color(0xFF00A991)
+        : const Color(0xFFFF3B30); // Light Green vs Light Red
     final String statusText = isActive ? "Active" : "Suspended";
 
     return GestureDetector(
@@ -66,7 +67,7 @@ class CompanyTile extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusBg,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
                     statusText,
@@ -111,7 +112,7 @@ class CompanyTile extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 4),
+            // const SizedBox(height: 4),
 
             // Optional: "View company" text at bottom right if needed matches design perfectly
             const Align(

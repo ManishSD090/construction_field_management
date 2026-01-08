@@ -20,8 +20,8 @@ class DashboardTab extends StatelessWidget {
               // Left Column: Active & Suspended Cards (Horizontal Layout)
               const Expanded(
                 flex: 4,
-                child: Column(
-                  children: [
+                child: const Column(
+                  children: const [
                     AdminStatCard(
                       label: "Active\nCompanies",
                       value: "200",
@@ -44,7 +44,7 @@ class DashboardTab extends StatelessWidget {
               Expanded(
                 flex: 5,
                 child: Container(
-                  height: 200, // Matches height of two cards + gap
+                  height: 147, // Matches height of two cards + gap
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -59,10 +59,10 @@ class DashboardTab extends StatelessWidget {
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         height: 110,
                         width: 110,
-                        child: Stack(
+                        child: const Stack(
                           fit: StackFit.expand,
                           children: [
                             // 1. Blue Ring (Main Data)
@@ -79,7 +79,7 @@ class DashboardTab extends StatelessWidget {
                               strokeCap: StrokeCap.round,
                             ),
                             // 3. Center Text
-                            Column(
+                            const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
