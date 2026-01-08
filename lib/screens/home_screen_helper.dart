@@ -102,61 +102,61 @@ class HomeScreenHelper {
     );
   }
 
- static PreferredSizeWidget buildAppBar({
-  required String name,
-  required String role,
-  bool showNotification = true,
-}) {
-  return AppBar(
-    backgroundColor: AppColors.primaryBlue,
-    elevation: 0,
-    toolbarHeight: 92,
-    automaticallyImplyLeading: false, // removes back arrow
+  static PreferredSizeWidget buildAppBar({
+    required String name,
+    required String role,
+    bool showNotification = true,
+  }) {
+    return AppBar(
+      backgroundColor: AppColors.primaryBlue,
+      elevation: 0,
+      toolbarHeight: 92,
+      automaticallyImplyLeading: false, // removes back arrow
 
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        bottom: Radius.circular(28),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(28),
+        ),
       ),
-    ),
 
-    title: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          "WELCOME BACK,",
-          style: TextStyle(fontSize: 12, color: Colors.white70),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          name,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            "WELCOME BACK,",
+            style: TextStyle(fontSize: 12, color: Colors.white70),
           ),
-        ),
-        Text(
-          role,
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.white.withOpacity(0.85),
+          const SizedBox(height: 2),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-        ),
+          Text(
+            role,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withOpacity(0.85),
+            ),
+          ),
+        ],
+      ),
+
+      actions: [
+        if (showNotification)
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: const Icon(Icons.notifications_none_rounded,
+                  color: Colors.white),
+              onPressed: () {},
+            ),
+          ),
       ],
-    ),
-
-    actions: [
-      if (showNotification)
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: Colors.white),
-            onPressed: () {},
-          ),
-        ),
-    ],
-  );
-}
+    );
+  }
 }

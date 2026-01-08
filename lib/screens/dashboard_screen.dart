@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Imports
-import 'package:construction_erp/controllers/auth_controller.dart';
+import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/screens/auth/login_screen.dart';
 import 'package:construction_erp/screens/auth/set_pass_screen.dart'; // Ensure this exists

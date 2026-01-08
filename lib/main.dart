@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'routes.dart';
-import 'package:construction_erp/controllers/auth_controller.dart';
+import 'package:construction_erp/controllers/auth/auth_controller.dart';
 
 void main() async {
   // 1. Ensure bindings are initialized first
