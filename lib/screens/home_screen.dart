@@ -102,61 +102,61 @@ class HomeScreenHelper {
     );
   }
 
-  // 3. Common App Bar Header
-  static PreferredSizeWidget buildAppBar({
-    required String name,
-    required String role,
-    bool showNotification = true,
-  }) {
-    return AppBar(
-      backgroundColor: AppColors.primaryBlue,
-      elevation: 0,
-      toolbarHeight: 80,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "WELCOME BACK,",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 18, height: 1.2),
-              children: [
-                TextSpan(
-                  text: "$name\n",
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                TextSpan(
-                  text: role,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+ static PreferredSizeWidget buildAppBar({
+  required String name,
+  required String role,
+  bool showNotification = true,
+}) {
+  return AppBar(
+    backgroundColor: AppColors.primaryBlue,
+    elevation: 0,
+    toolbarHeight: 92,
+    automaticallyImplyLeading: false, // removes back arrow
+
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        bottom: Radius.circular(28),
       ),
-      actions: [
-        if (showNotification)
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: IconButton(
-              icon: const Icon(Icons.notifications, color: Colors.white),
-              onPressed: () {},
-            ),
+    ),
+
+    title: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          "WELCOME BACK,",
+          style: TextStyle(fontSize: 12, color: Colors.white70),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          name,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
+        ),
+        Text(
+          role,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.white.withOpacity(0.85),
+          ),
+        ),
       ],
-    );
-  }
+    ),
+
+    actions: [
+      if (showNotification)
+        Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: IconButton(
+            icon: const Icon(Icons.notifications_none_rounded,
+                color: Colors.white),
+            onPressed: () {},
+          ),
+        ),
+    ],
+  );
+}
 }

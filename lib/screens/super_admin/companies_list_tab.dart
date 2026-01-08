@@ -68,8 +68,8 @@ class _CompaniesListTabState extends State<CompaniesListTab> {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(30), // Rounded pill shape
-                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(23), // Rounded pill shape
+                border: Border.all(color: const Color.fromARGB(255, 56, 56, 56)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.03),
@@ -101,10 +101,10 @@ class _CompaniesListTabState extends State<CompaniesListTab> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppColors.primaryBlue),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     Text("Filter",

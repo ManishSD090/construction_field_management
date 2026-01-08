@@ -17,10 +17,10 @@ class CompanyTile extends StatelessWidget {
     // Determine colors based on status (Active vs Suspended)
     final bool isActive = company.isActive;
     final Color statusColor =
-        isActive ? AppColors.successGreen : AppColors.alertRed;
+        isActive ? const Color.fromARGB(255, 255, 255, 255) : const Color.fromARGB(255, 255, 255, 255);
     final Color statusBg = isActive
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFFFEBEE); // Light Green vs Light Red
+        ? const Color(0xFF00A991)
+        : const Color(0xFFFF3B30); // Light Green vs Light Red
     final String statusText = isActive ? "Active" : "Suspended";
 
     return GestureDetector(
@@ -66,7 +66,7 @@ class CompanyTile extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusBg,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
                     statusText,
@@ -82,36 +82,49 @@ class CompanyTile extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // --- Row 2: Date Created ---
-            Text(
-              "Created On: ${_formatDate(company.createdAt)}",
-              style: const TextStyle(
-                color: AppColors.textGrey,
-                fontSize: 12,
-              ),
-            ),
-
-            const SizedBox(height: 6),
-
-            // --- Row 3: Admin Details (Blue Link style) ---
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+            Container(
+              margin: const EdgeInsets.only(top: 0), // small nudge down
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const TextSpan(text: "Company Admin: "),
-                  TextSpan(
-                    text: company.email ??
-                        "N/A", // Or use company.adminName if available
-                    style: const TextStyle(
-                      color: AppColors.primaryBlue,
-                      fontWeight: FontWeight.w500,
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+                      children: [
+                        const TextSpan(text: "Created On: "),
+                        TextSpan(
+                          text: company.createdAt != null
+                              ? _formatDate(company.createdAt!)
+                              : "N/A",
+                          style: const TextStyle(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
+                      children: [
+                        const TextSpan(text: "Company Admin: "),
+                        TextSpan(
+                          text: company.email ?? "N/A",
+                          style: const TextStyle(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 4),
+            // const SizedBox(height: 4),
 
             // Optional: "View company" text at bottom right if needed matches design perfectly
             const Align(

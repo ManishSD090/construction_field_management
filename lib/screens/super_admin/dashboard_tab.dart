@@ -18,9 +18,9 @@ class DashboardTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Left Column: Active & Suspended Cards (Horizontal Layout)
-              Expanded(
+              const Expanded(
                 flex: 4,
-                child: Column(
+                child: const Column(
                   children: const [
                     AdminStatCard(
                       label: "Active\nCompanies",
@@ -44,7 +44,7 @@ class DashboardTab extends StatelessWidget {
               Expanded(
                 flex: 5,
                 child: Container(
-                  height: 200, // Matches height of two cards + gap
+                  height: 147, // Matches height of two cards + gap
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -56,13 +56,13 @@ class DashboardTab extends StatelessWidget {
                           offset: const Offset(0, 4)),
                     ],
                   ),
-                  child: Column(
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         height: 110,
                         width: 110,
-                        child: Stack(
+                        child: const Stack(
                           fit: StackFit.expand,
                           children: [
                             // 1. Blue Ring (Main Data)
@@ -79,7 +79,7 @@ class DashboardTab extends StatelessWidget {
                               strokeCap: StrokeCap.round,
                             ),
                             // 3. Center Text
-                            Column(
+                            const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
                                 Text(
