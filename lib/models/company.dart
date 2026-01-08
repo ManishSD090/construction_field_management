@@ -1,8 +1,8 @@
 import 'package:construction_erp/models/user.dart';
 
 class Company {
-  final String id;
-  final String name;
+  final String? id;
+  final String? name;
   final String? registrationNumber;
   final String? gstNumber;
 
@@ -24,9 +24,9 @@ class Company {
   final String? bankIfsc;
   final String? bankBranch;
 
-  final bool isActive;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final bool? isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   final String? createdById;
   final User? createdBy;
@@ -34,8 +34,8 @@ class Company {
   final CompanySettings? settings;
 
   Company({
-    required this.id,
-    required this.name,
+    this.id,
+    this.name,
     this.registrationNumber,
     this.gstNumber,
     this.officeAddress,
@@ -50,9 +50,9 @@ class Company {
     this.bankAccount,
     this.bankIfsc,
     this.bankBranch,
-    required this.isActive,
-    required this.createdAt,
-    required this.updatedAt,
+    this.isActive,
+    this.createdAt,
+    this.updatedAt,
     this.createdById,
     this.createdBy,
     this.settings,
@@ -60,8 +60,8 @@ class Company {
 
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String?,
+      name: json['name'] as String?,
       registrationNumber: json['registrationNumber'] as String?,
       gstNumber: json['gstNumber'] as String?,
       officeAddress: json['officeAddress'] as String?,
@@ -83,8 +83,10 @@ class Company {
       bankIfsc: json['bankIfsc'] as String?,
       bankBranch: json['bankBranch'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
       createdById: json['createdById'] as String?,
       createdBy:
           json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
@@ -113,8 +115,8 @@ class Company {
       'bankIfsc': bankIfsc,
       'bankBranch': bankBranch,
       'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
       'settings': settings?.toJson(),

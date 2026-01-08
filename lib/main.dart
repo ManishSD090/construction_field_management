@@ -1,48 +1,64 @@
-import 'package:construction_erp/screens/home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'routes.dart';
+import 'package:construction_erp/controllers/auth_controller.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  // 1. Ensure bindings are initialized first
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. PRESERVE the Native Splash Screen
+  // This tells the native OS: "Don't remove the splash image yet, I'm busy."
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // 3. Create a temporary Riverpod Container
+  // We need this to read providers before the widget tree (ProviderScope) exists.
+  final container = ProviderContainer();
+
+  try {
+    // 4. Await the Auth Check
+    // We read the .future of the provider to wait for the build() method to finish.
+    // This will check SecureStorage and SQLite.
+    final user = await container.read(authControllerProvider.future);
+
+    // 5. Determine the start screen based on the result
+    final String initialRoute =
+        (user != null) ? AppRoutes.dashboard : AppRoutes.login;
+
+    // 6. Run App with the pre-calculated state
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: MyApp(initialRoute: initialRoute),
+      ),
+    );
+  } catch (e) {
+    // Fallback in case of DB error: Go to Login
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MyApp(initialRoute: AppRoutes.login),
+      ),
+    );
+  }
+
+  // 7. REMOVE the Native Splash Screen
+  // Now that the app is ready and the correct route is set, we lift the curtain.
+  FlutterNativeSplash.remove();
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Construction ERP',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 10, 110, 209),
-          primary: const Color.fromARGB(255, 10, 110, 209),
-          brightness: Brightness.light,
-        ),
-        textTheme: GoogleFonts.lexendTextTheme(
-          Theme.of(context)
-              .textTheme, // Pass existing theme to inherit defaults
-        ),
-        useMaterial3: true,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            // 1. The Color (Approximated from your image)
-            backgroundColor: const Color.fromARGB(255, 10, 110, 209),
-            foregroundColor: Colors.white,
-            shape: const StadiumBorder(),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 10, 110, 209),
-          primary: const Color.fromARGB(255, 10, 110, 209),
-          brightness: Brightness.dark,
-        ),
-      ),
-      home: const HomeScreen(),
+      initialRoute: initialRoute,
+      debugShowCheckedModeBanner: false,
+      routes: AppRoutes.routes,
     );
   }
 }

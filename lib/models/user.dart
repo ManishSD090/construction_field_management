@@ -12,7 +12,7 @@ class User {
 
   final String? email;
   final String phone;
-  final String password;
+  final String? password;
   final String? employeeId;
   final String name;
 
@@ -45,13 +45,15 @@ class User {
   final DateTime? lastLogin;
 
   final bool isActive;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   final String? createdById;
   final User? createdBy;
 
   final UserSettings? settings;
+
+  final List<String>? permissions;
 
   User({
     required this.id,
@@ -62,7 +64,7 @@ class User {
     required this.userType,
     this.email,
     required this.phone,
-    required this.password,
+    this.password,
     this.employeeId,
     required this.name,
     this.designation,
@@ -88,35 +90,50 @@ class User {
     this.resetPasswordExpiry,
     this.lastLogin,
     required this.isActive,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     this.createdById,
     this.createdBy,
     this.settings,
+    this.permissions,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    List<String>? extractPermissions() {
+      // 1. Check inside 'role' object (Most likely based on your API)
+      if (json['role'] != null && json['role']['permissions'] != null) {
+        return List<String>.from(json['role']['permissions']);
+      }
+      // 2. Fallback: Check at root level (Just in case API changes)
+      if (json['permissions'] != null) {
+        return List<String>.from(json['permissions']);
+      }
+      return null;
+    }
+
     return User(
-      id: json['id'] as String,
-      companyId: json['companyId'] as String?,
+      id: json['id']?.toString() ?? '',
+      companyId: json['company']?['id']?.toString(),
       company:
           json['company'] != null ? Company.fromJson(json['company']) : null,
-      roleId: json['roleId'] as String,
+      roleId: json['role']?['id']?.toString() ?? '',
       role: json['role'] != null ? Role.fromJson(json['role']) : null,
-      userType: UserType.fromJson(json['userType'] as String? ?? 'EMPLOYEE'),
-      email: json['email'] as String?,
-      phone: json['phone'] as String,
-      password: json['password'] as String,
-      employeeId: json['employeeId'] as String?,
-      name: json['name'] as String,
-      designation: json['designation'] as String?,
-      department: json['department'] as String?,
+      userType: UserType.fromJson(json['userType']?.toString() ?? 'EMPLOYEE'),
+      email: json['email']?.toString(),
+      phone: json['phone']?.toString() ?? '',
+      password: json['password']?.toString() ?? '',
+      employeeId: json['employeeId']?.toString(),
+      name: json['name']?.toString() ?? '',
+      designation: json['designation']?.toString(),
+      department: json['department']?.toString(),
       employeeStatus: EmployeeStatus.fromJson(
-          json['employeeStatus'] as String? ?? 'ACTIVE'),
+        json['employeeStatus']?.toString() ?? 'ACTIVE',
+      ),
       defaultLocation: AttendanceLocation.values.byName(
-          (json['defaultLocation'] as String? ?? 'OFFICE').toLowerCase()),
+        (json['defaultLocation']?.toString() ?? 'OFFICE').toLowerCase(),
+      ),
       salaryType:
-          SalaryType.fromJson(json['salaryType'] as String? ?? 'MONTHLY'),
+          SalaryType.fromJson(json['salaryType']?.toString() ?? 'MONTHLY'),
       salary: (json['salary'] as num?)?.toDouble(),
       hourlyRate: (json['hourlyRate'] as num?)?.toDouble(),
       dateOfBirth: json['dateOfBirth'] != null
@@ -125,31 +142,34 @@ class User {
       dateOfJoining: json['dateOfJoining'] != null
           ? DateTime.parse(json['dateOfJoining'])
           : null,
-      address: json['address'] as String?,
-      emergencyContact: json['emergencyContact'] as String?,
-      emergencyPhone: json['emergencyPhone'] as String?,
-      profilePicture: json['profilePicture'] as String?,
-      aadharNumber: json['aadharNumber'] as String?,
-      panNumber: json['panNumber'] as String?,
-      bankAccount: json['bankAccount'] as String?,
-      ifscCode: json['ifscCode'] as String?,
-      accessToken: json['accessToken'] as String?,
-      refreshToken: json['refreshToken'] as String?,
-      resetPasswordToken: json['resetPasswordToken'] as String?,
+      address: json['address']?.toString(),
+      emergencyContact: json['emergencyContact']?.toString(),
+      emergencyPhone: json['emergencyPhone']?.toString(),
+      profilePicture: json['profilePicture']?.toString(),
+      aadharNumber: json['aadharNumber']?.toString(),
+      panNumber: json['panNumber']?.toString(),
+      bankAccount: json['bankAccount']?.toString(),
+      ifscCode: json['ifscCode']?.toString(),
+      accessToken: json['accessToken']?.toString(),
+      refreshToken: json['refreshToken']?.toString(),
+      resetPasswordToken: json['resetPasswordToken']?.toString(),
       resetPasswordExpiry: json['resetPasswordExpiry'] != null
           ? DateTime.parse(json['resetPasswordExpiry'])
           : null,
       lastLogin:
           json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      createdById: json['createdById'] as String?,
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+      createdById: json['createdById']?.toString(),
       createdBy:
           json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
       settings: json['settings'] != null
           ? UserSettings.fromJson(json['settings'])
           : null,
+      permissions: extractPermissions(),
     );
   }
 
@@ -189,53 +209,56 @@ class User {
       'resetPasswordExpiry': resetPasswordExpiry?.toIso8601String(),
       'lastLogin': lastLogin?.toIso8601String(),
       'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
       'settings': settings?.toJson(),
+      'permissions': permissions,
     };
   }
 }
 
 class UserSettings {
-  final String id;
+  final String? id;
   final String userId;
   final User? user;
   final String? theme;
   final String? language;
   final Map<String, dynamic>? notifications;
   final Map<String, dynamic>? dashboardLayout;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   UserSettings({
-    required this.id,
+    this.id,
     required this.userId,
     this.user,
     this.theme,
     this.language,
     this.notifications,
     this.dashboardLayout,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
     return UserSettings(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
+      id: json['id']?.toString(),
+      userId: json['userId']?.toString() ?? '',
       user: json['user'] != null ? User.fromJson(json['user']) : null,
-      theme: json['theme'] as String? ?? 'light',
-      language: json['language'] as String? ?? 'en',
+      theme: json['theme']?.toString() ?? 'light',
+      language: json['language']?.toString() ?? 'en',
       notifications: json['notifications'] != null
           ? Map<String, dynamic>.from(json['notifications'])
           : null,
       dashboardLayout: json['dashboardLayout'] != null
           ? Map<String, dynamic>.from(json['dashboardLayout'])
           : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -248,8 +271,8 @@ class UserSettings {
       'language': language,
       'notifications': notifications,
       'dashboardLayout': dashboardLayout,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }
