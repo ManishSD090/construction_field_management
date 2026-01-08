@@ -5,6 +5,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/otp_screen.dart';
 import 'screens/auth/set_pass_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/super_admin/super_admin_layout.dart';
 
 class AppRoutes {
   // --- CONSTANTS: Define your route names ---
@@ -12,6 +13,7 @@ class AppRoutes {
   static const String otp = '/otp';
   static const String setPassword = '/setPassword';
   static const String dashboard = '/dashboard';
+  static const String superAdmin = '/superAdmin';
 
   // --- ROUTE MAP: Define the map ---
   // Note: This must be 'static final', NOT 'static const'
@@ -20,5 +22,6 @@ class AppRoutes {
     otp: (context) => const OtpScreen(),
     setPassword: (context) => const SetPasswordScreen(),
     dashboard: (context) => const DashboardScreen(),
+    superAdmin: (context) => const SuperAdminLayout(),
   };
 }

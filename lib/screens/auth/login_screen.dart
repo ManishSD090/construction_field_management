@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/controllers/auth_controller.dart';
-import 'package:construction_erp/widgets/auth_textfield.dart';
-import 'package:construction_erp/widgets/primary_button.dart';
+import 'package:construction_erp/widgets/auth/auth_textfield.dart';
+import 'package:construction_erp/widgets/auth/primary_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -82,7 +82,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         );
       } else if (next.value != null && !next.isLoading) {
-        Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+        // Login Successful
+        final user = next.value!;
+
+        // 1. Check if user is Super Admin/System Admin
+        // (Adjust 'isSystemAdmin' to 'isSuperAdmin' if that is your exact field name)
+        if (user.role?.isSystemAdmin == true) {
+          Navigator.pushReplacementNamed(context, AppRoutes.superAdmin);
+        } else {
+          // 2. Default Dashboard
+          Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+        }
       }
     });
     // -----------------------

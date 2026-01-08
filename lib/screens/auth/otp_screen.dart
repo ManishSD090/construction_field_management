@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/controllers/auth_controller.dart';
-import 'package:construction_erp/widgets/auth_textfield.dart';
-import 'package:construction_erp/widgets/primary_button.dart';
+import 'package:construction_erp/widgets/auth/auth_textfield.dart';
+import 'package:construction_erp/widgets/auth/primary_button.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});

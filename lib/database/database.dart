@@ -13,6 +13,7 @@ part 'database.g.dart';
 // ==========================================================
 // TYPEDEFS (Shortcuts for cleaner code)
 // ==========================================================
+// Typedefs for cleaner usage
 typedef ProjectEntityCompanion = ProjectsCompanion;
 typedef AttendanceEntityCompanion = AttendancesCompanion;
 typedef TaskEntityCompanion = TasksCompanion;
@@ -92,8 +93,8 @@ class AppDatabase extends _$AppDatabase {
         .write(AttendancesCompanion(
       checkOutTime: Value(time),
       // Add location updates here if your schema has them
-      // latitude: Value(lat),
-      // longitude: Value(long),
+      checkOutLatitude: Value(lat),
+      checkOutLongitude: Value(long),
     ));
   }
 

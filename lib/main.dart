@@ -23,8 +23,16 @@ void main() async {
     final user = await container.read(authControllerProvider.future);
 
     // 5. Determine the start screen based on the result
-    final String initialRoute =
-        (user != null) ? AppRoutes.dashboard : AppRoutes.login;
+    String initialRoute = AppRoutes.login;
+
+    if (user != null) {
+      // User is logged in, now check role
+      if (user.role?.isSystemAdmin == true) {
+        initialRoute = AppRoutes.superAdmin;
+      } else {
+        initialRoute = AppRoutes.dashboard;
+      }
+    }
 
     // 6. Run App with the pre-calculated state
     runApp(
