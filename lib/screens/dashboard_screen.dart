@@ -1,11 +1,14 @@
+import 'package:construction_erp/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Imports
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/models/user.dart';
-import 'package:construction_erp/screens/auth/login_screen.dart';
-import 'package:construction_erp/screens/auth/set_pass_screen.dart'; // Ensure this exists
+// import 'package:construction_erp/screens/auth/login_screen.dart';
+
+// Helper Enum to track which popup to show
+enum DashboardPopupType { none, verification, setPassword }
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -15,43 +18,40 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  // Local state for popup visibility
-  bool _showPasswordPopup = false;
+  // State to track which popup is currently visible
+  DashboardPopupType _currentPopup = DashboardPopupType.none;
 
   @override
   void initState() {
     super.initState();
-    // Check if we need to show the popup after the widget mounts
+    // Check status after widget mounts
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkNewUserStatus();
+      _checkAuthStatus();
     });
   }
 
-  void _checkNewUserStatus() {
-    // 1. Get current user from Riverpod state
-    final user = ref.read(authControllerProvider).value;
+  void _checkAuthStatus() {
+    // 1. Get the status from the provider (set during login)
+    // If null, it means we are offline or status wasn't fetched -> Show nothing.
+    final status = ref.read(authStatusProvider);
 
-    // 2. Check logic (Assuming your User model has an 'isNewUser' or similar flag)
-    // You can adjust this condition based on your actual User model
-    // For now, I'm simulating it as always true for demonstration if needed,
-    // or you can check: if (user?.isNewUser == true)
+    if (status == null) return;
 
-    bool isNewUser = user != null && user.lastLogin == null;
-
-    if (isNewUser) {
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          setState(() {
-            _showPasswordPopup = true;
-          });
-        }
-      });
-    }
+    setState(() {
+      // 2. Priority Logic: Verification First, then Password
+      if (status.needsVerification) {
+        _currentPopup = DashboardPopupType.verification;
+      } else if (status.needsPassword) {
+        _currentPopup = DashboardPopupType.setPassword;
+      } else {
+        _currentPopup = DashboardPopupType.none;
+      }
+    });
   }
 
   void _closePopup() {
     setState(() {
-      _showPasswordPopup = false;
+      _currentPopup = DashboardPopupType.none;
     });
   }
 
@@ -61,7 +61,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final authState = ref.watch(authControllerProvider);
     final user = authState.value;
 
-    // Use Stack to overlay the popup
     return Stack(
       children: [
         // --- LAYER 1: Main Dashboard Content ---
@@ -118,131 +117,184 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
           bottomNavigationBar: _buildBottomNavBar(),
-          // Optional: FAB to trigger popup manually for testing
+          // Optional: FAB to toggle popups manually for testing
           floatingActionButton: FloatingActionButton(
             onPressed: () {
-              setState(() {
-                _showPasswordPopup = true;
-              });
+              _checkAuthStatus(); // Re-trigger check
             },
             backgroundColor: Colors.white,
             elevation: 4,
             shape: const CircleBorder(),
-            child: const Icon(Icons.add, color: Colors.blue),
+            child: const Icon(Icons.refresh, color: Colors.blue),
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
         ),
 
-        // --- LAYER 2: Dimmed Background (Visible only when popup is shown) ---
-        if (_showPasswordPopup)
+        // --- LAYER 2: Dimmed Background ---
+        if (_currentPopup != DashboardPopupType.none)
           GestureDetector(
-            onTap: _closePopup,
+            onTap: _closePopup, // Optional: Close on outside tap
             child: Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacity(0.5),
               width: double.infinity,
               height: double.infinity,
             ),
           ),
 
-        // --- LAYER 3: The Floating Popup ---
-        if (_showPasswordPopup)
+        // --- LAYER 3: The Dynamic Popup ---
+        if (_currentPopup != DashboardPopupType.none)
           Positioned(
             bottom: 30,
-            left: 0,
-            right: 0,
+            left: 20, // Added padding
+            right: 20, // Added padding
             child: Center(
-              child: Container(
-                width: 220,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "Continue to login\nwith password ?",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // --- SET PASSWORD BUTTON ---
-                    SizedBox(
-                      width: double.infinity,
-                      height: 35,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _closePopup();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const SetPasswordScreen()),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D6EFD),
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          "SET PASSWORD",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 5),
-
-                    // --- NO THANKS BUTTON ---
-                    TextButton(
-                      onPressed: _closePopup,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 30),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        "No Thanks",
-                        style: TextStyle(
-                          color: Color(0xFF0D6EFD),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _buildDynamicPopupContent(),
             ),
           ),
       ],
     );
   }
 
-  // --- COMPONENT WIDGETS ---
+  // --- POPUP BUILDER ---
+  Widget _buildDynamicPopupContent() {
+    final status = ref.read(authStatusProvider);
+    String title = "";
+    String message = "";
+    String btnText = "";
+    VoidCallback onAction = () {};
+
+    if (_currentPopup == DashboardPopupType.verification) {
+      title = "Verification Required";
+      // Determine if email, phone, or both need verification
+      String method = "account";
+      if (status?.emailVerified == false) method = "email";
+      if (status?.phoneVerified == false) method = "phone number";
+
+      message = "Please verify your $method to unlock full features.";
+      btnText = "VERIFY NOW";
+      onAction = () {
+        _closePopup();
+
+        Navigator.pushNamed(context, AppRoutes.verification);
+      };
+    } else if (_currentPopup == DashboardPopupType.setPassword) {
+      title = "Set Your Password";
+      message =
+          "You are currently logged in via OTP. Set a password for easier access.";
+      btnText = "SET PASSWORD";
+      onAction = () {
+        _closePopup();
+
+        Navigator.pushNamed(context, AppRoutes.setPassword);
+      };
+    }
+
+    return Container(
+      width: double.infinity, // Takes available width within padding
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 15,
+            spreadRadius: 2,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon based on type
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D6EFD).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _currentPopup == DashboardPopupType.verification
+                  ? Icons.mark_email_unread_outlined
+                  : Icons.lock_outline,
+              color: const Color(0xFF0D6EFD),
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 15),
+
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // --- ACTION BUTTON ---
+          SizedBox(
+            width: double.infinity,
+            height: 45,
+            child: ElevatedButton(
+              onPressed: onAction,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D6EFD),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                btnText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // --- DISMISS BUTTON ---
+          TextButton(
+            onPressed: _closePopup,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              "Remind me later",
+              style: TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- EXISTING COMPONENT WIDGETS ---
+  // (These remain exactly the same as your code)
 
   Widget _buildHeader(BuildContext context, User? user) {
     return Container(
@@ -287,10 +339,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 onPressed: () async {
                   await ref.read(authControllerProvider.notifier).logout();
                   if (context.mounted) {
-                    Navigator.pushReplacement(
+                    Navigator.pushNamedAndRemoveUntil(
                       context,
-                      MaterialPageRoute(
-                          builder: (context) => const LoginScreen()),
+                      AppRoutes.login,
+                      (route) => false,
                     );
                   }
                 },

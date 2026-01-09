@@ -45,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (error is DioException) {
       // 1. Handle 401 (Invalid Credentials)
       if (error.response?.statusCode == 401) {
-        return "Invalid Credentials. Please try again.";
+        return "Invalid Credentials. Please try again or login with OTP.";
       }
 
       // 2. Handle Server Connection Issues

@@ -28,7 +28,7 @@ void main() async {
     if (user != null) {
       // User is logged in, now check role
       if (user.role?.isSystemAdmin == true) {
-        initialRoute = AppRoutes.superAdmin;
+        initialRoute = AppRoutes.dashboard;
       } else {
         initialRoute = AppRoutes.dashboard;
       }

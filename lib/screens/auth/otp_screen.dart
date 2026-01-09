@@ -227,9 +227,19 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
     ref.listen(authControllerProvider, (previous, next) {
       if (next is AsyncError && !next.isLoading) {
         _showErrorSnackBar(_getErrorMessage(next.error!));
-      } else if (next is AsyncData && next.value != null) {
-        _removeOverlay();
-        Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+      } else if (!next.isLoading && next.value != null) {
+        _removeOverlay(); // Clean up animation overlay
+
+        final user = next.value!;
+
+        // 1. Check if user is Super Admin/System Admin
+        // (Adjust 'isSystemAdmin' to 'isSuperAdmin' if that is your exact field name)
+        if (user.role?.isSystemAdmin == true) {
+          Navigator.pushReplacementNamed(context, AppRoutes.superAdmin);
+        } else {
+          // 2. Default Dashboard
+          Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+        }
       }
     });
 
