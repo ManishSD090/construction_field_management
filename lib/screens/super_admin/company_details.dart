@@ -1,19 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/services/app_colors.dart';
 import '../../models/company.dart';
+import '../../controllers/super_admin/companies_controller.dart';
 
-class CompanyDetailsScreen extends StatefulWidget {
+class CompanyDetailsScreen extends ConsumerStatefulWidget {
   final Company company;
   const CompanyDetailsScreen({super.key, required this.company});
 
   @override
-  State<CompanyDetailsScreen> createState() => _CompanyDetailsScreenState();
+  ConsumerState<CompanyDetailsScreen> createState() =>
+      _CompanyDetailsScreenState();
 }
 
-class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
-  // --- 1. The Suspend Warning Bottom Sheet ---
-  void _showSuspendSheet() {
+class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
+  // Local state to hold data (Starts with cached, updates to fresh)
+  late Company _company;
+  bool _isProcessing = false;
+  bool _isLoadingFresh = true; // To optionally show a small loading indicator
+
+  @override
+  void initState() {
+    super.initState();
+    // 1. Show cached data immediately
+    _company = widget.company;
+
+    // 2. Fetch fresh data in background
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchFreshDetails();
+    });
+  }
+
+  /// Fetches fresh data using the Controller's getCompanyById
+  Future<void> _fetchFreshDetails() async {
+    try {
+      final freshData = await ref
+          .read(companiesControllerProvider.notifier)
+          .getCompanyById(_company.id!); // Assuming ID is string
+
+      if (mounted) {
+        setState(() {
+          _company = freshData;
+          _isLoadingFresh = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching fresh company details: $e");
+      if (mounted) setState(() => _isLoadingFresh = false);
+    }
+  }
+
+  // --- Action Bottom Sheet ---
+  void _showActionSheet() {
+    // Use local _company state, not widget.company
+    final bool isCurrentlyActive = _company.isActive ?? true;
     bool isChecked = false;
+
+    final String title =
+        isCurrentlyActive ? "Suspend Company? ⚠️" : "Activate Company? ✅";
+    final Color color =
+        isCurrentlyActive ? AppColors.alertRed : AppColors.successGreen;
+    final String btnText =
+        isCurrentlyActive ? "Suspend company" : "Activate company";
 
     showModalBottomSheet(
       context: context,
@@ -30,41 +79,26 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
-                const Text("Suspend Company? ⚠️",
+                Text(title,
                     style: TextStyle(
-                        color: AppColors.alertRed,
+                        color: color,
                         fontSize: 20,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-
-                // Warning Text
                 RichText(
                   text: TextSpan(
                     style: const TextStyle(
                         color: Colors.black87, fontSize: 15, height: 1.5),
                     children: [
-                      const TextSpan(text: "Are you sure you want to suspend "),
+                      const TextSpan(
+                          text: "Are you sure you want to proceed for "),
                       TextSpan(
-                          text: "${widget.company.name}?",
+                          text: "${_company.name}?",
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Consequences List
-                const Text("Suspending this company will:",
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                const Text(
-                  "• Immediately block all users from logging in\n• Pause all ongoing projects\n• Restrict access to data",
-                  style: TextStyle(
-                      color: AppColors.textGrey, height: 1.5, fontSize: 13),
-                ),
                 const SizedBox(height: 24),
-
-                // Checkbox
                 Row(
                   children: [
                     SizedBox(
@@ -72,24 +106,21 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                       width: 24,
                       child: Checkbox(
                           value: isChecked,
-                          activeColor: AppColors.alertRed,
+                          activeColor: color,
                           onChanged: (val) =>
                               setSheetState(() => isChecked = val!)),
                     ),
                     const SizedBox(width: 10),
-                    const Text("I understand the impact of this action",
+                    const Text("I confirm this action",
                         style: TextStyle(fontSize: 13)),
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // Action Buttons
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isChecked ? AppColors.alertRed : Colors.grey.shade300,
+                      backgroundColor: isChecked ? color : Colors.grey.shade300,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30)),
@@ -97,13 +128,20 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                     ),
                     onPressed: isChecked
                         ? () {
-                            Navigator.pop(context); // Close sheet
-                            _showSuccessDialog(); // Show success popup
+                            Navigator.pop(context);
+                            _performStatusChange(!isCurrentlyActive);
                           }
                         : null,
-                    child: const Text("Suspend company",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: _isProcessing
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : Text(btnText,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -124,10 +162,40 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
     );
   }
 
-  // --- 2. The Success Dialog ---
-  void _showSuccessDialog() {
+  Future<void> _performStatusChange(bool newStatus) async {
+    setState(() => _isProcessing = true);
+    try {
+      await ref.read(companiesControllerProvider.notifier).toggleCompanyStatus(
+            id: _company.id!,
+            isActive: newStatus,
+          );
+
+      if (mounted) {
+        // Update local state immediately so UI reflects change
+        setState(() {
+          // If you implemented copyWith in model:
+          // _company = _company.copyWith(isActive: newStatus);
+
+          // Or just re-fetch to be safe:
+          _fetchFreshDetails();
+        });
+        _showSuccessDialog(newStatus);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  void _showSuccessDialog(bool isNowActive) {
     showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (c) => Dialog(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
@@ -137,28 +205,27 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle,
-                        color: AppColors.successGreen, size: 60),
+                    Icon(isNowActive ? Icons.check_circle : Icons.block,
+                        color: isNowActive
+                            ? AppColors.successGreen
+                            : AppColors.alertRed,
+                        size: 60),
                     const SizedBox(height: 16),
                     Text(
-                      "${widget.company.name} has been\nsuccessfully suspended!",
-                      textAlign: TextAlign.center,
+                      isNowActive ? "Activated!" : "Suspended!",
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Users will no longer be able to access the system.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       child: TextButton(
                         onPressed: () {
-                          Navigator.pop(c); // Close dialog
-                          Navigator.pop(context); // Go back to list
+                          Navigator.pop(c);
+                          // We don't necessarily need to pop the screen here
+                          // because we updated the state locally.
+                          // But if you want to go back to list:
+                          // Navigator.pop(context);
                         },
                         child: const Text("OK",
                             style: TextStyle(
@@ -175,14 +242,23 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Formatting Helpers
-    final bool isActive = widget.company.isActive ?? true;
+    // USE LOCAL STATE (_company), NOT WIDGET PARAM
+    // final admin = _company.admin; // Assuming model has this
+    const admin = null; // Assuming model has this
+    final bool isActive = _company.isActive ?? true;
+
+    // Access Counts safely (Model needs to support this)
+    final int projectCount = _company.counts?.projects ?? 0;
+    final int userCount = _company.counts?.users ?? 0;
+
     final Color statusColor =
         isActive ? AppColors.successGreen : AppColors.alertRed;
     final Color statusBg =
         isActive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
-    String formattedDate =
-        "${widget.company.createdAt?.day} ${_getMonth(widget.company.createdAt?.month ?? 1)} ${widget.company.createdAt?.year}";
+
+    final DateTime createdDate = _company.createdAt ?? DateTime.now();
+    final String formattedDate =
+        "${createdDate.day} ${_getMonth(createdDate.month)} ${createdDate.year}";
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -195,10 +271,18 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        actions: [
+          // Optional: Indication that background refresh is happening
+          if (_isLoadingFresh)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2)),
+            )
+        ],
       ),
       body: Column(
         children: [
@@ -208,35 +292,18 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Header Section ---
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(widget.company.name ?? "Dummy Name",
-                            style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                height: 1.2)),
-                      ),
-                      const SizedBox(width: 8),
-                      // Edit Icon (Visual only)
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            shape: BoxShape.circle),
-                        child: const Icon(Icons.edit,
-                            size: 16, color: Colors.grey),
-                      )
-                    ],
-                  ),
+                  // --- Header ---
+                  Text(_company.name ?? "N/A",
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2)),
                   const SizedBox(height: 8),
 
-                  // Location & Status
+                  // --- Status Pill ---
                   Row(
                     children: [
-                      Text("Mumbai | ID-2341 ",
+                      Text("ID - ${_company.id?.substring(0, 8) ?? '...'}",
                           style: TextStyle(
                               color: Colors.grey.shade600, fontSize: 13)),
                       const SizedBox(width: 8),
@@ -261,101 +328,38 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // --- Stats Section (Row of Cards) ---
+                  // --- Stats Section (Dynamic Counts) ---
                   Row(
                     children: [
-                      // Card 1: Projects (with Donut)
                       Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade200),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              // Mini Donut
-                              SizedBox(
-                                height: 40,
-                                width: 40,
-                                child: CircularProgressIndicator(
-                                    value: 0.7,
-                                    color: AppColors.primaryBlue,
-                                    backgroundColor: Colors.grey.shade100,
-                                    strokeWidth: 5),
-                              ),
-                              const SizedBox(width: 12),
-                              const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("Total Projects: 11",
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold)),
-                                  Text("Active Projects: 7",
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.successGreen)),
-                                  Text("Inactive Projects: 4",
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.alertRed)),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
+                        child: _buildStatCard(
+                            "Total Projects", projectCount.toString()),
                       ),
                       const SizedBox(width: 12),
-
-                      // Card 2: Users
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Column(
-                          children: [
-                            Text("48",
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold)),
-                            Text("Total users",
-                                style: TextStyle(
-                                    fontSize: 10, color: Colors.grey)),
-                          ],
-                        ),
+                      Expanded(
+                        child:
+                            _buildStatCard("Total Users", userCount.toString()),
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 30),
 
-                  // --- Company Details List ---
+                  // --- Company Details ---
                   const Text("Company details",
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 16),
 
                   _buildDetailRow(
-                      "Registration Number", "U45201MH2016PTC287654"),
-                  _buildDetailRow("GST Number", "27AABCA1234F1Z9"),
-                  _buildDetailRow("Email", "info@abc.com", isLink: true),
-                  _buildDetailRow("Website", "www.abc.com", isLink: true),
-                  _buildDetailRow("Phone", "+91 98765 43210"),
-
-                  const SizedBox(height: 24),
-
-                  // --- Location Section ---
-                  const Text("Company Location",
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "3rd Floor, Shree Ganesh Plaza,\nNear Andheri Metro Station,\nAndheri East, Mumbai - 400069",
-                    style: TextStyle(
-                        color: Colors.black87, height: 1.5, fontSize: 13),
-                  ),
+                      "Registration Number",
+                      _company.registrationNumber ??
+                          "N/A"), // Ensure model has this
+                  _buildDetailRow("GST Number", _company.gstNumber ?? "N/A"),
+                  _buildDetailRow("Email", _company.email ?? "N/A",
+                      isLink: true),
+                  _buildDetailRow("Phone", _company.phone ?? "N/A"),
+                  _buildDetailRow("Address", _company.officeAddress ?? "N/A"),
 
                   const SizedBox(height: 24),
 
@@ -367,35 +371,40 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                   const Divider(),
                   const SizedBox(height: 16),
 
-                  _buildDetailRow("Name", "Rakesh Sharma"),
-                  _buildDetailRow("Role", "Company Admin"),
-                  _buildDetailRow("Phone", "+91 91234 56789"),
-                  _buildDetailRow(
-                      "Email", widget.company.email ?? "admin@abc.com"),
+                  if (admin != null) ...[
+                    _buildDetailRow("Name", admin.fullname ?? "N/A"),
+                    _buildDetailRow("Email", admin.email ?? "N/A"),
+                    _buildDetailRow("Phone", admin.phoneNumber ?? "N/A"),
+                  ] else
+                    const Text("No Admin Assigned",
+                        style: TextStyle(color: Colors.red)),
 
-                  const SizedBox(height: 40), // Spacing for scroll
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
 
-          // --- Suspend Button (Footer) ---
+          // --- Action Button ---
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.alertRed,
+                  backgroundColor:
+                      isActive ? AppColors.alertRed : AppColors.successGreen,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30)),
                   elevation: 0,
                 ),
-                onPressed: _showSuspendSheet,
-                child: const Text("Suspend company",
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
+                onPressed: _showActionSheet,
+                child: Text(
+                  isActive ? "Suspend company" : "Activate company",
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           )
@@ -404,7 +413,24 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
     );
   }
 
-  // --- Helper: Detail Row ---
+  Widget _buildStatCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetailRow(String label, String value, {bool isLink = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),

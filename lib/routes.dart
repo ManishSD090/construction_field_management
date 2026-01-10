@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// Import your models
+import 'package:construction_erp/models/company.dart';
+
 // --- IMPORTS: Import all your screens here ---
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/otp_screen.dart';
@@ -7,6 +10,8 @@ import 'screens/auth/set_pass_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/super_admin/super_admin_layout.dart';
 import 'package:construction_erp/screens/auth/verification_screen.dart';
+import 'package:construction_erp/screens/super_admin/create_company.dart';
+import 'package:construction_erp/screens/super_admin/company_details.dart';
 
 class AppRoutes {
   // --- CONSTANTS: Define your route names ---
@@ -16,6 +21,8 @@ class AppRoutes {
   static const String verification = '/verification';
   static const String dashboard = '/dashboard';
   static const String superAdmin = '/superAdmin';
+  static const String createCompany = '/createCompany';
+  static const String companyDetails = '/companyDetails';
 
   // --- ROUTE MAP: Define the map ---
   // Note: This must be 'static final', NOT 'static const'
@@ -26,5 +33,10 @@ class AppRoutes {
     verification: (context) => const VerificationScreen(),
     dashboard: (context) => const DashboardScreen(),
     superAdmin: (context) => const SuperAdminLayout(),
+    createCompany: (context) => const CreateCompanyScreen(),
+    companyDetails: (context) {
+      final args = ModalRoute.of(context)!.settings.arguments as Company;
+      return CompanyDetailsScreen(company: args);
+    },
   };
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/app_colors.dart';
-import '../../models/company.dart'; // Ensure this matches your model file path
+import '../../models/company.dart';
 
 class CompanyTile extends StatelessWidget {
   final Company company;
@@ -14,15 +14,17 @@ class CompanyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine colors based on status (Active vs Suspended)
-    final bool isActive = company.isActive ?? true;
-    final Color statusColor = isActive
-        ? const Color.fromARGB(255, 255, 255, 255)
-        : const Color.fromARGB(255, 255, 255, 255);
+    // Determine colors based on status
+    final bool isActive = company.isActive!; // Removed default true to be safe
+    const Color statusColor = Colors.white;
     final Color statusBg = isActive
-        ? const Color(0xFF00A991)
-        : const Color(0xFFFF3B30); // Light Green vs Light Red
+        ? const Color(0xFF00A991) // Green
+        : const Color(0xFFFF3B30); // Red
     final String statusText = isActive ? "Active" : "Suspended";
+
+    // Safe access to Admin Name
+    // final String adminName = company.admin?.fullname ?? company.email;
+    final String adminName = company.email ?? "N/A";
 
     return GestureDetector(
       onTap: onTap,
@@ -41,16 +43,16 @@ class CompanyTile extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Row 1: Name and Status Pill ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
+            // --- LEFT SIDE: Company Info (Expanded) ---
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Company Name
+                  Text(
                     company.name ?? "Dummy Name",
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
@@ -60,8 +62,49 @@ class CompanyTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(width: 8),
+
+                  const SizedBox(height: 8),
+
+                  // 2. Created Date
+                  Text(
+                    "Created On: ${_formatDate(company.createdAt ?? DateTime.now())}",
+                    style: const TextStyle(
+                      color: AppColors.textGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // 3. Admin Details (Wrapped safely)
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textGrey),
+                      children: [
+                        const TextSpan(text: "Admin: "),
+                        TextSpan(
+                          text: adminName,
+                          style: const TextStyle(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 12), // Spacing between columns
+
+            // --- RIGHT SIDE: Status & Action ---
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 1. Status Pill
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -78,60 +121,29 @@ class CompanyTile extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // Spacing to push "View Company" down (adjust as needed)
+                const SizedBox(height: 30),
+
+                // 2. View Company Link
+                const Text(
+                  "View company",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
               ],
             ),
-
-            const SizedBox(height: 12),
-
-            // --- Row 2: Date Created ---
-            Text(
-              "Created On: ${_formatDate(company.createdAt ?? DateTime.now())}",
-              style: const TextStyle(
-                color: AppColors.textGrey,
-                fontSize: 12,
-              ),
-            ),
-
-            const SizedBox(height: 6),
-
-            // --- Row 3: Admin Details (Blue Link style) ---
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-                children: [
-                  const TextSpan(text: "Company Admin: "),
-                  TextSpan(
-                    text: company.email ??
-                        "N/A", // Or use company.adminName if available
-                    style: const TextStyle(
-                      color: AppColors.primaryBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // const SizedBox(height: 4),
-
-            // Optional: "View company" text at bottom right if needed matches design perfectly
-            const Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                "View company →",
-                style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.primaryBlue,
-                    fontWeight: FontWeight.w600),
-              ),
-            )
           ],
         ),
       ),
     );
   }
 
-  // Helper to format date cleanly (e.g., "12 Aug 2025")
+  // Helper to format date cleanly
   String _formatDate(DateTime date) {
     const months = [
       "Jan",

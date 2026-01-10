@@ -32,6 +32,8 @@ class Company {
   final User? createdBy;
 
   final CompanySettings? settings;
+  final List<User>? admins;
+  final CompanyCounts? counts;
 
   Company({
     this.id,
@@ -56,6 +58,8 @@ class Company {
     this.createdById,
     this.createdBy,
     this.settings,
+    this.admins,
+    this.counts,
   });
 
   factory Company.fromJson(Map<String, dynamic> json) {
@@ -93,6 +97,12 @@ class Company {
       settings: json['settings'] != null
           ? CompanySettings.fromJson(json['settings'])
           : null,
+      admins: json['admins'] != null
+          ? List<User>.from(json['admins'].map((x) => User.fromJson(x)))
+          : null,
+      counts: json['_count'] != null
+          ? CompanyCounts.fromJson(json['_count'])
+          : null,
     );
   }
 
@@ -120,6 +130,7 @@ class Company {
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
       'settings': settings?.toJson(),
+      'admins': admins?.map((x) => x.toJson()).toList(),
     };
   }
 
@@ -226,4 +237,52 @@ class CompanySettings {
   @override
   String toString() =>
       'CompanySettings(companyId: $companyId, currency: $currency)';
+}
+
+// ============================================================================
+// Controller helper models
+// Put this inside models/company.dart
+
+class CompanyCounts {
+  final int users;
+  final int projects;
+  final int? clients;
+
+  CompanyCounts({required this.users, required this.projects, this.clients});
+
+  factory CompanyCounts.fromJson(Map<String, dynamic> json) {
+    return CompanyCounts(
+      users: json['users'] ?? 0,
+      projects: json['projects'] ?? 0,
+      clients: json['clients'] ?? 0,
+    );
+  }
+}
+
+class CompanyState {
+  final List<Company> companies;
+  final int currentPage;
+  final bool hasMore; // Use to disable "Load More" calls when data ends
+  final bool isLoadingMore; // Use to show bottom spinner
+
+  const CompanyState({
+    this.companies = const [],
+    this.currentPage = 1,
+    this.hasMore = true,
+    this.isLoadingMore = false,
+  });
+
+  CompanyState copyWith({
+    List<Company>? companies,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return CompanyState(
+      companies: companies ?? this.companies,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
 }

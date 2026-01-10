@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'routes.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 
@@ -28,7 +29,7 @@ void main() async {
     if (user != null) {
       // User is logged in, now check role
       if (user.role?.isSystemAdmin == true) {
-        initialRoute = AppRoutes.dashboard;
+        initialRoute = AppRoutes.superAdmin;
       } else {
         initialRoute = AppRoutes.dashboard;
       }
@@ -66,6 +67,13 @@ class MyApp extends StatelessWidget {
       title: 'Construction ERP',
       initialRoute: initialRoute,
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        // This applies Lexend to all text styles in the app automatically
+        textTheme: GoogleFonts.lexendTextTheme(
+          Theme.of(context).textTheme,
+        ),
+      ),
       routes: AppRoutes.routes,
     );
   }
