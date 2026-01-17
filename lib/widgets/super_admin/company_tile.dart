@@ -24,7 +24,7 @@ class CompanyTile extends StatelessWidget {
 
     // Safe access to Admin Name
     // final String adminName = company.admin?.fullname ?? company.email;
-    final String adminName = company.email ?? "N/A";
+    final String adminName = company.admins?.first.name ?? "N/A";
 
     return GestureDetector(
       onTap: onTap,
@@ -114,7 +114,7 @@ class CompanyTile extends StatelessWidget {
                   ),
                   child: Text(
                     statusText,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: statusColor,

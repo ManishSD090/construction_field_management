@@ -97,8 +97,8 @@ class Company {
       settings: json['settings'] != null
           ? CompanySettings.fromJson(json['settings'])
           : null,
-      admins: json['admins'] != null
-          ? List<User>.from(json['admins'].map((x) => User.fromJson(x)))
+      admins: json['companyAdmins'] != null
+          ? List<User>.from(json['companyAdmins'].map((x) => User.fromJson(x)))
           : null,
       counts: json['_count'] != null
           ? CompanyCounts.fromJson(json['_count'])

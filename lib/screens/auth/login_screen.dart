@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:construction_erp/routes.dart';
+import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
@@ -87,7 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         // 1. Check if user is Super Admin/System Admin
         // (Adjust 'isSystemAdmin' to 'isSuperAdmin' if that is your exact field name)
-        if (user.role?.isSystemAdmin == true) {
+        if (user.userType == UserType.superAdmin) {
           Navigator.pushReplacementNamed(context, AppRoutes.superAdmin);
         } else {
           // 2. Default Dashboard

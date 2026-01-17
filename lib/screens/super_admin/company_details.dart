@@ -1,3 +1,4 @@
+import 'package:construction_erp/models/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -244,12 +245,13 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
   Widget build(BuildContext context) {
     // USE LOCAL STATE (_company), NOT WIDGET PARAM
     // final admin = _company.admin; // Assuming model has this
-    const admin = null; // Assuming model has this
+    final List<User>? admins = _company.admins; // Assuming model has this
     final bool isActive = _company.isActive ?? true;
 
     // Access Counts safely (Model needs to support this)
     final int projectCount = _company.counts?.projects ?? 0;
     final int userCount = _company.counts?.users ?? 0;
+    final int clientCount = _company.counts?.clients ?? 0;
 
     final Color statusColor =
         isActive ? AppColors.successGreen : AppColors.alertRed;
@@ -333,6 +335,11 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                     children: [
                       Expanded(
                         child: _buildStatCard(
+                            "Total clients", clientCount.toString()),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
                             "Total Projects", projectCount.toString()),
                       ),
                       const SizedBox(width: 12),
@@ -371,13 +378,36 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                   const Divider(),
                   const SizedBox(height: 16),
 
-                  if (admin != null) ...[
-                    _buildDetailRow("Name", admin.fullname ?? "N/A"),
-                    _buildDetailRow("Email", admin.email ?? "N/A"),
-                    _buildDetailRow("Phone", admin.phoneNumber ?? "N/A"),
-                  ] else
+                  if (admins != null && admins.isNotEmpty) ...[
+                    // Iterate through the list of admins
+                    ...admins.map((admin) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Optional: specific label if there are multiple admins
+                          if (admins.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Text("Admin Account",
+                                  style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12)),
+                            ),
+
+                          _buildDetailRow("Name", admin.name),
+                          _buildDetailRow("Email", admin.email!),
+                          _buildDetailRow("Phone", admin.phone),
+
+                          // Add spacing between admins so they don't merge visually
+                          const SizedBox(height: 24),
+                        ],
+                      );
+                    }),
+                  ] else ...[
                     const Text("No Admin Assigned",
                         style: TextStyle(color: Colors.red)),
+                  ],
 
                   const SizedBox(height: 40),
                 ],

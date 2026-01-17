@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../home_screen_helper.dart';
 import 'dashboard_tab.dart';
 import 'companies_list_tab.dart';
+import 'package:construction_erp/routes.dart';
 
 // Import Auth Controller
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
@@ -60,6 +61,13 @@ class _SuperAdminLayoutState extends ConsumerState<SuperAdminLayout> {
           });
         },
       ),
+
+      floatingActionButton: ElevatedButton(
+          onPressed: () {
+            ref.read(authControllerProvider.notifier).logout();
+            Navigator.pushReplacementNamed(context, AppRoutes.login);
+          },
+          child: const Text("Logout (Temp)")),
     );
   }
 }

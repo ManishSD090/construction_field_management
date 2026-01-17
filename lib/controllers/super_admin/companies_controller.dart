@@ -58,6 +58,7 @@ class CompaniesController extends AsyncNotifier<CompanyState> {
 
     final newCompanies =
         newItemsJson.map((json) => Company.fromJson(json)).toList();
+
     final int totalPages = pagination['pages'];
     final bool hasMore = page < totalPages;
 

@@ -4,6 +4,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'routes.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
+import 'package:construction_erp/models/enums.dart';
 
 void main() async {
   // 1. Ensure bindings are initialized first
@@ -28,7 +29,7 @@ void main() async {
 
     if (user != null) {
       // User is logged in, now check role
-      if (user.role?.isSystemAdmin == true) {
+      if (user.userType == UserType.superAdmin) {
         initialRoute = AppRoutes.superAdmin;
       } else {
         initialRoute = AppRoutes.dashboard;
