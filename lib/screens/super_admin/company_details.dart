@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/app_colors.dart';
 import '../../models/company.dart';
 import '../../controllers/super_admin/companies_controller.dart';
+import 'package:construction_erp/routes.dart';
 
 class CompanyDetailsScreen extends ConsumerStatefulWidget {
   final Company company;
@@ -19,15 +20,12 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
   // Local state to hold data (Starts with cached, updates to fresh)
   late Company _company;
   bool _isProcessing = false;
-  bool _isLoadingFresh = true; // To optionally show a small loading indicator
+  bool _isLoadingFresh = true;
 
   @override
   void initState() {
     super.initState();
-    // 1. Show cached data immediately
     _company = widget.company;
-
-    // 2. Fetch fresh data in background
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchFreshDetails();
     });
@@ -38,7 +36,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
     try {
       final freshData = await ref
           .read(companiesControllerProvider.notifier)
-          .getCompanyById(_company.id!); // Assuming ID is string
+          .getCompanyById(_company.id!);
 
       if (mounted) {
         setState(() {
@@ -52,9 +50,29 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
     }
   }
 
+  void _navigateToEdit() async {
+    // Convert current model to Map for the Update Screen
+    // Adjust keys to match what UpdateCompanyScreen expects
+    final Map<String, dynamic> companyMap = {
+      'id': _company.id,
+      'companyName': _company.name,
+      'officeAddress': _company.officeAddress,
+      'registrationNumber': _company.registrationNumber,
+      'gstNumber': _company.gstNumber,
+      'email': _company.email,
+      'website': _company.website,
+      'phone': _company.phone,
+    };
+
+    await Navigator.pushNamed(context, AppRoutes.updateCompany,
+        arguments: companyMap);
+
+    // Refresh details when returning from edit screen
+    _fetchFreshDetails();
+  }
+
   // --- Action Bottom Sheet ---
   void _showActionSheet() {
-    // Use local _company state, not widget.company
     final bool isCurrentlyActive = _company.isActive ?? true;
     bool isChecked = false;
 
@@ -172,12 +190,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
           );
 
       if (mounted) {
-        // Update local state immediately so UI reflects change
         setState(() {
-          // If you implemented copyWith in model:
-          // _company = _company.copyWith(isActive: newStatus);
-
-          // Or just re-fetch to be safe:
           _fetchFreshDetails();
         });
         _showSuccessDialog(newStatus);
@@ -223,10 +236,6 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                       child: TextButton(
                         onPressed: () {
                           Navigator.pop(c);
-                          // We don't necessarily need to pop the screen here
-                          // because we updated the state locally.
-                          // But if you want to go back to list:
-                          // Navigator.pop(context);
                         },
                         child: const Text("OK",
                             style: TextStyle(
@@ -243,20 +252,15 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // USE LOCAL STATE (_company), NOT WIDGET PARAM
-    // final admin = _company.admin; // Assuming model has this
-    final List<User>? admins = _company.admins; // Assuming model has this
+    final List<User>? admins = _company.admins;
     final bool isActive = _company.isActive ?? true;
 
-    // Access Counts safely (Model needs to support this)
     final int projectCount = _company.counts?.projects ?? 0;
     final int userCount = _company.counts?.users ?? 0;
     final int clientCount = _company.counts?.clients ?? 0;
 
-    final Color statusColor =
-        isActive ? AppColors.successGreen : AppColors.alertRed;
-    final Color statusBg =
-        isActive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
+    // Logic for Status Tag
+    final Color statusColor = isActive ? AppColors.tagGreen : AppColors.tagRed;
 
     final DateTime createdDate = _company.createdAt ?? DateTime.now();
     final String formattedDate =
@@ -274,7 +278,6 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                 fontWeight: FontWeight.bold)),
         centerTitle: false,
         actions: [
-          // Optional: Indication that background refresh is happening
           if (_isLoadingFresh)
             const Padding(
               padding: EdgeInsets.only(right: 16.0),
@@ -294,43 +297,74 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Header ---
-                  Text(_company.name ?? "N/A",
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2)),
-                  const SizedBox(height: 8),
-
-                  // --- Status Pill ---
+                  // --- Header with Edit Button ---
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("ID - ${_company.id?.substring(0, 8) ?? '...'}",
+                      Expanded(
+                        child: Text(_company.name ?? "N/A",
+                            style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                height: 1.2)),
+                      ),
+                      const SizedBox(width: 8),
+                      // Edit Button
+                      InkWell(
+                        onTap: _navigateToEdit,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.edit,
+                              size: 20, color: AppColors.primaryBlue),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  // ID Text
+                  Text("ID - ${_company.id?.substring(0, 8) ?? '...'}",
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+
+                  const SizedBox(height: 16),
+
+                  // --- Date and Big Status Tag Row ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Created on: $formattedDate",
                           style: TextStyle(
                               color: Colors.grey.shade600, fontSize: 13)),
-                      const SizedBox(width: 8),
+
+                      // Bigger, Solid Status Tag
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                            horizontal: 16, vertical: 6),
                         decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(4)),
-                        child: Text(isActive ? "Active" : "Suspended",
-                            style: TextStyle(
-                                color: statusColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold)),
+                          color: statusColor, // Solid Background
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          isActive ? "Active" : "Suspended",
+                          style: const TextStyle(
+                              color: Colors.white, // White Text
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold),
+                        ),
                       )
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text("Created on: $formattedDate",
-                      style:
-                          TextStyle(color: Colors.grey.shade500, fontSize: 12)),
 
                   const SizedBox(height: 24),
 
-                  // --- Stats Section (Dynamic Counts) ---
+                  // --- Stats Section ---
                   Row(
                     children: [
                       Expanded(
@@ -358,10 +392,8 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 16),
 
-                  _buildDetailRow(
-                      "Registration Number",
-                      _company.registrationNumber ??
-                          "N/A"), // Ensure model has this
+                  _buildDetailRow("Registration Number",
+                      _company.registrationNumber ?? "N/A"),
                   _buildDetailRow("GST Number", _company.gstNumber ?? "N/A"),
                   _buildDetailRow("Email", _company.email ?? "N/A",
                       isLink: true),
@@ -379,12 +411,10 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                   const SizedBox(height: 16),
 
                   if (admins != null && admins.isNotEmpty) ...[
-                    // Iterate through the list of admins
                     ...admins.map((admin) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Optional: specific label if there are multiple admins
                           if (admins.length > 1)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8.0),
@@ -394,12 +424,9 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12)),
                             ),
-
                           _buildDetailRow("Name", admin.name),
                           _buildDetailRow("Email", admin.email!),
                           _buildDetailRow("Phone", admin.phone),
-
-                          // Add spacing between admins so they don't merge visually
                           const SizedBox(height: 24),
                         ],
                       );

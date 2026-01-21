@@ -4,33 +4,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/app_colors.dart';
 import 'package:construction_erp/controllers/super_admin/companies_controller.dart';
 
-class CreateCompanyScreen extends ConsumerStatefulWidget {
-  const CreateCompanyScreen({super.key});
+class UpdateCompanyScreen extends ConsumerStatefulWidget {
+  // Pass the existing company data to pre-fill the form
+  // You can replace Map<String, dynamic> with your specific CompanyModel if available
+  final Map<String, dynamic> companyData;
+
+  const UpdateCompanyScreen({super.key, required this.companyData});
 
   @override
-  ConsumerState<CreateCompanyScreen> createState() =>
-      _CreateCompanyScreenState();
+  ConsumerState<UpdateCompanyScreen> createState() =>
+      _UpdateCompanyScreenState();
 }
 
-class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
+class _UpdateCompanyScreenState extends ConsumerState<UpdateCompanyScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Company Controllers
-  final TextEditingController companyNameCtrl = TextEditingController();
-  final TextEditingController addressCtrl = TextEditingController();
-  final TextEditingController regNoCtrl = TextEditingController();
-  final TextEditingController gstCtrl = TextEditingController();
-  final TextEditingController emailCtrl = TextEditingController();
-  final TextEditingController websiteCtrl = TextEditingController();
-  final TextEditingController phoneCtrl = TextEditingController();
+  late TextEditingController companyNameCtrl;
+  late TextEditingController addressCtrl;
+  late TextEditingController regNoCtrl;
+  late TextEditingController gstCtrl;
+  late TextEditingController emailCtrl;
+  late TextEditingController websiteCtrl;
+  late TextEditingController phoneCtrl;
 
-  // Admin Controllers
-  final TextEditingController adminNameCtrl = TextEditingController();
-  final TextEditingController adminEmailCtrl = TextEditingController();
-  final TextEditingController adminPhoneCtrl = TextEditingController();
-
-  bool giveAllPermissions = false;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize and Auto-fill data
+    // Note: Adjust the keys (['companyName'], etc.) to match your actual API response model
+    companyNameCtrl =
+        TextEditingController(text: widget.companyData['companyName'] ?? '');
+    addressCtrl =
+        TextEditingController(text: widget.companyData['officeAddress'] ?? '');
+    regNoCtrl = TextEditingController(
+        text: widget.companyData['registrationNumber'] ?? '');
+    gstCtrl =
+        TextEditingController(text: widget.companyData['gstNumber'] ?? '');
+    emailCtrl = TextEditingController(text: widget.companyData['email'] ?? '');
+    websiteCtrl =
+        TextEditingController(text: widget.companyData['website'] ?? '');
+    phoneCtrl = TextEditingController(text: widget.companyData['phone'] ?? '');
+  }
 
   @override
   void dispose() {
@@ -42,9 +59,6 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
     emailCtrl.dispose();
     websiteCtrl.dispose();
     phoneCtrl.dispose();
-    adminNameCtrl.dispose();
-    adminEmailCtrl.dispose();
-    adminPhoneCtrl.dispose();
     super.dispose();
   }
 
@@ -54,37 +68,36 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // 1. Construct the Payload
-      final Map<String, dynamic> payload = {
-        'companyName': companyNameCtrl.text.trim(),
+      // 1. Construct the Payload (Admin details removed)
+      final Map<String, dynamic> updates = {
+        'name': companyNameCtrl.text.trim(),
         'registrationNumber': regNoCtrl.text.trim(),
         'gstNumber': gstCtrl.text.trim(),
         'officeAddress': addressCtrl.text.trim(),
         'email': emailCtrl.text.trim(),
         'website': websiteCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
-        'adminName': adminNameCtrl.text.trim(),
-        'adminEmail': adminEmailCtrl.text.trim(),
-        'adminPhone': adminPhoneCtrl.text.trim(),
-        'permissions': giveAllPermissions ? ['FULL_COMPANY_ACCESS'] : [],
       };
 
       // 2. Call Controller
+      // Assuming your controller has an updateCompany(id, payload) method
+      final id = widget.companyData['id'] ?? widget.companyData['_id'];
+
       await ref
           .read(companiesControllerProvider.notifier)
-          .createCompany(payload);
+          .updateCompany(id: id, updates: updates);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Company created successfully!")),
+          const SnackBar(content: Text("Company updated successfully!")),
         );
-        Navigator.pop(context); // Go back to list
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text("Error creating company: $e"),
+              content: Text("Error updating company: $e"),
               backgroundColor: Colors.red),
         );
       }
@@ -98,7 +111,7 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Create Company",
+        title: const Text("Update Company",
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -132,28 +145,7 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
               _field("Website", websiteCtrl, "www.company.com"),
               _field("Phone*", phoneCtrl, "+91 98765 43210", required: true),
 
-              const SizedBox(height: 16),
-              const Text("Admin details",
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-              const Divider(),
-
-              _field("Admin Name*", adminNameCtrl, "Rahul Sharma",
-                  required: true),
-              _field("Email*", adminEmailCtrl, "rahul@company.com",
-                  isEmail: true, required: true),
-              _field("Phone*", adminPhoneCtrl, "+91", required: true),
-
-              Row(
-                children: [
-                  Checkbox(
-                    value: giveAllPermissions,
-                    activeColor: AppColors.primaryBlue,
-                    onChanged: (v) => setState(() => giveAllPermissions = v!),
-                  ),
-                  const Text("Give all permissions to admin")
-                ],
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 24),
 
               // --- SUBMIT BUTTON ---
               SizedBox(
@@ -172,7 +164,7 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
-                      : const Text("Create company",
+                      : const Text("Save Changes",
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.white)),
@@ -223,7 +215,6 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
             borderSide: const BorderSide(color: AppColors.primaryBlue),
           ),
           errorBorder: OutlineInputBorder(
-            // Add error border style
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: Colors.red),
           ),

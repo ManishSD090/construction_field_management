@@ -45,6 +45,26 @@ class _CompaniesListTabState extends ConsumerState<CompaniesListTab> {
     return Scaffold(
       backgroundColor: Colors.white,
 
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: AppColors.primaryBlue,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(28),
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Padding(
+          padding: EdgeInsets.only(left: 10),
+          child: Text("Companies",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+        ),
+        centerTitle: false,
+      ),
+
       // --- Floating Action Button (Add Company) ---
       floatingActionButton: FloatingActionButton(
         onPressed: () {

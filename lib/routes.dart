@@ -11,6 +11,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/super_admin/super_admin_layout.dart';
 import 'package:construction_erp/screens/auth/verification_screen.dart';
 import 'package:construction_erp/screens/super_admin/create_company.dart';
+import 'package:construction_erp/screens/super_admin/update_company.dart';
 import 'package:construction_erp/screens/super_admin/company_details.dart';
 
 class AppRoutes {
@@ -22,6 +23,7 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
   static const String superAdmin = '/superAdmin';
   static const String createCompany = '/createCompany';
+  static const String updateCompany = '/updateCompany';
   static const String companyDetails = '/companyDetails';
 
   // --- ROUTE MAP: Define the map ---
@@ -34,6 +36,11 @@ class AppRoutes {
     dashboard: (context) => const DashboardScreen(),
     superAdmin: (context) => const SuperAdminLayout(),
     createCompany: (context) => const CreateCompanyScreen(),
+    updateCompany: (context) {
+      final args =
+          ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+      return UpdateCompanyScreen(companyData: args);
+    },
     companyDetails: (context) {
       final args = ModalRoute.of(context)!.settings.arguments as Company;
       return CompanyDetailsScreen(company: args);
