@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/app_colors.dart';
 import '../../widgets/super_admin/admin_stat_card.dart';
 import '../../widgets/super_admin/system_alert_card.dart';
-import './create_company.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 
 class DashboardTab extends ConsumerWidget {
@@ -239,42 +238,6 @@ class DashboardTab extends ConsumerWidget {
           )
         ],
       ),
-    );
-  }
-}
-
-class _CreateCompanySheet extends StatelessWidget {
-  const _CreateCompanySheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.92,
-      minChildSize: 0.6,
-      maxChildSize: 0.95,
-      builder: (_, controller) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                height: 5,
-                width: 60,
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 255, 255, 255),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Expanded(child: CreateCompanyScreen()),
-            ],
-          ),
-        );
-      },
     );
   }
 }
