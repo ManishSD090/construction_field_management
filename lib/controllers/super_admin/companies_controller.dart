@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 
 // Core Imports
 import 'package:construction_erp/controllers/core_providers.dart';
@@ -10,7 +9,7 @@ import 'package:construction_erp/core/dio_client.dart';
 import 'package:construction_erp/models/company.dart';
 import 'package:construction_erp/models/user.dart';
 
-// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------x
 // PROVIDER
 // -----------------------------------------------------------------------------
 final companiesControllerProvider =
