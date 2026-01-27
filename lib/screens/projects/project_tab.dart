@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 
 // --- Local Model & Data ---
 
 enum ProjectStatus { ongoing, completed, onHold }
 
+// Update your ProjectModel definition
 class ProjectModel {
   final String title;
   final String locationId;
@@ -12,7 +14,16 @@ class ProjectModel {
   final ProjectStatus status;
   final String startDate;
   final String endDate;
-  final double progress; // 0.0 to 1.0
+  final double progress;
+  // New Fields for Details Screen
+  final String clientName;
+  final String projectManager;
+  final String siteEngineer;
+  final String budgetUsed;
+  final String totalBudget;
+  final int daysLeft;
+  final int tasksDone;
+  final int totalTasks;
 
   ProjectModel({
     required this.title,
@@ -22,9 +33,19 @@ class ProjectModel {
     required this.startDate,
     required this.endDate,
     required this.progress,
+    // Add defaults or required for new fields
+    this.clientName = "ABC Infrastructure Pvt Ltd",
+    this.projectManager = "Rahul Mehta",
+    this.siteEngineer = "Ankit Verma",
+    this.budgetUsed = "42L",
+    this.totalBudget = "80L",
+    this.daysLeft = 124,
+    this.tasksDone = 18,
+    this.totalTasks = 30,
   });
 }
 
+// Update your Dummy Data
 final List<ProjectModel> _dummyProjects = [
   ProjectModel(
     title: "Site A - Residential Block",
@@ -33,7 +54,9 @@ final List<ProjectModel> _dummyProjects = [
     status: ProjectStatus.ongoing,
     startDate: "12 JAN 2026",
     endDate: "13 Oct 2026",
-    progress: 0.5,
+    progress: 0.75, // 75%
+    budgetUsed: "42L",
+    totalBudget: "80L",
   ),
   ProjectModel(
     title: "Site B - Commercial Complex",
@@ -43,6 +66,9 @@ final List<ProjectModel> _dummyProjects = [
     startDate: "10 JAN 2025",
     endDate: "15 Dec 2025",
     progress: 1.0,
+    daysLeft: 0,
+    tasksDone: 45,
+    totalTasks: 60,
   ),
   ProjectModel(
     title: "Site C - Industrial Park",
@@ -52,6 +78,9 @@ final List<ProjectModel> _dummyProjects = [
     startDate: "01 FEB 2026",
     endDate: "01 Nov 2026",
     progress: 0.25,
+    daysLeft: 0,
+    tasksDone: 45,
+    totalTasks: 50,
   ),
 ];
 
@@ -109,7 +138,9 @@ class ProjectTab extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.pushNamed(context, AppRoutes.createProject);
+        },
         backgroundColor: AppColors.primaryBlue,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: AppColors.white, size: 32),
@@ -196,127 +227,133 @@ class _ProjectCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String progressPercent = (project.progress * 100).toStringAsFixed(0);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Row: Title/ID vs Priority/Status
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      project.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDark,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      project.locationId,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textGrey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textDark),
-                      children: [
-                        const TextSpan(text: "Priority: "),
-                        TextSpan(
-                          text: project.priority,
-                          style: const TextStyle(
-                              color: AppColors.alertRed,
-                              fontWeight: FontWeight.bold),
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, AppRoutes.projectDetails,
+            arguments: project);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Title/ID vs Priority/Status
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
                         ),
-                      ],
-                    ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        project.locationId,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  _buildStatusChip(project.status),
-                  const SizedBox(height: 8),
-                  Text("End: ${project.endDate}",
-                      style: const TextStyle(
-                          fontSize: 10, color: AppColors.textGrey)),
-                  Text("Start: ${project.startDate}",
-                      style: const TextStyle(
-                          fontSize: 10, color: AppColors.textGrey)),
-                ],
-              )
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Progress Label
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              RichText(
-                text: TextSpan(
-                  style:
-                      const TextStyle(fontSize: 14, color: AppColors.textDark),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const TextSpan(text: "Progress : "),
-                    TextSpan(
-                      text: "$progressPercent %",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textDark),
+                        children: [
+                          const TextSpan(text: "Priority: "),
+                          TextSpan(
+                            text: project.priority,
+                            style: const TextStyle(
+                                color: AppColors.alertRed,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 8),
+                    _buildStatusChip(project.status),
+                    const SizedBox(height: 8),
+                    Text("End: ${project.endDate}",
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.textGrey)),
+                    Text("Start: ${project.startDate}",
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.textGrey)),
                   ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+                )
+              ],
+            ),
+            const SizedBox(height: 20),
 
-          // Progress Bar (Fixed Clipping with Row + Expanded)
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: project.progress,
-                    backgroundColor: AppColors.lightGrey,
-                    color: AppColors.primaryBlue,
-                    minHeight: 10,
+            // Progress Label
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.textDark),
+                    children: [
+                      const TextSpan(text: "Progress : "),
+                      TextSpan(
+                        text: "$progressPercent %",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(Icons.arrow_forward,
-                  color: AppColors.textDark, size: 20),
-            ],
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Progress Bar (Fixed Clipping with Row + Expanded)
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: project.progress,
+                      backgroundColor: AppColors.lightGrey,
+                      color: AppColors.primaryBlue,
+                      minHeight: 10,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.arrow_forward,
+                    color: AppColors.textDark, size: 20),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,7 +5,7 @@ import 'package:construction_erp/routes.dart';
 
 // Import your tab views
 import 'package:construction_erp/screens/admin/dashboard_tab.dart';
-import 'package:construction_erp/screens/admin/project_tab.dart';
+import 'package:construction_erp/screens/projects/project_tab.dart';
 
 enum DashboardPopupType { none, verification, setPassword }
 

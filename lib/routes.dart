@@ -13,6 +13,8 @@ import 'package:construction_erp/screens/auth/verification_screen.dart';
 import 'package:construction_erp/screens/super_admin/create_company.dart';
 import 'package:construction_erp/screens/super_admin/update_company.dart';
 import 'package:construction_erp/screens/super_admin/company_details.dart';
+import 'package:construction_erp/screens/projects/create_project_screen.dart';
+import 'package:construction_erp/screens/projects/project_details_screen.dart';
 
 class AppRoutes {
   // --- CONSTANTS: Define your route names ---
@@ -21,10 +23,16 @@ class AppRoutes {
   static const String setPassword = '/setPassword';
   static const String verification = '/verification';
   static const String home = '/home';
+
+  // Super Admin Routes
   static const String superAdmin = '/superAdmin';
   static const String createCompany = '/createCompany';
   static const String updateCompany = '/updateCompany';
   static const String companyDetails = '/companyDetails';
+
+  // Projects Routes
+  static const String createProject = '/createProject';
+  static const String projectDetails = '/projectDetails';
 
   // --- ROUTE MAP: Define the map ---
   static final Map<String, WidgetBuilder> routes = {
@@ -44,6 +52,8 @@ class AppRoutes {
       final args = ModalRoute.of(context)!.settings.arguments as Company;
       return CompanyDetailsScreen(company: args);
     },
+    createProject: (context) => const CreateProjectScreen(),
+    projectDetails: (context) => const ProjectDetailsScreen(),
   };
 }
 

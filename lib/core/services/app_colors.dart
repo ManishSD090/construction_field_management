@@ -11,6 +11,7 @@ class AppColors {
   static const Color successGreen = Color(0xFF43A047);
   static const Color successGreenLight = Color(0xFFE8F5E9);
   static const Color statusYellow = Color(0xFFFFC107);
+  static const Color statusYellowDark = Color(0xFFF57F17);
 
   // Tag Colours
   static const Color tagRed = Color(0xFFE53935);
@@ -22,4 +23,7 @@ class AppColors {
   static const Color textGrey = Color(0xFF757575);
   static const Color white = Colors.white;
   static const Color lightGrey = Color(0xFFE0E0E0);
+
+  // Icon Colors (for activities)
+  static const Color iconBlueLight = Color(0xFFBBDEFB);
 }
