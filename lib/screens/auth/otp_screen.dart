@@ -238,7 +238,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
           Navigator.pushReplacementNamed(context, AppRoutes.superAdmin);
         } else {
           // 2. Default Dashboard
-          Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+          Navigator.pushReplacementNamed(context, AppRoutes.home);
         }
       }
     });

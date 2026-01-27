@@ -7,7 +7,7 @@ import 'package:construction_erp/models/company.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/otp_screen.dart';
 import 'screens/auth/set_pass_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/main_layout.dart';
 import 'screens/super_admin/super_admin_layout.dart';
 import 'package:construction_erp/screens/auth/verification_screen.dart';
 import 'package:construction_erp/screens/super_admin/create_company.dart';
@@ -20,20 +20,19 @@ class AppRoutes {
   static const String otp = '/otp';
   static const String setPassword = '/setPassword';
   static const String verification = '/verification';
-  static const String dashboard = '/dashboard';
+  static const String home = '/home';
   static const String superAdmin = '/superAdmin';
   static const String createCompany = '/createCompany';
   static const String updateCompany = '/updateCompany';
   static const String companyDetails = '/companyDetails';
 
   // --- ROUTE MAP: Define the map ---
-  // Note: This must be 'static final', NOT 'static const'
   static final Map<String, WidgetBuilder> routes = {
     login: (context) => const LoginScreen(),
     otp: (context) => const OtpScreen(),
     setPassword: (context) => const SetPasswordScreen(),
     verification: (context) => const VerificationScreen(),
-    dashboard: (context) => const DashboardScreen(),
+    home: (context) => const MainLayoutScreen(),
     superAdmin: (context) => const SuperAdminLayout(),
     createCompany: (context) => const CreateCompanyScreen(),
     updateCompany: (context) {
@@ -46,4 +45,15 @@ class AppRoutes {
       return CompanyDetailsScreen(company: args);
     },
   };
+}
+
+class HomeArguments {
+  final String tab;
+  HomeArguments({required this.tab});
+
+  static const dashboard = 'dashboard';
+  static const project = 'project';
+  static const task = 'task';
+  static const operation = 'operation';
+  static const profile = 'profile';
 }

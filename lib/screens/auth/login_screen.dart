@@ -92,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Navigator.pushReplacementNamed(context, AppRoutes.superAdmin);
         } else {
           // 2. Default Dashboard
-          Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+          Navigator.pushReplacementNamed(context, AppRoutes.home);
         }
       }
     });

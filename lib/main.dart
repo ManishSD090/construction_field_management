@@ -32,7 +32,7 @@ void main() async {
       if (user.userType == UserType.superAdmin) {
         initialRoute = AppRoutes.superAdmin;
       } else {
-        initialRoute = AppRoutes.dashboard;
+        initialRoute = AppRoutes.home;
       }
     }
 
