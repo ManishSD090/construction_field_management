@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'site_engineer/site_engineer_layout.dart';
 
 class HomeScreen extends StatelessWidget {
   static const String routeName = '/home';
@@ -7,15 +8,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('Welcome User'),
-        backgroundColor:
-            Theme.of(context).colorScheme.primary, // Construction orange
-        foregroundColor: Colors.white,
-      ),
-      body: const Center(child: Text('Home Screen')),
-    );
+    return const SiteEngineerLayout();
   }
 }
