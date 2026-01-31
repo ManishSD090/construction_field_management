@@ -27,7 +27,7 @@ class DashboardTab extends ConsumerWidget {
                   "Quick actions",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 18), // <--- CHANGE THIS (Was 15)
                 _buildQuickActionsGrid(),
               ],
             ),
@@ -142,17 +142,18 @@ class DashboardTab extends ConsumerWidget {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
       crossAxisCount: 2,
       crossAxisSpacing: 15,
       mainAxisSpacing: 15,
-      childAspectRatio: 1.5,
+      childAspectRatio: 1.3, // <--- CHANGE THIS (Was 1.5)
       children: [
         _buildActionCard(Icons.person_outline, Colors.blue[50]!, Colors.blue,
-            "Attendance", "45/50"),
+            "Attendance", "45/50 present"),
         _buildActionCard(Icons.assignment_outlined, Colors.teal[50]!,
-            Colors.teal, "Tasks", "12/18 done"),
+            Colors.teal, "Expenses", "1,42,300 pending"),
         _buildActionCard(Icons.description_outlined, Colors.orange[50]!,
-            Colors.orange, "DPR", "20 submitted"),
+            Colors.orange, "Approvals", "20 pending"),
         _buildActionCard(Icons.inventory_2_outlined, Colors.red[50]!,
             Colors.redAccent, "Projects", "3 active"),
       ],
