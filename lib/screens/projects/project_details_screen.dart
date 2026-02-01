@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
-// Import where your ProjectModel is defined.
-// If it's still in project_tab.dart, import that.
-// Ideally, move ProjectModel to lib/models/project_model.dart
-import 'package:construction_erp/screens/projects/project_tab.dart';
+import 'package:construction_erp/screens/projects/project_tab.dart'; // Ensure ProjectModel is imported
+import 'package:construction_erp/screens/projects/edit_project.dart'; // Edit Screen
+import 'package:construction_erp/screens/projects/tasks.dart'; // Tasks Tab & Create Task Screen
 
 class ProjectDetailsScreen extends StatefulWidget {
   const ProjectDetailsScreen({super.key});
@@ -14,26 +13,187 @@ class ProjectDetailsScreen extends StatefulWidget {
 
 class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   String _selectedTab = 'Overview';
-  late ProjectModel project; // Variable to hold the data
+  late ProjectModel project;
+  bool _isProcessing = false; // For delete loading state
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Retrieve the project passed from the list screen
+    // Retrieve arguments passed from the previous screen
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is ProjectModel) {
       project = args;
-    } else {
-      // Fallback or Error handling if no data passed
-      // For now, we assume data is always passed correctly
     }
   }
 
+  // ================== DELETE LOGIC START ==================
+  void _showDeleteActionSheet() {
+    bool isChecked = false;
+    const Color color = AppColors.alertRed;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Delete Project? ⚠️",
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                        color: Colors.black87, fontSize: 15, height: 1.5),
+                    children: [
+                      const TextSpan(
+                          text: "Are you sure you want to permanently delete "),
+                      TextSpan(
+                          text: "${project.title}?",
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const TextSpan(text: "\nThis action cannot be undone."),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: Checkbox(
+                          value: isChecked,
+                          activeColor: color,
+                          onChanged: (val) =>
+                              setSheetState(() => isChecked = val!)),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text("I confirm this action",
+                        style: TextStyle(fontSize: 13)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isChecked ? color : Colors.grey.shade300,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      elevation: 0,
+                    ),
+                    onPressed: isChecked
+                        ? () {
+                            Navigator.pop(context); // Close sheet
+                            _performDeleteProject();
+                          }
+                        : null,
+                    child: _isProcessing
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text("Delete Project",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context),
+                    child: const Text("Cancel",
+                        style: TextStyle(
+                            color: AppColors.textGrey,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                )
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  Future<void> _performDeleteProject() async {
+    setState(() => _isProcessing = true);
+    try {
+      // Simulate API call
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (c) => Dialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle,
+                        color: AppColors.successGreen, size: 60),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Project Deleted!",
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(c); // Close dialog
+                          Navigator.pop(context); // Return to list screen
+                        },
+                        child: const Text("OK",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppColors.primaryBlue)),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            ));
+  }
+  // ================== DELETE LOGIC END ==================
+
   @override
   Widget build(BuildContext context) {
-    // Safety check in case project wasn't initialized
-    // (though didChangeDependencies runs before build)
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -48,10 +208,28 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
         ),
       ),
+
+      // ✅ FAB Logic: Only show when "Tasks" tab is selected
+      floatingActionButton: _selectedTab == 'Tasks'
+          ? FloatingActionButton(
+              onPressed: () {
+                // Navigate to Create Task Screen (imported from tasks.dart)
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const CreateTaskScreen()),
+                );
+              },
+              backgroundColor: AppColors.primaryBlue,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Top white section
+            // --- TOP SECTION (Header & Metrics) ---
             Container(
               color: AppColors.white,
               padding: const EdgeInsets.all(20),
@@ -64,7 +242,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               ),
             ),
 
-            // Divider Arrow
+            // --- DIVIDER ARROW ---
             SizedBox(
               height: 30,
               child: Stack(
@@ -83,18 +261,37 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               ),
             ),
 
-            // Bottom section
+            // --- BOTTOM SECTION (Tabs & Content) ---
             Container(
               color: AppColors.white,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildTabBar(),
                   const SizedBox(height: 25),
+
+                  // Content Switcher
                   _buildTabContent(),
-                  const SizedBox(height: 30),
-                  _buildRecentActivities(),
+
+                  // ✅ Only show Recent Activities & Milestones if NOT on Tasks tab
+                  if (_selectedTab == 'Overview') ...[
+                    const SizedBox(height: 30),
+                    _buildRecentActivities(),
+                    const SizedBox(height: 0),
+                    const Divider(color: AppColors.lightGrey, thickness: 1),
+                    const SizedBox(height: 5),
+                    Center(
+                      child: TextButton(
+                        onPressed: () {},
+                        child: const Text("View more",
+                            style: TextStyle(
+                                color: AppColors.primaryBlue,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    _buildMilestones(),
+                  ]
                 ],
               ),
             ),
@@ -104,7 +301,83 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  // ================== DYNAMIC WIDGETS ==================
+  // ================== HELPER WIDGETS ==================
+
+  Widget _buildTabContent() {
+    // 1. Show Tasks Content
+    if (_selectedTab == 'Tasks') {
+      return const ProjectTasksTab();
+    }
+
+    // 2. Placeholder for unimplemented tabs
+    if (_selectedTab != 'Overview') {
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text("Content for $_selectedTab tab")));
+    }
+
+    // 3. Overview Content
+    final int progressInt = (project.progress * 100).toInt();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left Side: Circular Progress
+        Expanded(
+          flex: 2,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 120,
+                width: 120,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CircularProgressIndicator(
+                        value: 1.0,
+                        strokeWidth: 12,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.lightGrey.withOpacity(0.5))),
+                    CircularProgressIndicator(
+                        value: project.progress,
+                        strokeWidth: 12,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primaryBlue),
+                        strokeCap: StrokeCap.round),
+                    Center(
+                        child: Text("$progressInt%",
+                            style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryBlue))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+              Text("Due date: ${project.endDate}",
+                  style:
+                      const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 20),
+        // Right Side: Project Details
+        Expanded(
+          flex: 3,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailLinkRow("Client:", project.clientName),
+              _buildDetailLinkRow(
+                  "Location:", project.locationId.split('|')[0].trim()),
+              _buildDetailLinkRow("Project Manager:", project.projectManager),
+              _buildDetailLinkRow("Site Engineer:", project.siteEngineer),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildHeaderSection() {
     final int progressInt = (project.progress * 100).toInt();
@@ -113,7 +386,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Left Side
         Expanded(
           flex: 3,
           child: Column(
@@ -137,7 +409,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             ],
           ),
         ),
-        // Right Side
         Expanded(
           flex: 2,
           child: Column(
@@ -146,9 +417,27 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  _buildIconButton(Icons.edit, AppColors.lightGrey),
+                  // Edit Button
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EditProjectScreen(project: project),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildIconButton(Icons.edit, AppColors.lightGrey),
+                  ),
                   const SizedBox(width: 10),
-                  _buildIconButton(Icons.delete, AppColors.alertRed),
+                  // Delete Button
+                  InkWell(
+                    onTap: _showDeleteActionSheet,
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildIconButton(Icons.delete, AppColors.alertRed),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -180,7 +469,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Dynamic Status Chip
               _buildStatusChip(project.status),
             ],
           ),
@@ -192,10 +480,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   Widget _buildStatusChip(ProjectStatus status) {
     Color bgColor;
     String label;
-
     switch (status) {
       case ProjectStatus.ongoing:
-        bgColor = AppColors.statusYellow;
+        bgColor = const Color(0xFFF9A825);
         label = "Ongoing";
         break;
       case ProjectStatus.completed:
@@ -207,30 +494,23 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         label = "On Hold";
         break;
     }
-
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
+          color: bgColor, borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-                color: AppColors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 12),
-          ),
+          Text(label,
+              style: const TextStyle(
+                  color: AppColors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12)),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-                color: Colors.black
-                    .withOpacity(0.1), // Slight dark overlay for icon bg
-                shape: BoxShape.circle),
+                color: Colors.black.withOpacity(0.1), shape: BoxShape.circle),
             child: const Icon(Icons.edit, color: AppColors.white, size: 12),
           )
         ],
@@ -250,141 +530,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         _buildMetricCard(Icons.assignment_turned_in,
             "${project.tasksDone}/${project.totalTasks}", "Tasks Done"),
       ],
-    );
-  }
-
-  Widget _buildTabContent() {
-    if (_selectedTab != 'Overview') {
-      return Center(
-          child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Text("Content for $_selectedTab tab"),
-      ));
-    }
-
-    final int progressInt = (project.progress * 100).toInt();
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left side: Circular Progress
-        Expanded(
-          flex: 2,
-          child: Column(
-            children: [
-              SizedBox(
-                height: 120,
-                width: 120,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CircularProgressIndicator(
-                      value: 1.0,
-                      strokeWidth: 12,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.lightGrey.withOpacity(0.5)),
-                    ),
-                    CircularProgressIndicator(
-                      value: project.progress,
-                      strokeWidth: 12,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.primaryBlue),
-                      strokeCap: StrokeCap.round,
-                    ),
-                    Center(
-                      child: Text(
-                        "$progressInt%",
-                        style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryBlue),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 15),
-              Text("Due date: ${project.endDate}",
-                  style:
-                      const TextStyle(color: AppColors.textGrey, fontSize: 12)),
-            ],
-          ),
-        ),
-        const SizedBox(width: 20),
-        // Right side: Project Details Links
-        Expanded(
-          flex: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailLinkRow("Client:", project.clientName),
-              // Split locationID to get just location if format is "Location | ID"
-              _buildDetailLinkRow(
-                  "Location:", project.locationId.split('|')[0].trim()),
-              _buildDetailLinkRow("Project Manager:", project.projectManager),
-              _buildDetailLinkRow("Site Engineer:", project.siteEngineer),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ... (The rest of the helper methods _buildDateRow, _buildIconButton, _buildTabBar, _buildRecentActivities stay exactly the same as the previous response) ...
-
-  // Re-pasting helper methods for completeness:
-
-  Widget _buildDateRow(String label, String date) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
-      child: Row(
-        children: [
-          Text("$label ",
-              style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
-          Text(date,
-              style: const TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, color: color, size: 20),
-    );
-  }
-
-  Widget _buildMetricCard(IconData icon, String title, String subtitle) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: AppColors.primaryBlue),
-            const SizedBox(height: 10),
-            Text(title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Text(subtitle,
-                style: const TextStyle(color: AppColors.textGrey, fontSize: 11),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      ),
     );
   }
 
@@ -438,17 +583,66 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           Text("$label ",
               style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
           Expanded(
-            child: Text(
-              linkText,
+              child: Text(linkText,
+                  style: const TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRow(String label, String date) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        children: [
+          Text("$label ",
+              style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+          Text(date,
               style: const TextStyle(
                   color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8)),
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
+
+  Widget _buildMetricCard(IconData icon, String title, String subtitle) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primaryBlue),
+            const SizedBox(height: 10),
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 4),
+            Text(subtitle,
+                style: const TextStyle(color: AppColors.textGrey, fontSize: 11),
+                textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }
@@ -457,13 +651,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Recent Activities",
-          style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textDark),
-        ),
+        const Text("Recent Activities",
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textDark)),
         const SizedBox(height: 10),
         const Divider(color: AppColors.lightGrey),
         _buildActivityItem(Icons.attachment, "DPR submitted by Site Engineer",
@@ -486,16 +678,79 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           Icon(icon, color: AppColors.primaryBlue, size: 20),
           const SizedBox(width: 15),
           Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(color: AppColors.textDark, fontSize: 13),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+              child: Text(title,
+                  style:
+                      const TextStyle(color: AppColors.textDark, fontSize: 13),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 10),
           Text(time,
               style: const TextStyle(color: AppColors.textGrey, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMilestones() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Milestones",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark)),
+            TextButton(
+                onPressed: () {},
+                child: const Text("View all",
+                    style: TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w600)))
+          ],
+        ),
+        const SizedBox(height: 10),
+        const SizedBox(height: 1),
+        const Divider(color: AppColors.lightGrey, thickness: 1),
+        const SizedBox(height: 5),
+        _buildMilestoneItem("Foundation Work", "28 Dec 2025", true),
+        _buildMilestoneItem("Foundation Work", "28 Dec 2025", true),
+        _buildMilestoneItem("Foundation Work", "28 Dec 2025", true),
+        _buildMilestoneItem("Foundation Work", "28 Dec 2025", true),
+      ],
+    );
+  }
+
+  Widget _buildMilestoneItem(String title, String date, bool isCompleted) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+          color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  color: AppColors.textDark,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14)),
+          Row(
+            children: [
+              Text(date,
+                  style:
+                      const TextStyle(color: AppColors.textGrey, fontSize: 12)),
+              const SizedBox(width: 10),
+              Icon(
+                  isCompleted
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color:
+                      isCompleted ? AppColors.successGreen : AppColors.textGrey,
+                  size: 18),
+            ],
+          )
         ],
       ),
     );
