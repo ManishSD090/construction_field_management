@@ -263,7 +263,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
             const SizedBox(height: 8),
             InkWell(
               onTap: () {
-                // Navigate to Edit Profile
+                Navigator.pushNamed(context, AppRoutes.updateSuperAdminProfile);
               },
               borderRadius: BorderRadius.circular(20),
               child: Container(

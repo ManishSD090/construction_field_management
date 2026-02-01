@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/app_colors.dart';
-import 'package:construction_erp/controllers/super_admin/companies_controller.dart';
+import 'package:construction_erp/controllers/super_admin/super_admin_controller.dart';
 
 class UpdateCompanyScreen extends ConsumerStatefulWidget {
   // Pass the existing company data to pre-fill the form
@@ -84,7 +84,7 @@ class _UpdateCompanyScreenState extends ConsumerState<UpdateCompanyScreen> {
       final id = widget.companyData['id'] ?? widget.companyData['_id'];
 
       await ref
-          .read(companiesControllerProvider.notifier)
+          .read(superAdminControllerProvider.notifier)
           .updateCompany(id: id, updates: updates);
 
       if (mounted) {

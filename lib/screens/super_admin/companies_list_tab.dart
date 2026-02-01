@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // --- IMPORTS ---
 import '../../core/services/app_colors.dart';
 import '../../widgets/super_admin/company_tile.dart';
-import 'package:construction_erp/controllers/super_admin/companies_controller.dart';
+import 'package:construction_erp/controllers/super_admin/super_admin_controller.dart';
 import 'package:construction_erp/routes.dart'; // Ensure this points to your routes file
 
 class CompaniesListTab extends ConsumerStatefulWidget {
@@ -32,7 +32,7 @@ class _CompaniesListTabState extends ConsumerState<CompaniesListTab> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       ref
-          .read(companiesControllerProvider.notifier)
+          .read(superAdminControllerProvider.notifier)
           .searchAndRefresh(search: query);
     });
   }
@@ -40,7 +40,7 @@ class _CompaniesListTabState extends ConsumerState<CompaniesListTab> {
   @override
   Widget build(BuildContext context) {
     // 1. Watch the Controller State
-    final asyncState = ref.watch(companiesControllerProvider);
+    final asyncState = ref.watch(superAdminControllerProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -184,7 +184,8 @@ class _CompaniesListTabState extends ConsumerState<CompaniesListTab> {
                     Text("Error loading companies",
                         style: TextStyle(color: Colors.red[700])),
                     TextButton(
-                      onPressed: () => ref.refresh(companiesControllerProvider),
+                      onPressed: () =>
+                          ref.refresh(superAdminControllerProvider),
                       child: const Text("Retry"),
                     )
                   ],
@@ -204,14 +205,14 @@ class _CompaniesListTabState extends ConsumerState<CompaniesListTab> {
                     if (scrollInfo.metrics.pixels >=
                         scrollInfo.metrics.maxScrollExtent * 0.9) {
                       ref
-                          .read(companiesControllerProvider.notifier)
+                          .read(superAdminControllerProvider.notifier)
                           .loadNextPage();
                     }
                     return true;
                   },
                   child: RefreshIndicator(
                     onRefresh: () => ref
-                        .read(companiesControllerProvider.notifier)
+                        .read(superAdminControllerProvider.notifier)
                         .searchAndRefresh(search: _searchController.text),
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(

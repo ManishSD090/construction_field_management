@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/app_colors.dart';
-import 'package:construction_erp/controllers/super_admin/companies_controller.dart';
+import 'package:construction_erp/controllers/super_admin/super_admin_controller.dart';
 
 class CreateCompanyScreen extends ConsumerStatefulWidget {
   const CreateCompanyScreen({super.key});
@@ -71,7 +71,7 @@ class _CreateCompanyScreenState extends ConsumerState<CreateCompanyScreen> {
 
       // 2. Call Controller
       await ref
-          .read(companiesControllerProvider.notifier)
+          .read(superAdminControllerProvider.notifier)
           .createCompany(payload);
 
       if (mounted) {

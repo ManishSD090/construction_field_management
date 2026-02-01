@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/app_colors.dart';
 import '../../models/company.dart';
-import '../../controllers/super_admin/companies_controller.dart';
+import '../../controllers/super_admin/super_admin_controller.dart';
 import 'package:construction_erp/routes.dart';
 
 class CompanyDetailsScreen extends ConsumerStatefulWidget {
@@ -35,7 +35,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
   Future<void> _fetchFreshDetails() async {
     try {
       final freshData = await ref
-          .read(companiesControllerProvider.notifier)
+          .read(superAdminControllerProvider.notifier)
           .getCompanyById(_company.id!);
 
       if (mounted) {
@@ -184,7 +184,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
   Future<void> _performStatusChange(bool newStatus) async {
     setState(() => _isProcessing = true);
     try {
-      await ref.read(companiesControllerProvider.notifier).toggleCompanyStatus(
+      await ref.read(superAdminControllerProvider.notifier).toggleCompanyStatus(
             id: _company.id!,
             isActive: newStatus,
           );
