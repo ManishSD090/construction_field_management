@@ -16,7 +16,14 @@ class SuperAdminLayout extends ConsumerStatefulWidget {
 
 class _SuperAdminLayoutState extends ConsumerState<SuperAdminLayout> {
   int _currentIndex = 0;
-  bool _isInit = true;
+  bool _isInit = false;
+
+  // 1. Define the Map linking String keys to Index integers
+  final Map<String, int> _tabRouteMap = {
+    SuperAdminArguments.dashboard: 0,
+    SuperAdminArguments.companies: 1,
+    SuperAdminArguments.profile: 2,
+  };
 
   final List<Widget> _pages = [
     const DashboardTab(),
@@ -28,25 +35,30 @@ class _SuperAdminLayoutState extends ConsumerState<SuperAdminLayout> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // Check arguments only once when the screen loads
-    if (_isInit) {
+    // 2. Logic matches MainLayoutScreen: Check _isInit, then process args
+    if (!_isInit) {
       final args = ModalRoute.of(context)?.settings.arguments;
 
-      // Handle SuperAdminArguments
+      // Handle the Arguments Class
       if (args is SuperAdminArguments) {
-        // Validate index to prevent range errors
-        if (args.tab >= 0 && args.tab < _pages.length) {
-          _currentIndex = args.tab;
+        final tabName = args.tab.toLowerCase().trim();
+        if (_tabRouteMap.containsKey(tabName)) {
+          setState(() {
+            _currentIndex = _tabRouteMap[tabName]!;
+          });
         }
       }
-      // Fallback: Legacy support if you accidentally pass a raw int somewhere else
-      else if (args is int) {
-        if (args >= 0 && args < _pages.length) {
-          _currentIndex = args;
+      // Fallback: Handle raw String if passed directly (optional, but robust)
+      else if (args is String) {
+        final tabName = args.toLowerCase().trim();
+        if (_tabRouteMap.containsKey(tabName)) {
+          setState(() {
+            _currentIndex = _tabRouteMap[tabName]!;
+          });
         }
       }
 
-      _isInit = false;
+      _isInit = true;
     }
   }
 

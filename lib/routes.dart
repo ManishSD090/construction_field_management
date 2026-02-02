@@ -80,10 +80,10 @@ class HomeArguments {
 }
 
 class SuperAdminArguments {
-  final int tab;
+  final String tab;
   SuperAdminArguments({required this.tab});
 
-  static const dashboard = 0;
-  static const companies = 1;
-  static const profile = 2;
+  static const dashboard = 'dashboard';
+  static const companies = 'companies';
+  static const profile = 'profile';
 }

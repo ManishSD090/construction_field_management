@@ -260,3 +260,31 @@ class Milestone {
     };
   }
 }
+
+class ProjectState {
+  final List<Project> projects;
+  final int currentPage;
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  ProjectState({
+    required this.projects,
+    required this.currentPage,
+    required this.hasMore,
+    this.isLoadingMore = false,
+  });
+
+  ProjectState copyWith({
+    List<Project>? projects,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return ProjectState(
+      projects: projects ?? this.projects,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
+}
