@@ -6,6 +6,7 @@ import 'package:construction_erp/routes.dart';
 // Import your tab views
 import 'package:construction_erp/screens/admin/dashboard_tab.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart';
+import 'package:construction_erp/screens/projects/tasks.dart';
 
 enum DashboardPopupType { none, verification, setPassword }
 
@@ -24,15 +25,13 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
   final Map<String, int> _tabRouteMap = {
     'dashboard': 0,
     'project': 1,
-    'task': 2,
     'operation': 3,
     'profile': 4,
   };
 
   final List<Widget> _pages = [
     const DashboardTab(),
-    const ProjectTab(), // Replace with ProjectTab()
-    const Center(child: Text("Tasks Screen")), // Replace with TaskTab()
+    const ProjectTab(),
     const Center(child: Text("Operations Screen")),
     const Center(child: Text("Profile Screen")),
   ];
@@ -120,11 +119,6 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   selectedIcon:
                       Icon(Icons.inventory_2, color: Color(0xFF0D6EFD)),
                   label: 'Project',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.task_alt_outlined),
-                  selectedIcon: Icon(Icons.task_alt, color: Color(0xFF0D6EFD)),
-                  label: 'Task',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.note_alt_outlined),

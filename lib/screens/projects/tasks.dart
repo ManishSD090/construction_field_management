@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
+// ✅ Import the new Edit Task Screen
+import 'package:construction_erp/screens/projects/edit_task.dart';
 
 class ProjectTasksTab extends StatefulWidget {
-  const ProjectTasksTab({super.key});
+  final bool showAppBar;
+
+  const ProjectTasksTab({
+    super.key,
+    this.showAppBar = false,
+  });
 
   @override
   State<ProjectTasksTab> createState() => _ProjectTasksTabState();
 }
 
 class _ProjectTasksTabState extends State<ProjectTasksTab> {
+  // State variables
   bool _isDeleteMode = false;
+  bool _isEditMode = false; // ✅ Added Edit Mode State
   final Set<int> _selectedTaskIndices = {};
 
   final List<Map<String, dynamic>> _tasks = [
@@ -39,9 +48,20 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
     },
   ];
 
+  // Toggle Delete Mode (Turns off Edit mode if active)
   void _toggleDeleteMode() {
     setState(() {
       _isDeleteMode = !_isDeleteMode;
+      _isEditMode = false; // Disable edit mode
+      _selectedTaskIndices.clear();
+    });
+  }
+
+  // ✅ Toggle Edit Mode (Turns off Delete mode if active)
+  void _toggleEditMode() {
+    setState(() {
+      _isEditMode = !_isEditMode;
+      _isDeleteMode = false; // Disable delete mode
       _selectedTaskIndices.clear();
     });
   }
@@ -73,12 +93,22 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
     );
   }
 
+  // ✅ Helper to Navigate to Edit Screen
+  void _navigateToEdit(Map<String, dynamic> task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditTaskScreen(task: task),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ✅ REMOVED STACK & FAB FROM HERE (Handled in Parent)
-    return Column(
+    Widget content = Column(
       children: [
-        if (!_isDeleteMode) ...[
+        // Hide Search Bar if in Delete OR Edit Mode
+        if (!_isDeleteMode && !_isEditMode) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
@@ -98,6 +128,8 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
           ),
           const SizedBox(height: 25),
         ],
+
+        // --- HEADER ROW ---
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -108,25 +140,60 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
                   fontWeight: FontWeight.bold,
                   color: AppColors.textDark),
             ),
+
+            // Logic for Buttons
             if (_isDeleteMode)
-              OutlinedButton(
-                onPressed: _selectedTaskIndices.isNotEmpty
-                    ? _deleteSelectedTasks
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.alertRed),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                child: const Text("Delete selected tasks",
-                    style: TextStyle(color: AppColors.alertRed, fontSize: 12)),
-              )
-            else
               Row(
                 children: [
-                  _buildSmallIcon(Icons.edit, AppColors.lightGrey, () {}),
+                  TextButton(
+                    onPressed: _toggleDeleteMode,
+                    child: const Text("Cancel",
+                        style: TextStyle(
+                            color: AppColors.textGrey,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: _selectedTaskIndices.isNotEmpty
+                        ? _deleteSelectedTasks
+                        : null,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.alertRed),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                    child: const Text("Delete selected",
+                        style:
+                            TextStyle(color: AppColors.alertRed, fontSize: 12)),
+                  ),
+                ],
+              )
+            else if (_isEditMode)
+              // ✅ Show Cancel button for Edit Mode
+              Row(
+                children: [
+                  const Text("Select to Edit",
+                      style:
+                          TextStyle(color: AppColors.textGrey, fontSize: 12)),
+                  const SizedBox(width: 10),
+                  TextButton(
+                    onPressed: _toggleEditMode,
+                    child: const Text("Done",
+                        style: TextStyle(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              )
+            else
+              // Normal Mode Icons
+              Row(
+                children: [
+                  // ✅ EDIT BUTTON NOW WORKS
+                  _buildSmallIcon(
+                      Icons.edit, AppColors.lightGrey, _toggleEditMode),
                   const SizedBox(width: 8),
                   _buildSmallIcon(
                       Icons.delete, AppColors.alertRed, _toggleDeleteMode),
@@ -155,6 +222,8 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
           ],
         ),
         const SizedBox(height: 15),
+
+        // --- LIST VIEW ---
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -162,10 +231,12 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
           itemBuilder: (context, index) {
             final task = _tasks[index];
             final isChecked = _selectedTaskIndices.contains(index);
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Row(
                 children: [
+                  // 1. DELETE MODE: Checkbox
                   if (_isDeleteMode)
                     Padding(
                       padding: const EdgeInsets.only(right: 12.0),
@@ -183,14 +254,41 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
                         ),
                       ),
                     ),
+
+                  // 2. EDIT MODE: Pencil Icon
+                  if (_isEditMode)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12.0),
+                      child: InkWell(
+                        onTap: () => _navigateToEdit(task),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                              color: AppColors.lightGrey.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4)),
+                          child: const Icon(Icons.edit,
+                              size: 18, color: AppColors.textDark),
+                        ),
+                      ),
+                    ),
+
+                  // 3. TASK CARD
                   Expanded(
-                    child: TaskCard(
-                      title: task['title'],
-                      assignee: task['assignee'],
-                      dueDate: task['dueDate'],
-                      priority: task['priority'],
-                      status: task['status'],
-                      statusColor: task['statusColor'],
+                    child: InkWell(
+                      // Allow tapping the card to edit in Edit Mode
+                      onTap: () {
+                        if (_isEditMode) {
+                          _navigateToEdit(task);
+                        }
+                      },
+                      child: TaskCard(
+                        title: task['title'],
+                        assignee: task['assignee'],
+                        dueDate: task['dueDate'],
+                        priority: task['priority'],
+                        status: task['status'],
+                        statusColor: task['statusColor'],
+                      ),
                     ),
                   ),
                 ],
@@ -201,6 +299,39 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
         const SizedBox(height: 80),
       ],
     );
+
+    if (widget.showAppBar) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: AppColors.primaryBlue,
+          elevation: 0,
+          centerTitle: true,
+          title: const Text(
+            "All Tasks",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          automaticallyImplyLeading: false,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: content,
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CreateTaskScreen()),
+            );
+          },
+          backgroundColor: AppColors.primaryBlue,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+      );
+    } else {
+      return content;
+    }
   }
 
   Widget _buildSmallIcon(IconData icon, Color color, VoidCallback onTap) {
@@ -217,6 +348,11 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
     );
   }
 }
+
+// ... (TaskCard and CreateTaskScreen remain unchanged below) ...
+// Ensure you include the TaskCard and CreateTaskScreen classes in your file
+// exactly as they were in the previous version.
+// I have omitted them here to save space but they are required.
 
 class TaskCard extends StatelessWidget {
   final String title;
@@ -316,7 +452,6 @@ class TaskCard extends StatelessWidget {
   }
 }
 
-// ✅ KEEP CREATE TASK SCREEN HERE SO IT CAN BE IMPORTED
 class CreateTaskScreen extends StatefulWidget {
   const CreateTaskScreen({super.key});
   @override
@@ -324,8 +459,6 @@ class CreateTaskScreen extends StatefulWidget {
 }
 
 class _CreateTaskScreenState extends State<CreateTaskScreen> {
-  // ... (Keep the CreateTaskScreen code exactly as provided before) ...
-  // For brevity, ensuring the UI you approved earlier is used here.
   final TextEditingController _taskNameController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
