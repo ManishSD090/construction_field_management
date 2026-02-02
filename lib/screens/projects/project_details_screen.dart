@@ -3,6 +3,8 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart'; // Ensure ProjectModel is imported
 import 'package:construction_erp/screens/projects/edit_project.dart'; // Edit Screen
 import 'package:construction_erp/screens/projects/tasks.dart'; // Tasks Tab & Create Task Screen
+import 'package:construction_erp/screens/projects/sub_contractors_list.dart'; // Sub-contractor List
+import 'package:construction_erp/screens/projects/create_sub_contractor.dart'; // Create Sub-contractor Screen
 
 class ProjectDetailsScreen extends StatefulWidget {
   const ProjectDetailsScreen({super.key});
@@ -209,22 +211,32 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         ),
       ),
 
-      // ✅ FAB Logic: Only show when "Tasks" tab is selected
-      floatingActionButton: _selectedTab == 'Tasks'
-          ? FloatingActionButton(
-              onPressed: () {
-                // Navigate to Create Task Screen (imported from tasks.dart)
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const CreateTaskScreen()),
-                );
-              },
-              backgroundColor: AppColors.primaryBlue,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      // ✅ FAB Logic: Show "Add" button for Tasks OR Sub-contractors
+      floatingActionButton:
+          (_selectedTab == 'Tasks' || _selectedTab == 'Sub-contractor')
+              ? FloatingActionButton(
+                  onPressed: () {
+                    if (_selectedTab == 'Tasks') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const CreateTaskScreen()),
+                      );
+                    } else if (_selectedTab == 'Sub-contractor') {
+                      // ✅ Navigate to Create Sub-contractor Screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                const CreateSubContractorScreen()),
+                      );
+                    }
+                  },
+                  backgroundColor: AppColors.primaryBlue,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add, color: Colors.white),
+                )
+              : null,
 
       body: SingleChildScrollView(
         child: Column(
@@ -274,7 +286,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   // Content Switcher
                   _buildTabContent(),
 
-                  // ✅ Only show Recent Activities & Milestones if NOT on Tasks tab
+                  // ✅ Only show Recent Activities & Milestones if ON 'Overview' tab
                   if (_selectedTab == 'Overview') ...[
                     const SizedBox(height: 30),
                     _buildRecentActivities(),
@@ -309,7 +321,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       return const ProjectTasksTab();
     }
 
-    // 2. Placeholder for unimplemented tabs
+    // 2. Show Sub-contractor List
+    if (_selectedTab == 'Sub-contractor') {
+      return const SubContractorsList();
+    }
+
+    // 3. Placeholder for unimplemented tabs
     if (_selectedTab != 'Overview') {
       return Center(
           child: Padding(
@@ -317,7 +334,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               child: Text("Content for $_selectedTab tab")));
     }
 
-    // 3. Overview Content
+    // 4. Overview Content (Main Dashboard view)
     final int progressInt = (project.progress * 100).toInt();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +551,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   }
 
   Widget _buildTabBar() {
-    final tabs = ['Overview', 'Tasks', 'DPR', 'Attendance'];
+    final tabs = [
+      'Overview',
+      'Tasks',
+      'Sub-contractor',
+      'Timeline',
+      'Material'
+    ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(

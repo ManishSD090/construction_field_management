@@ -9,20 +9,25 @@ class CreateProjectScreen extends StatefulWidget {
 }
 
 class _CreateProjectScreenState extends State<CreateProjectScreen> {
-  // Controllers
+  // Controllers for text fields
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _budgetController = TextEditingController();
   final _advancedController = TextEditingController();
   final _contractValueController = TextEditingController();
-  final _projectManagerController = TextEditingController();
-  final _siteEngineerController = TextEditingController();
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
 
-  // Dropdown value
+  // Dropdown values
   String? _selectedClient;
+  String? _selectedProjectManager;
+  String? _selectedSiteEngineer;
+
+  // Dummy Data for Dropdowns
+  final List<String> _clients = ["Client A", "Client B", "Client C"];
+  final List<String> _managers = ["Rahul Sharma", "Amit Verma", "Priya Singh"];
+  final List<String> _engineers = ["Engineer X", "Engineer Y", "Engineer Z"];
 
   // Function to pick date
   Future<void> _selectDate(
@@ -47,7 +52,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     );
     if (picked != null) {
       setState(() {
-        // Format: YYYY-MM-DD
         controller.text = "${picked.toLocal()}".split(' ')[0];
       });
     }
@@ -57,7 +61,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // --- APP BAR ---
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -75,8 +78,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
           ),
         ),
       ),
-
-      // --- BODY ---
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
@@ -100,16 +101,21 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
               _buildLabel("Location"),
               _buildTextField(
                 controller: _locationController,
-                hint:
-                    "Enter the project location", // Adjusted hint based on image context
+                hint: "Enter the project location",
               ),
 
               const SizedBox(height: 15),
               _buildLabel("Client name"),
-              _buildDropdown(),
+              // 1. Client Dropdown
+              _buildGenericDropdown(
+                hint: "Select Client",
+                value: _selectedClient,
+                items: _clients,
+                onChanged: (val) => setState(() => _selectedClient = val),
+              ),
 
               const SizedBox(height: 15),
-              // --- Row: Start Date & End Date ---
+              // Dates Row
               Row(
                 children: [
                   Expanded(
@@ -135,7 +141,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
               ),
 
               const SizedBox(height: 15),
-              // --- Row: Budget & Advanced ---
+              // Budget Row
               Row(
                 children: [
                   Expanded(
@@ -177,7 +183,8 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
               ),
 
               const SizedBox(height: 15),
-              // --- Inline Label Layout for Manager ---
+
+              // 2. Project Manager Dropdown (Side-by-Side Label)
               Row(
                 children: [
                   Expanded(
@@ -186,17 +193,21 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     flex: 3,
-                    child: _buildTextField(
-                      controller: _projectManagerController,
-                      hint: "Enter the ...",
-                      height: 45,
+                    child: _buildGenericDropdown(
+                      hint: "Select Manager",
+                      value: _selectedProjectManager,
+                      items: _managers,
+                      onChanged: (val) =>
+                          setState(() => _selectedProjectManager = val),
+                      height: 45, // Matching previous text field height
                     ),
                   ),
                 ],
               ),
 
               const SizedBox(height: 15),
-              // --- Inline Label Layout for Engineer ---
+
+              // 3. Site Engineer Dropdown (Side-by-Side Label)
               Row(
                 children: [
                   Expanded(
@@ -205,9 +216,12 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     flex: 3,
-                    child: _buildTextField(
-                      controller: _siteEngineerController,
-                      hint: "Enter the ...",
+                    child: _buildGenericDropdown(
+                      hint: "Select Engineer",
+                      value: _selectedSiteEngineer,
+                      items: _engineers,
+                      onChanged: (val) =>
+                          setState(() => _selectedSiteEngineer = val),
                       height: 45,
                     ),
                   ),
@@ -216,13 +230,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
 
               const SizedBox(height: 40),
 
-              // --- SUBMIT BUTTON ---
+              // Submit Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Handle Form Submission
+                    // Handle Creation
+                    // Access values: _selectedProjectManager, _selectedSiteEngineer, etc.
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
@@ -293,9 +308,16 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     );
   }
 
-  Widget _buildDropdown() {
+  // ✅ New Reusable Generic Dropdown
+  Widget _buildGenericDropdown({
+    required String hint,
+    required String? value,
+    required List<String> items,
+    required Function(String?) onChanged,
+    double height = 50,
+  }) {
     return Container(
-      height: 50,
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -304,26 +326,22 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: _selectedClient,
+          value: value,
           hint: Text(
-            "Select Client",
+            hint,
             style: TextStyle(
                 color: AppColors.primaryBlue.withOpacity(0.3), fontSize: 14),
           ),
           icon: const Icon(Icons.keyboard_arrow_down,
               color: AppColors.primaryBlue),
           isExpanded: true,
-          items: ["Client A", "Client B", "Client C"].map((String value) {
+          items: items.map((String value) {
             return DropdownMenuItem<String>(
               value: value,
-              child: Text(value),
+              child: Text(value, style: const TextStyle(fontSize: 14)),
             );
           }).toList(),
-          onChanged: (newValue) {
-            setState(() {
-              _selectedClient = newValue;
-            });
-          },
+          onChanged: (val) => onChanged(val),
         ),
       ),
     );
@@ -340,7 +358,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
           border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5)),
         ),
         child: AbsorbPointer(
-          // Prevents keyboard from opening
           child: TextField(
             controller: controller,
             style: const TextStyle(fontSize: 14),
