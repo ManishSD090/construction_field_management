@@ -31,6 +31,7 @@ class Project {
   final DateTime updatedAt;
   final String? createdById;
   final User? createdBy;
+  final ProjectStats? stats;
 
   final ProjectSettings? settings;
 
@@ -59,6 +60,7 @@ class Project {
     required this.updatedAt,
     this.createdById,
     this.createdBy,
+    this.stats,
     this.settings,
   });
 
@@ -91,6 +93,8 @@ class Project {
       createdById: json['createdById'] as String?,
       createdBy:
           json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      stats:
+          json['stats'] != null ? ProjectStats.fromJson(json['stats']) : null,
       settings: json['settings'] != null
           ? ProjectSettings.fromJson(json['settings'])
           : null,
@@ -258,6 +262,30 @@ class Milestone {
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
     };
+  }
+}
+
+// Create a small helper class
+class ProjectStats {
+  final int tasks;
+  final int teamMembers;
+  final int expenses;
+  final int materialRequests;
+
+  ProjectStats({
+    required this.tasks,
+    required this.teamMembers,
+    required this.expenses,
+    required this.materialRequests,
+  });
+
+  factory ProjectStats.fromJson(Map<String, dynamic> json) {
+    return ProjectStats(
+      tasks: json['tasks'] ?? 0,
+      teamMembers: json['teamMembers'] ?? 0,
+      expenses: json['expenses'] ?? 0,
+      materialRequests: json['materialRequests'] ?? 0,
+    );
   }
 }
 
