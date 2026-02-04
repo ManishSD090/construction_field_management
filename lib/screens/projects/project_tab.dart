@@ -1,96 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
+// Updated Imports
+import 'package:construction_erp/models/project.dart';
+import 'package:construction_erp/controllers/project/project_controller.dart';
 
-// --- Local Model & Data ---
-
-enum ProjectStatus { ongoing, completed, onHold }
-
-// Update your ProjectModel definition
-class ProjectModel {
-  final String title;
-  final String locationId;
-  final String priority;
-  final ProjectStatus status;
-  final String startDate;
-  final String endDate;
-  final double progress;
-  // New Fields for Details Screen
-  final String clientName;
-  final String projectManager;
-  final String siteEngineer;
-  final String budgetUsed;
-  final String totalBudget;
-  final int daysLeft;
-  final int tasksDone;
-  final int totalTasks;
-
-  ProjectModel({
-    required this.title,
-    required this.locationId,
-    required this.priority,
-    required this.status,
-    required this.startDate,
-    required this.endDate,
-    required this.progress,
-    // Add defaults or required for new fields
-    this.clientName = "ABC Infrastructure Pvt Ltd",
-    this.projectManager = "Rahul Mehta",
-    this.siteEngineer = "Ankit Verma",
-    this.budgetUsed = "42L",
-    this.totalBudget = "80L",
-    this.daysLeft = 124,
-    this.tasksDone = 18,
-    this.totalTasks = 30,
-  });
-}
-
-// Update your Dummy Data
-final List<ProjectModel> _dummyProjects = [
-  ProjectModel(
-    title: "Site A - Residential Block",
-    locationId: "Mumbai | ID-2341",
-    priority: "High",
-    status: ProjectStatus.ongoing,
-    startDate: "12 JAN 2026",
-    endDate: "13 Oct 2026",
-    progress: 0.75, // 75%
-    budgetUsed: "42L",
-    totalBudget: "80L",
-  ),
-  ProjectModel(
-    title: "Site B - Commercial Complex",
-    locationId: "Delhi | ID-9928",
-    priority: "High",
-    status: ProjectStatus.completed,
-    startDate: "10 JAN 2025",
-    endDate: "15 Dec 2025",
-    progress: 1.0,
-    daysLeft: 0,
-    tasksDone: 45,
-    totalTasks: 60,
-  ),
-  ProjectModel(
-    title: "Site C - Industrial Park",
-    locationId: "Pune | ID-1123",
-    priority: "High",
-    status: ProjectStatus.onHold,
-    startDate: "01 FEB 2026",
-    endDate: "01 Nov 2026",
-    progress: 0.25,
-    daysLeft: 0,
-    tasksDone: 45,
-    totalTasks: 50,
-  ),
-];
-
-// --- Main Tab Widget ---
-
-class ProjectTab extends StatelessWidget {
+class ProjectTab extends ConsumerStatefulWidget {
   const ProjectTab({super.key});
 
   @override
+  ConsumerState<ProjectTab> createState() => _ProjectTabState();
+}
+
+class _ProjectTabState extends ConsumerState<ProjectTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Setup pagination listener
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        ref.read(projectControllerProvider.notifier).loadNextPage();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final projectState = ref.watch(projectControllerProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -106,50 +53,64 @@ class ProjectTab extends StatelessWidget {
           ),
         ),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(28),
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              _buildSearchBar(),
-              const SizedBox(height: 25),
-              _buildListHeader(),
-              const SizedBox(height: 15),
+      body: projectState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text("Error: $err")),
+        data: (state) {
+          if (state.projects.isEmpty) {
+            return const Center(child: Text("No projects found."));
+          }
 
-              // Project List
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _dummyProjects.length,
-                separatorBuilder: (context, index) =>
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(projectControllerProvider.notifier).refresh(),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    _buildSearchBar(ref),
+                    const SizedBox(height: 25),
+                    _buildListHeader(),
                     const SizedBox(height: 15),
-                itemBuilder: (context, index) {
-                  return _ProjectCard(project: _dummyProjects[index]);
-                },
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: state.projects.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 15),
+                      itemBuilder: (context, index) {
+                        return _ProjectCard(project: state.projects[index]);
+                      },
+                    ),
+                    if (state.isLoadingMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: CircularProgressIndicator(),
+                      ),
+                    const SizedBox(height: 80),
+                  ],
+                ),
               ),
-              const SizedBox(height: 80), // Space for FAB
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, AppRoutes.createProject);
-        },
+        onPressed: () => Navigator.pushNamed(context, AppRoutes.createProject),
         backgroundColor: AppColors.primaryBlue,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: AppColors.white, size: 32),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       height: 50,
@@ -164,23 +125,19 @@ class ProjectTab extends StatelessWidget {
           ),
         ],
       ),
-      child: const TextField(
+      child: TextField(
         textAlignVertical: TextAlignVertical.center,
-        decoration: InputDecoration(
+        onChanged: (value) {
+          // You might want to debounce this in a production app
+          ref.read(projectControllerProvider.notifier).refresh(search: value);
+        },
+        decoration: const InputDecoration(
           hintText: "Search Projects",
-          hintStyle: TextStyle(
-            color: AppColors.textGrey,
-            fontSize: 16,
-          ),
-          icon: Icon(
-            Icons.search,
-            color: AppColors.textGrey,
-            size: 20,
-          ),
-          suffixIcon: Icon(Icons.mic, color: AppColors.textGrey, size: 20),
+          hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 16),
+          icon: Icon(Icons.search, color: AppColors.textGrey, size: 20),
           border: InputBorder.none,
-          isCollapsed: true, // Removes default padding
-          contentPadding: EdgeInsets.symmetric(vertical: 14), // Centers text
+          isCollapsed: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 14),
         ),
       ),
     );
@@ -191,22 +148,21 @@ class ProjectTab extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          "Project List",
+          "All Projects",
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
-          ),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textDark),
         ),
         OutlinedButton.icon(
-          onPressed: () {},
+          onPressed: () {
+            // Open filter dialog here
+          },
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.textDark,
             side: const BorderSide(color: AppColors.lightGrey),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
           icon: const Icon(Icons.filter_list, size: 18),
           label: const Text("Filter"),
@@ -216,16 +172,16 @@ class ProjectTab extends StatelessWidget {
   }
 }
 
-// --- Project Card Widget ---
-// TODO: Refactor this into a separate file (widgets/project_card.dart) once the ProjectModel is centralized.
 class _ProjectCard extends StatelessWidget {
-  final ProjectModel project;
+  final Project project;
 
   const _ProjectCard({required this.project});
 
   @override
   Widget build(BuildContext context) {
-    final String progressPercent = (project.progress * 100).toStringAsFixed(0);
+    // Ensuring progress is handled as a double (0.0 to 1.0)
+    final double progressValue = (project.progress ?? 0) / 100.0;
+    final String progressPercent = (project.progress ?? 0).toString();
 
     return GestureDetector(
       onTap: () {
@@ -233,123 +189,112 @@ class _ProjectCard extends StatelessWidget {
             arguments: project);
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reduced padding
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Title/ID vs Priority/Status
+            // Upper Section
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        project.title,
+                        project.name,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 16, // Reduced from 20
                           fontWeight: FontWeight.bold,
                           color: AppColors.textDark,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        project.locationId,
+                        "${project.location} | ${project.projectId}",
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11, // Reduced from 14
                           color: AppColors.textGrey,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textDark),
-                        children: [
-                          const TextSpan(text: "Priority: "),
-                          TextSpan(
-                            text: project.priority,
-                            style: const TextStyle(
-                                color: AppColors.alertRed,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
+                    _buildPriorityTag(project.priority.name),
+                    const SizedBox(height: 4),
+                    _buildStatusChip(project.status.name),
+                    const SizedBox(height: 8),
+                    Text(
+                      "End: ${project.estimatedEndDate.day} ${_getMonth(project.estimatedEndDate.month)} ${project.estimatedEndDate.year}",
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textGrey), // Reduced from 12
                     ),
-                    const SizedBox(height: 8),
-                    _buildStatusChip(project.status),
-                    const SizedBox(height: 8),
-                    Text("End: ${project.endDate}",
-                        style: const TextStyle(
-                            fontSize: 10, color: AppColors.textGrey)),
-                    Text("Start: ${project.startDate}",
-                        style: const TextStyle(
-                            fontSize: 10, color: AppColors.textGrey)),
+                    Text(
+                      "Start: ${project.startDate.day} ${_getMonth(project.startDate.month)} ${project.startDate.year}",
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textGrey), // Reduced from 12
+                    ),
                   ],
                 )
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16), // Reduced gap
 
             // Progress Label
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                        fontSize: 14, color: AppColors.textDark),
-                    children: [
-                      const TextSpan(text: "Progress : "),
-                      TextSpan(
-                        text: "$progressPercent %",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                    fontSize: 16, color: AppColors.textDark), // Reduced from 22
+                children: [
+                  const TextSpan(text: "Progress : "),
+                  TextSpan(
+                    text: "$progressPercent %",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            // Progress Bar (Fixed Clipping with Row + Expanded)
+            // Bottom Section: Progress Bar and Navigation Arrow
             Row(
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
-                      value: project.progress,
-                      backgroundColor: AppColors.lightGrey,
+                      value: progressValue,
+                      backgroundColor: AppColors.primaryBlue.withOpacity(0.15),
                       color: AppColors.primaryBlue,
-                      minHeight: 10,
+                      minHeight: 8, // Reduced from 12
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Icon(Icons.arrow_forward,
-                    color: AppColors.textDark, size: 20),
+                const SizedBox(width: 15),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppColors.textDark,
+                  size: 22, // Reduced from 28
+                ),
               ],
             ),
           ],
@@ -358,43 +303,60 @@ class _ProjectCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(ProjectStatus status) {
-    Color bgColor;
-    Color textColor;
-    String label;
+  Widget _buildPriorityTag(String priority) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+            fontSize: 11, color: AppColors.textDark), // Reduced from 14
+        children: [
+          const TextSpan(text: "Priority: "),
+          TextSpan(
+            text: priority.toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.alertRed,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    switch (status) {
-      case ProjectStatus.ongoing:
-        bgColor = AppColors.statusYellow;
-        textColor = AppColors.white;
-        label = "Ongoing";
-        break;
-      case ProjectStatus.completed:
-        bgColor = AppColors.tagGreen;
-        textColor = AppColors.white;
-        label = "Completed";
-        break;
-      case ProjectStatus.onHold:
-        bgColor = AppColors.tagRed;
-        textColor = AppColors.white;
-        label = "On Hold";
-        break;
-    }
-
+  Widget _buildStatusChip(String status) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 4), // Slimmer chip
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.statusYellow,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+        status.toUpperCase(),
+        style: const TextStyle(
+          color: AppColors.white,
+          fontSize: 11, // Reduced from 14
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
+  }
+
+  String _getMonth(int month) {
+    const months = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC'
+    ];
+    return months[month - 1];
   }
 }

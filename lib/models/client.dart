@@ -36,20 +36,40 @@ class Client {
 
   factory Client.fromJson(Map<String, dynamic> json) {
     return Client(
-      id: json['id'] as String,
-      companyId: json['companyId'] as String,
-      companyName: json['companyName'] as String,
-      contactPerson: json['contactPerson'] as String,
-      email: json['email'] as String?,
-      phone: json['phone'] as String,
-      gstNumber: json['gstNumber'] as String?,
-      address: json['address'] as String?,
-      isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      createdById: json['createdById'] as String?,
-      createdBy:
-          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      // Use toString() to handle potential nulls or incorrect types (like int IDs)
+      id: json['id']?.toString() ?? '',
+      companyId: json['companyId']?.toString() ?? '',
+
+      // Core fields with fallbacks
+      companyName: json['companyName']?.toString() ?? 'Unknown Company',
+      contactPerson: json['contactPerson']?.toString() ?? 'No Contact',
+      phone: json['phone']?.toString() ?? '',
+
+      // Nullable fields don't need ?? fallbacks, but should avoid "as String"
+      email: json['email']?.toString(),
+      gstNumber: json['gstNumber']?.toString(),
+      address: json['address']?.toString(),
+
+      // Boolean safety
+      isActive: json['isActive'] is bool
+          ? json['isActive'] as bool
+          : (json['isActive']?.toString().toLowerCase() == 'true'),
+
+      // Date safety using tryParse to prevent crashes on bad strings
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+
+      createdById: json['createdById']?.toString(),
+
+      // Nested object safety: check if it's actually a Map
+      createdBy: (json['createdBy'] != null &&
+              json['createdBy'] is Map<String, dynamic>)
+          ? User.fromJson(json['createdBy'] as Map<String, dynamic>)
+          : null,
     );
   }
 

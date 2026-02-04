@@ -1,4 +1,5 @@
 import 'package:construction_erp/models/user.dart';
+import 'package:construction_erp/models/enums.dart';
 
 class Message {
   final String id;
@@ -114,28 +115,6 @@ class Notification {
 
   @override
   String toString() => 'Notification(id: $id, userId: $userId, type: $type)';
-}
-
-enum DocumentType {
-  contract,
-  permit,
-  drawing,
-  report,
-  invoice,
-  certificate,
-  photo,
-  other;
-
-  /// Converts JSON String (SCREAMING_SNAKE_CASE) to Enum
-  static DocumentType fromJson(String name) {
-    return DocumentType.values.firstWhere(
-      (e) => e.name.toUpperCase() == name.toUpperCase(),
-      orElse: () => DocumentType.other,
-    );
-  }
-
-  /// Converts Enum to JSON String (SCREAMING_SNAKE_CASE)
-  String toJson() => name.toUpperCase();
 }
 
 class Document {

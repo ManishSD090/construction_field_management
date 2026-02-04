@@ -306,3 +306,109 @@ enum TaskStatus {
 
   String toJson() => _toSnake(name);
 }
+
+enum DocumentType {
+  contract,
+  permit,
+  drawing,
+  report,
+  invoice,
+  certificate,
+  photo,
+  other;
+
+  /// Converts JSON String (SCREAMING_SNAKE_CASE) to Enum
+  static DocumentType fromJson(String name) {
+    return DocumentType.values.firstWhere(
+      (e) => e.name.toUpperCase() == name.toUpperCase(),
+      orElse: () => DocumentType.other,
+    );
+  }
+
+  /// Converts Enum to JSON String (SCREAMING_SNAKE_CASE)
+  String toJson() => name.toUpperCase();
+}
+
+enum ContractorType {
+  labor,
+  equipment,
+  materialSupply,
+  transportation,
+  other;
+
+  static ContractorType fromJson(String? value) {
+    if (value == null || value.isEmpty) return ContractorType.other;
+    final camel = _toCamel(value);
+    return ContractorType.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => ContractorType.other,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
+enum WorkType {
+  concrete,
+  steel,
+  carpentry,
+  electrical,
+  plumbing,
+  painting,
+  tiling,
+  excavation,
+  demolition,
+  renovation,
+  maintenance,
+  cleaning,
+  landscaping,
+  other;
+
+  static WorkType fromJson(String? value) {
+    if (value == null || value.isEmpty) return WorkType.other;
+    final camel = _toCamel(value);
+    return WorkType.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => WorkType.other,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
+enum ContractorStatus {
+  active,
+  inactive,
+  blacklisted,
+  underReview;
+
+  static ContractorStatus fromJson(String? value) {
+    if (value == null || value.isEmpty) return ContractorStatus.underReview;
+    final camel = _toCamel(value);
+    return ContractorStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => ContractorStatus.underReview,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
+enum PaymentStatus {
+  pending,
+  partial,
+  paid,
+  overdue,
+  disputed;
+
+  static PaymentStatus fromJson(String? value) {
+    if (value == null || value.isEmpty) return PaymentStatus.pending;
+    final camel = _toCamel(value);
+    return PaymentStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => PaymentStatus.pending,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}

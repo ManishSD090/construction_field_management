@@ -7,7 +7,6 @@ import 'package:construction_erp/core/dio_client.dart';
 
 // Models (Assuming these exist based on your backend schema)
 import 'package:construction_erp/models/project.dart';
-import 'package:construction_erp/models/user.dart';
 
 final projectControllerProvider =
     AsyncNotifierProvider<ProjectController, ProjectState>(() {

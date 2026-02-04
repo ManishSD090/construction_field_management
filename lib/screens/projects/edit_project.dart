@@ -1,9 +1,10 @@
+import 'package:construction_erp/models/index.dart';
 import 'package:flutter/material.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart'; // Ensure ProjectModel is imported
 
 class EditProjectScreen extends StatefulWidget {
-  final ProjectModel project;
+  final Project project;
   const EditProjectScreen({super.key, required this.project});
 
   @override
@@ -28,25 +29,26 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   void initState() {
     super.initState();
     // 1. Initialize ALL controllers
-    _nameController = TextEditingController(text: widget.project.title);
+    _nameController = TextEditingController(text: widget.project.name);
     _descController = TextEditingController(text: "Project Description");
-    _locationController = TextEditingController(
-        text: widget.project.locationId.split('|')[0].trim());
+    _locationController = TextEditingController(text: widget.project.location);
 
     // Client Name Controller
     _clientNameController =
-        TextEditingController(text: widget.project.clientName);
+        TextEditingController(text: widget.project.client?.companyName ?? "");
 
-    _budgetController = TextEditingController(text: widget.project.totalBudget);
+    _budgetController =
+        TextEditingController(text: widget.project.estimatedBudget.toString());
     _advanceController = TextEditingController(text: "10,00,000");
     _contractValueController = TextEditingController(text: "50,00,000");
-    _managerController =
-        TextEditingController(text: widget.project.projectManager);
-    _siteEngineerController =
-        TextEditingController(text: widget.project.siteEngineer);
+    // _managerController =
+    //     TextEditingController(text: widget.project.projectManager);
+    // _siteEngineerController =
+    //     TextEditingController(text: widget.project.siteEngineer);
     _startDateController =
-        TextEditingController(text: widget.project.startDate);
-    _endDateController = TextEditingController(text: widget.project.endDate);
+        TextEditingController(text: widget.project.startDate.toString());
+    _endDateController =
+        TextEditingController(text: widget.project.estimatedEndDate.toString());
   }
 
   @override
@@ -335,46 +337,46 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
             const SizedBox(height: 20),
 
             // --- Project Manager Section (Side-by-Side) ---
-            Row(
-              children: [
-                const SizedBox(
-                  width: 130,
-                  child: Text("Project manager",
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: Colors.black87)),
-                ),
-                Expanded(
-                  child: TextFormField(
-                    controller: _managerController,
-                    decoration: _inputDecor("Enter the ..."),
-                  ),
-                ),
-              ],
-            ),
+            // Row(
+            //   children: [
+            //     const SizedBox(
+            //       width: 130,
+            //       child: Text("Project manager",
+            //           style: TextStyle(
+            //               fontWeight: FontWeight.w600,
+            //               fontSize: 14,
+            //               color: Colors.black87)),
+            //     ),
+            //     Expanded(
+            //       child: TextFormField(
+            //         controller: _managerController,
+            //         decoration: _inputDecor("Enter the ..."),
+            //       ),
+            //     ),
+            //   ],
+            // ),
 
-            const SizedBox(height: 15),
+            // const SizedBox(height: 15),
 
-            // --- Site Engineer Section (Side-by-Side) ---
-            Row(
-              children: [
-                const SizedBox(
-                  width: 130,
-                  child: Text("Site engineer",
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: Colors.black87)),
-                ),
-                Expanded(
-                  child: TextFormField(
-                    controller: _siteEngineerController,
-                    decoration: _inputDecor("Enter the ..."),
-                  ),
-                ),
-              ],
-            ),
+            // // --- Site Engineer Section (Side-by-Side) ---
+            // Row(
+            //   children: [
+            //     const SizedBox(
+            //       width: 130,
+            //       child: Text("Site engineer",
+            //           style: TextStyle(
+            //               fontWeight: FontWeight.w600,
+            //               fontSize: 14,
+            //               color: Colors.black87)),
+            //     ),
+            //     Expanded(
+            //       child: TextFormField(
+            //         controller: _siteEngineerController,
+            //         decoration: _inputDecor("Enter the ..."),
+            //       ),
+            //     ),
+            //   ],
+            // ),
 
             const SizedBox(height: 30),
 

@@ -1,3 +1,4 @@
+import 'package:construction_erp/models/client.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/enums.dart';
 
@@ -33,6 +34,8 @@ class Project {
   final User? createdBy;
   final ProjectStats? stats;
 
+  final Client? client;
+
   final ProjectSettings? settings;
 
   Project({
@@ -61,42 +64,72 @@ class Project {
     this.createdById,
     this.createdBy,
     this.stats,
+    this.client,
     this.settings,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
-      id: json['id'] as String,
-      projectId: json['projectId'] as String,
-      companyId: json['companyId'] as String,
-      clientId: json['clientId'] as String?,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      location: json['location'] as String,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
-      geofenceRadius: (json['geofenceRadius'] as num?)?.toDouble() ?? 200,
-      estimatedBudget: (json['estimatedBudget'] as num).toDouble(),
+      // 1. Avoid "as String". Use ?.toString() ?? ''
+      id: json['id']?.toString() ?? '',
+      projectId: json['projectId']?.toString() ?? '',
+      companyId: json['companyId']?.toString() ?? '',
+
+      // 2. Safe nested access for clientId
+      clientId: (json['client'] != null && json['client'] is Map)
+          ? json['client']['id']?.toString()
+          : json['clientId']?.toString(),
+
+      name: json['name']?.toString() ?? 'Unnamed Project',
+      description: json['description']?.toString(), // Nullable is okay here
+      location: json['location']?.toString() ?? '',
+
+      // 3. Safe Number parsing (handles int or double from JSON)
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+      geofenceRadius: (json['geofenceRadius'] as num?)?.toDouble() ?? 200.0,
+      estimatedBudget: (json['estimatedBudget'] as num?)?.toDouble() ?? 0.0,
       actualBudget: (json['actualBudget'] as num?)?.toDouble(),
       contractValue: (json['contractValue'] as num?)?.toDouble(),
-      advanceReceived: (json['advanceReceived'] as num?)?.toDouble() ?? 0,
-      status: ProjectStatus.fromJson(json['status'] as String? ?? 'PLANNING'),
-      priority: Priority.fromJson(json['priority'] as String? ?? 'MEDIUM'),
-      progress: json['progress'] as int? ?? 0,
-      startDate: DateTime.parse(json['startDate']),
-      estimatedEndDate: DateTime.parse(json['estimatedEndDate']),
+      advanceReceived: (json['advanceReceived'] as num?)?.toDouble() ?? 0.0,
+
+      // 4. Safe Enum/Type parsing
+      status: ProjectStatus.fromJson(json['status']?.toString() ?? 'PLANNING'),
+      priority: Priority.fromJson(json['priority']?.toString() ?? 'MEDIUM'),
+      progress: (json['progress'] as num?)?.toInt() ?? 0,
+
+      // 5. Safe Date parsing
+      startDate: json['startDate'] != null
+          ? DateTime.tryParse(json['startDate'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      estimatedEndDate: json['estimatedEndDate'] != null
+          ? DateTime.tryParse(json['estimatedEndDate'].toString()) ??
+              DateTime.now()
+          : DateTime.now(),
       actualEndDate: json['actualEndDate'] != null
-          ? DateTime.parse(json['actualEndDate'])
+          ? DateTime.tryParse(json['actualEndDate'].toString())
           : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      createdById: json['createdById'] as String?,
-      createdBy:
-          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
-      stats:
-          json['stats'] != null ? ProjectStats.fromJson(json['stats']) : null,
-      settings: json['settings'] != null
-          ? ProjectSettings.fromJson(json['settings'])
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+
+      createdById: json['createdById']?.toString(),
+
+      // 6. Safe Object parsing (check if value is actually a Map)
+      createdBy: (json['createdBy'] is Map<String, dynamic>)
+          ? User.fromJson(json['createdBy'] as Map<String, dynamic>)
+          : null,
+      stats: (json['stats'] is Map<String, dynamic>)
+          ? ProjectStats.fromJson(json['stats'] as Map<String, dynamic>)
+          : null,
+      client: (json['client'] is Map<String, dynamic>)
+          ? Client.fromJson(json['client'] as Map<String, dynamic>)
+          : null,
+      settings: (json['settings'] is Map<String, dynamic>)
+          ? ProjectSettings.fromJson(json['settings'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -127,6 +160,7 @@ class Project {
       'updatedAt': updatedAt.toIso8601String(),
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
+      'client': client?.toJson(),
       'settings': settings?.toJson(),
     };
   }
