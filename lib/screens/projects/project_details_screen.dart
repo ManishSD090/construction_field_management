@@ -154,32 +154,32 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             icon: const Icon(Icons.arrow_back, color: AppColors.white),
             onPressed: () => Navigator.pop(context)),
       ),
-      floatingActionButton: (_selectedTab == 'Tasks' ||
-              _selectedTab == 'Sub-contractor')
-          ? FloatingActionButton(
-              onPressed: () {
-                // String projectId = project.id;
-                if (_selectedTab == 'Tasks') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const CreateTaskScreen()),
-                  );
-                }
-                if (_selectedTab == 'Sub-contractor') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CreateSubContractorScreen(
-                            projectId: project.id)),
-                  );
-                }
-              },
-              backgroundColor: AppColors.primaryBlue,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      floatingActionButton:
+          (_selectedTab == 'Tasks' || _selectedTab == 'Sub-contractor')
+              ? FloatingActionButton(
+                  onPressed: () {
+                    // String projectId = project.id;
+                    if (_selectedTab == 'Tasks') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const CreateTaskScreen()),
+                      );
+                    }
+                    if (_selectedTab == 'Sub-contractor') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                AddSubContractorScreen(projectId: project.id)),
+                      );
+                    }
+                  },
+                  backgroundColor: AppColors.primaryBlue,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add, color: Colors.white),
+                )
+              : null,
       body: SingleChildScrollView(
         child: Column(
           children: [
