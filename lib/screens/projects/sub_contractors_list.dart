@@ -27,7 +27,7 @@ class _SubContractorsListState extends ConsumerState<SubContractorsList> {
     // Calling the method from your SubcontractorController
     _projectsFuture = ref
         .read(subcontractorControllerProvider.notifier)
-        .getContractorProjects(widget.projectId);
+        .getContractorProjectsByProjectId(widget.projectId);
   }
 
   @override
@@ -93,12 +93,14 @@ class _SubContractorsListState extends ConsumerState<SubContractorsList> {
 
     return InkWell(
       onTap: () {
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => SubContractorDetailsScreen(),
-        //   ),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SubContractorDetailsScreen(
+              contractorProjectId: project.id,
+            ),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -153,12 +155,12 @@ class _SubContractorsListState extends ConsumerState<SubContractorsList> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  _buildRichText("Work Type: ", project.workType.name),
+                  _buildRichText("Contractor Type: ",
+                      project.contractor?.type.name.toUpperCase() ?? ''),
                   const SizedBox(height: 4),
                   _buildRichText(
-                      "Contract Amount: ", "₹${project.contractAmount}"),
+                      "Work Type: ", project.workType.name.toUpperCase()),
                   const SizedBox(height: 4),
-                  _buildRichText("Progress: ", "${project.progress}%"),
                 ],
               ),
             ),
@@ -218,18 +220,6 @@ class _SubContractorsListState extends ConsumerState<SubContractorsList> {
         ),
         Row(
           children: [
-            // Delete Icon Box
-
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.alertRed,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.delete_outline,
-                  color: Colors.white, size: 18),
-            ),
-
             const SizedBox(width: 8),
 
             // Filter Chip

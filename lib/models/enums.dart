@@ -373,7 +373,7 @@ enum WorkType {
     );
   }
 
-  String toJson() => _toSnake(name);
+  String toJson() => name.toUpperCase();
 }
 
 enum ContractorStatus {

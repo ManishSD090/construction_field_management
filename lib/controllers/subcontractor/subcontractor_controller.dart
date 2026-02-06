@@ -9,6 +9,12 @@ final subcontractorControllerProvider =
   return SubcontractorController();
 });
 
+final contractorProjectDetailsProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+  final controller = ref.read(subcontractorControllerProvider.notifier);
+  return controller.getContractorProjectById(id);
+});
+
 class SubcontractorController extends AsyncNotifier<SubcontractorState> {
   DioClient get _dioClient => ref.read(dioClientProvider);
   static const String _basePath = '/subcontractors';
@@ -109,11 +115,11 @@ class SubcontractorController extends AsyncNotifier<SubcontractorState> {
     });
   }
 
-  Future<List<ContractorProject>> getContractorProjects(
+  Future<List<ContractorProject>> getContractorProjectsByProjectId(
       String projectId) async {
     try {
       final response = await _dioClient.dio.get(
-        '$_basePath/project-contractors/$projectId', // Adjust path if your router uses a different mounting point
+        '$_basePath/$projectId/contractorProjectsByProjectId', // Adjust path if your router uses a different mounting point
       );
 
       final List<dynamic> listJson = response.data['data'];
@@ -126,10 +132,30 @@ class SubcontractorController extends AsyncNotifier<SubcontractorState> {
     }
   }
 
+  /// Fetches a specific Contractor Project by its unique ID
+  /// This maps to the backend endpoint: GET /projects/:contractorProjectId
+  Future<Map<String, dynamic>> getContractorProjectById(
+      String contractorProjectId) async {
+    try {
+      final response = await _dioClient.dio.get(
+        '$_basePath/projects/$contractorProjectId',
+      );
+
+      // We return the raw map here because the backend response
+      // contains complex 'summary' and 'include' objects that
+      // might exceed the standard ContractorProject model.
+      return response.data['data'];
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> createContractorProject(String contractorId, String projectId,
       Map<String, dynamic> payload) async {
     await _dioClient.dio
         .post('$_basePath/$contractorId/$projectId', data: payload);
+
+    await refresh();
   }
 
   Future<void> updateSubcontractor(

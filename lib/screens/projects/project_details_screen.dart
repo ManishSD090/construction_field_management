@@ -9,7 +9,7 @@ import 'package:construction_erp/screens/projects/tasks.dart';
 import 'package:construction_erp/screens/projects/sub_contractors_list.dart';
 import 'package:construction_erp/screens/projects/edit_project.dart';
 import 'package:construction_erp/screens/projects/create_task.dart';
-import 'package:construction_erp/screens/projects/create_sub_contractor.dart';
+import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
   const ProjectDetailsScreen({super.key});
@@ -154,31 +154,32 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             icon: const Icon(Icons.arrow_back, color: AppColors.white),
             onPressed: () => Navigator.pop(context)),
       ),
-      floatingActionButton:
-          (_selectedTab == 'Tasks' || _selectedTab == 'Sub-contractor')
-              ? FloatingActionButton(
-                  onPressed: () {
-                    if (_selectedTab == 'Tasks') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const CreateTaskScreen()),
-                      );
-                    }
-                    if (_selectedTab == 'Sub-contractor') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                const CreateSubContractorScreen()),
-                      );
-                    }
-                  },
-                  backgroundColor: AppColors.primaryBlue,
-                  shape: const CircleBorder(),
-                  child: const Icon(Icons.add, color: Colors.white),
-                )
-              : null,
+      floatingActionButton: (_selectedTab == 'Tasks' ||
+              _selectedTab == 'Sub-contractor')
+          ? FloatingActionButton(
+              onPressed: () {
+                // String projectId = project.id;
+                if (_selectedTab == 'Tasks') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const CreateTaskScreen()),
+                  );
+                }
+                if (_selectedTab == 'Sub-contractor') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => CreateSubContractorScreen(
+                            projectId: project.id)),
+                  );
+                }
+              },
+              backgroundColor: AppColors.primaryBlue,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       body: SingleChildScrollView(
         child: Column(
           children: [
