@@ -288,13 +288,18 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   }
 
   Widget _buildTabContent() {
-    if (_selectedTab == 'Tasks') return const ProjectTasksTab();
-    if (_selectedTab == 'Sub-contractor') return const SubContractorsList();
-    if (_selectedTab != 'Overview')
+    if (_selectedTab == 'Tasks') {
+      return const ProjectTasksTab();
+    }
+    if (_selectedTab == 'Sub-contractor') {
+      return SubContractorsList(projectId: project.id);
+    }
+    if (_selectedTab != 'Overview') {
       return Center(
           child: Padding(
               padding: const EdgeInsets.all(20),
               child: Text("$_selectedTab content unavailable")));
+    }
 
     return Column(
       children: [

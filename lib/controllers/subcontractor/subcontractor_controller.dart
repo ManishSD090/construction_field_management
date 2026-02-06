@@ -109,10 +109,27 @@ class SubcontractorController extends AsyncNotifier<SubcontractorState> {
     });
   }
 
-  Future<void> createContractorProject(
-      String contractorId, Map<String, dynamic> payload) async {
+  Future<List<ContractorProject>> getContractorProjects(
+      String projectId) async {
+    try {
+      final response = await _dioClient.dio.get(
+        '$_basePath/project-contractors/$projectId', // Adjust path if your router uses a different mounting point
+      );
+
+      final List<dynamic> listJson = response.data['data'];
+
+      // Using the ContractorProject model we built with null-safety
+      return listJson.map((json) => ContractorProject.fromJson(json)).toList();
+    } catch (e) {
+      // Re-throwing allows AsyncValue.guard in the UI to catch and show the error
+      rethrow;
+    }
+  }
+
+  Future<void> createContractorProject(String contractorId, String projectId,
+      Map<String, dynamic> payload) async {
     await _dioClient.dio
-        .post('$_basePath/$contractorId/projects', data: payload);
+        .post('$_basePath/$contractorId/$projectId', data: payload);
   }
 
   Future<void> updateSubcontractor(

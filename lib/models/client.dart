@@ -18,6 +18,8 @@ class Client {
   final String? createdById;
   final User? createdBy;
 
+  final ClientStats? stats;
+
   Client({
     required this.id,
     required this.companyId,
@@ -32,6 +34,7 @@ class Client {
     required this.updatedAt,
     this.createdById,
     this.createdBy,
+    this.stats,
   });
 
   factory Client.fromJson(Map<String, dynamic> json) {
@@ -70,6 +73,9 @@ class Client {
               json['createdBy'] is Map<String, dynamic>)
           ? User.fromJson(json['createdBy'] as Map<String, dynamic>)
           : null,
+      stats: (json['stats'] != null && json['stats'] is Map<String, dynamic>)
+          ? ClientStats.fromJson(json['stats'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -100,4 +106,48 @@ class Client {
   @override
   String toString() =>
       'Client(id: $id, companyName: $companyName, contactPerson: $contactPerson)';
+}
+
+class ClientStats {
+  final int projects;
+  final int invoices;
+  final int payments;
+
+  ClientStats({this.projects = 0, this.invoices = 0, this.payments = 0});
+
+  factory ClientStats.fromJson(Map<String, dynamic> json) {
+    return ClientStats(
+      projects: json['projects'] ?? 0,
+      invoices: json['invoices'] ?? 0,
+      payments: json['payments'] ?? 0,
+    );
+  }
+}
+
+class ClientState {
+  final List<Client> clients;
+  final int currentPage;
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  ClientState({
+    this.clients = const [],
+    this.currentPage = 1,
+    this.hasMore = false,
+    this.isLoadingMore = false,
+  });
+
+  ClientState copyWith({
+    List<Client>? clients,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return ClientState(
+      clients: clients ?? this.clients,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
 }

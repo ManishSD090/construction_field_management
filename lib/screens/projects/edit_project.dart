@@ -1,181 +1,116 @@
-import 'package:construction_erp/models/index.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
-import 'package:construction_erp/screens/projects/project_tab.dart'; // Ensure ProjectModel is imported
+import 'package:construction_erp/models/project.dart';
+import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/controllers/project/project_controller.dart';
+import 'package:intl/intl.dart';
 
-class EditProjectScreen extends StatefulWidget {
+class EditProjectScreen extends ConsumerStatefulWidget {
   final Project project;
   const EditProjectScreen({super.key, required this.project});
 
   @override
-  State<EditProjectScreen> createState() => _EditProjectScreenState();
+  ConsumerState<EditProjectScreen> createState() => _EditProjectScreenState();
 }
 
-class _EditProjectScreenState extends State<EditProjectScreen> {
+class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
   // Controllers
   late TextEditingController _nameController;
   late TextEditingController _descController;
   late TextEditingController _locationController;
-  late TextEditingController _clientNameController;
+  late TextEditingController _latController;
+  late TextEditingController _lngController;
   late TextEditingController _budgetController;
   late TextEditingController _advanceController;
   late TextEditingController _contractValueController;
-  late TextEditingController _managerController;
-  late TextEditingController _siteEngineerController;
   late TextEditingController _startDateController;
   late TextEditingController _endDateController;
+
+  // State for Dropdowns
+  late Priority _selectedPriority;
 
   @override
   void initState() {
     super.initState();
-    // 1. Initialize ALL controllers
+    // Initialize controllers with existing project data
     _nameController = TextEditingController(text: widget.project.name);
-    _descController = TextEditingController(text: "Project Description");
+    _descController =
+        TextEditingController(text: widget.project.description ?? "");
     _locationController = TextEditingController(text: widget.project.location);
-
-    // Client Name Controller
-    _clientNameController =
-        TextEditingController(text: widget.project.client?.companyName ?? "");
-
+    _latController =
+        TextEditingController(text: widget.project.latitude.toString());
+    _lngController =
+        TextEditingController(text: widget.project.longitude.toString());
     _budgetController =
         TextEditingController(text: widget.project.estimatedBudget.toString());
-    _advanceController = TextEditingController(text: "10,00,000");
-    _contractValueController = TextEditingController(text: "50,00,000");
-    // _managerController =
-    //     TextEditingController(text: widget.project.projectManager);
-    // _siteEngineerController =
-    //     TextEditingController(text: widget.project.siteEngineer);
-    _startDateController =
-        TextEditingController(text: widget.project.startDate.toString());
-    _endDateController =
-        TextEditingController(text: widget.project.estimatedEndDate.toString());
+    _advanceController = TextEditingController(
+        text: (widget.project.advanceReceived ?? 0).toString());
+    _contractValueController = TextEditingController(
+        text: (widget.project.contractValue ?? 0).toString());
+
+    // Formatting dates for the UI
+    _startDateController = TextEditingController(
+        text: DateFormat('yyyy-MM-dd').format(widget.project.startDate));
+    _endDateController = TextEditingController(
+        text: DateFormat('yyyy-MM-dd').format(widget.project.estimatedEndDate));
+
+    _selectedPriority = widget.project.priority;
   }
 
   @override
   void dispose() {
-    // 2. Dispose ALL controllers
     _nameController.dispose();
     _descController.dispose();
     _locationController.dispose();
-    _clientNameController.dispose();
+    _latController.dispose();
+    _lngController.dispose();
     _budgetController.dispose();
     _advanceController.dispose();
     _contractValueController.dispose();
-    _managerController.dispose();
-    _siteEngineerController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
     super.dispose();
   }
 
-  // --- SIMPLE CALENDAR LOGIC (Standard Flutter Picker) ---
-  Future<void> _selectDate(
-      BuildContext context, TextEditingController controller) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryBlue, // Header background color
-              onPrimary: Colors.white, // Header text color
-              onSurface: Colors.black, // Body text color
-            ),
-          ),
-          child: child!,
+  Future<void> _updateProject() async {
+    final updates = {
+      'name': _nameController.text,
+      'description': _descController.text,
+      'location': _locationController.text,
+      'latitude': double.tryParse(_latController.text) ?? 0.0,
+      'longitude': double.tryParse(_lngController.text) ?? 0.0,
+      'estimatedBudget': double.tryParse(_budgetController.text) ?? 0.0,
+      'advanceReceived': double.tryParse(_advanceController.text) ?? 0.0,
+      'contractValue': double.tryParse(_contractValueController.text) ?? 0.0,
+      'startDate': _startDateController.text,
+      'estimatedEndDate': _endDateController.text,
+      'priority': _selectedPriority.toJson(),
+    };
+
+    try {
+      // Call the controller's update method
+      await ref
+          .read(projectControllerProvider.notifier)
+          .updateProject(widget.project.id, updates);
+
+      if (mounted) {
+        Navigator.pop(context); // Close Dialog
+        Navigator.pop(context); // Go back to details
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Project Updated Successfully!")),
         );
-      },
-    );
-    if (picked != null) {
-      setState(() {
-        // Format: DD MMM YYYY (e.g., 12 Jan 2026)
-        controller.text =
-            "${picked.day} ${_getMonth(picked.month)} ${picked.year}";
-      });
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Error updating project: $e"),
+              backgroundColor: AppColors.alertRed),
+        );
+      }
     }
-  }
-
-  String _getMonth(int month) {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ];
-    return months[month - 1];
-  }
-
-  // --- CONFIRMATION DIALOG ---
-  void _showConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Are you sure you want to edit the Project?",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textDark),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D6EFD),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context); // Close Dialog
-                    Navigator.pop(context); // Go back
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text("Project Updated Successfully!")),
-                    );
-                  },
-                  child: const Text("Yes",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () => Navigator.pop(context),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(
-                      color: AppColors.alertRed,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   // --- UI HELPERS ---
@@ -193,7 +128,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   InputDecoration _inputDecor(String hint, {Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade300, fontSize: 14),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -212,6 +146,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final projectState = ref.watch(projectControllerProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -219,9 +155,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context)),
         title: const Text("Edit Project",
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
       ),
@@ -232,29 +167,56 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
           children: [
             _buildLabel("Project Name"),
             TextFormField(
-              controller: _nameController,
-              decoration: _inputDecor("Project Name"),
-            ),
-
+                controller: _nameController,
+                decoration: _inputDecor("Project Name")),
             _buildLabel("Description"),
             TextFormField(
-              controller: _descController,
-              decoration: _inputDecor("Project Description"),
-            ),
-
+                controller: _descController,
+                decoration: _inputDecor("Project Description"),
+                maxLines: 3),
             _buildLabel("Location"),
             TextFormField(
-              controller: _locationController,
-              decoration: _inputDecor("Project Location"),
+                controller: _locationController,
+                decoration: _inputDecor("Project Location")),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Latitude"),
+                      TextFormField(
+                          controller: _latController,
+                          decoration: _inputDecor("Lat"),
+                          keyboardType: TextInputType.number),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel("Longitude"),
+                      TextFormField(
+                          controller: _lngController,
+                          decoration: _inputDecor("Lng"),
+                          keyboardType: TextInputType.number),
+                    ],
+                  ),
+                ),
+              ],
             ),
-
-            _buildLabel("Client name"),
-            TextFormField(
-              controller: _clientNameController,
-              decoration: _inputDecor("Enter Client Name"),
+            _buildLabel("Priority"),
+            DropdownButtonFormField<Priority>(
+              value: _selectedPriority,
+              decoration: _inputDecor("Select Priority"),
+              items: Priority.values
+                  .map((p) => DropdownMenuItem(
+                      value: p, child: Text(p.name.toUpperCase())))
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedPriority = val!),
             ),
-
-            // Date Row
             Row(
               children: [
                 Expanded(
@@ -266,11 +228,18 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                         controller: _startDateController,
                         readOnly: true,
                         decoration: _inputDecor("Select Date",
-                            suffixIcon: const Icon(
-                                Icons.calendar_month_outlined,
-                                color: AppColors.primaryBlue,
-                                size: 20)),
-                        onTap: () => _selectDate(context, _startDateController),
+                            suffixIcon: const Icon(Icons.calendar_month,
+                                color: AppColors.primaryBlue)),
+                        onTap: () async {
+                          DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100));
+                          if (picked != null)
+                            setState(() => _startDateController.text =
+                                DateFormat('yyyy-MM-dd').format(picked));
+                        },
                       ),
                     ],
                   ),
@@ -285,19 +254,24 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                         controller: _endDateController,
                         readOnly: true,
                         decoration: _inputDecor("Select Date",
-                            suffixIcon: const Icon(
-                                Icons.calendar_month_outlined,
-                                color: AppColors.primaryBlue,
-                                size: 20)),
-                        onTap: () => _selectDate(context, _endDateController),
+                            suffixIcon: const Icon(Icons.calendar_month,
+                                color: AppColors.primaryBlue)),
+                        onTap: () async {
+                          DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100));
+                          if (picked != null)
+                            setState(() => _endDateController.text =
+                                DateFormat('yyyy-MM-dd').format(picked));
+                        },
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-
-            // Budget Row
             Row(
               children: [
                 Expanded(
@@ -306,9 +280,9 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     children: [
                       _buildLabel("Estimated budget"),
                       TextFormField(
-                        controller: _budgetController,
-                        decoration: _inputDecor("Enter the ..."),
-                      ),
+                          controller: _budgetController,
+                          decoration: _inputDecor("Budget"),
+                          keyboardType: TextInputType.number),
                     ],
                   ),
                 ),
@@ -319,72 +293,24 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     children: [
                       _buildLabel("Advanced received"),
                       TextFormField(
-                        controller: _advanceController,
-                        decoration: _inputDecor("Enter the ..."),
-                      ),
+                          controller: _advanceController,
+                          decoration: _inputDecor("Advance"),
+                          keyboardType: TextInputType.number),
                     ],
                   ),
                 ),
               ],
             ),
-
             _buildLabel("Contract Value"),
             TextFormField(
-              controller: _contractValueController,
-              decoration: _inputDecor("Enter the ..."),
-            ),
-
-            const SizedBox(height: 20),
-
-            // --- Project Manager Section (Side-by-Side) ---
-            // Row(
-            //   children: [
-            //     const SizedBox(
-            //       width: 130,
-            //       child: Text("Project manager",
-            //           style: TextStyle(
-            //               fontWeight: FontWeight.w600,
-            //               fontSize: 14,
-            //               color: Colors.black87)),
-            //     ),
-            //     Expanded(
-            //       child: TextFormField(
-            //         controller: _managerController,
-            //         decoration: _inputDecor("Enter the ..."),
-            //       ),
-            //     ),
-            //   ],
-            // ),
-
-            // const SizedBox(height: 15),
-
-            // // --- Site Engineer Section (Side-by-Side) ---
-            // Row(
-            //   children: [
-            //     const SizedBox(
-            //       width: 130,
-            //       child: Text("Site engineer",
-            //           style: TextStyle(
-            //               fontWeight: FontWeight.w600,
-            //               fontSize: 14,
-            //               color: Colors.black87)),
-            //     ),
-            //     Expanded(
-            //       child: TextFormField(
-            //         controller: _siteEngineerController,
-            //         decoration: _inputDecor("Enter the ..."),
-            //       ),
-            //     ),
-            //   ],
-            // ),
-
+                controller: _contractValueController,
+                decoration: _inputDecor("Contract Value"),
+                keyboardType: TextInputType.number),
             const SizedBox(height: 30),
-
-            // Edit Project Button
             Align(
               alignment: Alignment.centerRight,
               child: SizedBox(
-                width: 140,
+                width: 160,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6EFD),
@@ -392,18 +318,37 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25)),
                   ),
-                  onPressed: _showConfirmationDialog,
-                  child: const Text("Edit Project",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14)),
+                  onPressed: projectState.isLoading
+                      ? null
+                      : () => _showConfirmationDialog(),
+                  child: projectState.isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Update Project",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Edit"),
+        content: const Text("Are you sure you want to update this project?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          ElevatedButton(onPressed: _updateProject, child: const Text("Yes")),
+        ],
       ),
     );
   }

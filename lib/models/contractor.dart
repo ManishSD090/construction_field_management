@@ -233,6 +233,8 @@ class ContractorProject {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  final Contractor? contractor;
+
   ContractorProject({
     required this.id,
     required this.companyId,
@@ -260,6 +262,7 @@ class ContractorProject {
     this.completionNotes,
     required this.createdAt,
     required this.updatedAt,
+    this.contractor,
   });
 
   factory ContractorProject.fromJson(Map<String, dynamic>? json) {
@@ -297,6 +300,9 @@ class ContractorProject {
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
           DateTime.now(),
+      contractor: json['contractor'] != null
+          ? Contractor.fromJson(json['contractor'])
+          : null,
     );
   }
 
