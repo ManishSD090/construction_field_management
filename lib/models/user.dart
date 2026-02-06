@@ -98,6 +98,92 @@ class User {
     this.permissions,
   });
 
+  User copyWith({
+    String? id,
+    String? companyId,
+    Company? company,
+    String? roleId,
+    Role? role,
+    UserType? userType,
+    String? email,
+    String? phone,
+    String? password,
+    String? employeeId,
+    String? name,
+    String? designation,
+    String? department,
+    EmployeeStatus? employeeStatus,
+    AttendanceLocation? defaultLocation,
+    SalaryType? salaryType,
+    double? salary,
+    double? hourlyRate,
+    DateTime? dateOfBirth,
+    DateTime? dateOfJoining,
+    String? address,
+    String? emergencyContact,
+    String? emergencyPhone,
+    String? profilePicture,
+    String? aadharNumber,
+    String? panNumber,
+    String? bankAccount,
+    String? ifscCode,
+    String? accessToken,
+    String? refreshToken,
+    String? resetPasswordToken,
+    DateTime? resetPasswordExpiry,
+    DateTime? lastLogin,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? createdById,
+    User? createdBy,
+    UserSettings? settings,
+    List<String>? permissions,
+  }) {
+    return User(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      company: company ?? this.company,
+      roleId: roleId ?? this.roleId,
+      role: role ?? this.role,
+      userType: userType ?? this.userType,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      password: password ?? this.password,
+      employeeId: employeeId ?? this.employeeId,
+      name: name ?? this.name,
+      designation: designation ?? this.designation,
+      department: department ?? this.department,
+      employeeStatus: employeeStatus ?? this.employeeStatus,
+      defaultLocation: defaultLocation ?? this.defaultLocation,
+      salaryType: salaryType ?? this.salaryType,
+      salary: salary ?? this.salary,
+      hourlyRate: hourlyRate ?? this.hourlyRate,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      dateOfJoining: dateOfJoining ?? this.dateOfJoining,
+      address: address ?? this.address,
+      emergencyContact: emergencyContact ?? this.emergencyContact,
+      emergencyPhone: emergencyPhone ?? this.emergencyPhone,
+      profilePicture: profilePicture ?? this.profilePicture,
+      aadharNumber: aadharNumber ?? this.aadharNumber,
+      panNumber: panNumber ?? this.panNumber,
+      bankAccount: bankAccount ?? this.bankAccount,
+      ifscCode: ifscCode ?? this.ifscCode,
+      accessToken: accessToken ?? this.accessToken,
+      refreshToken: refreshToken ?? this.refreshToken,
+      resetPasswordToken: resetPasswordToken ?? this.resetPasswordToken,
+      resetPasswordExpiry: resetPasswordExpiry ?? this.resetPasswordExpiry,
+      lastLogin: lastLogin ?? this.lastLogin,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      createdById: createdById ?? this.createdById,
+      createdBy: createdBy ?? this.createdBy,
+      settings: settings ?? this.settings,
+      permissions: permissions ?? this.permissions,
+    );
+  }
+
   factory User.fromJson(Map<String, dynamic> json) {
     List<String>? extractPermissions() {
       // 1. Check inside 'role' object (Most likely based on your API)
@@ -274,5 +360,37 @@ class UserSettings {
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
+  }
+}
+
+class UserState {
+  final User? currentUser; // For Dashboard/Profile
+  final List<User> userList; // For Directory/Admin
+  final int currentPage;
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  UserState({
+    this.currentUser,
+    this.userList = const [],
+    this.currentPage = 1,
+    this.hasMore = true,
+    this.isLoadingMore = false,
+  });
+
+  UserState copyWith({
+    User? currentUser,
+    List<User>? userList,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return UserState(
+      currentUser: currentUser ?? this.currentUser,
+      userList: userList ?? this.userList,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
   }
 }

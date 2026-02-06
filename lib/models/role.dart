@@ -72,6 +72,7 @@ class Role {
   final String? createdById;
 
   final List<RolePermission> rolePermissions;
+  final Map<String, dynamic>? stats;
 
   Role({
     required this.id,
@@ -83,7 +84,26 @@ class Role {
     this.updatedAt,
     this.createdById,
     this.rolePermissions = const [],
+    this.stats,
   });
+
+  Role copyWith({
+    String? id,
+    String? name,
+    String? description,
+    bool? isSystemAdmin,
+    List<RolePermission>? rolePermissions,
+    Map<String, dynamic>? stats,
+  }) {
+    return Role(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      isSystemAdmin: isSystemAdmin ?? this.isSystemAdmin,
+      rolePermissions: rolePermissions ?? this.rolePermissions,
+      stats: stats ?? this.stats,
+    );
+  }
 
   factory Role.fromJson(Map<String, dynamic> json) {
     return Role(
@@ -102,6 +122,9 @@ class Role {
               .map((rp) => RolePermission.fromJson(rp))
               .toList()
           : [],
+      stats: json['stats'] != null
+          ? Map<String, dynamic>.from(json['stats'])
+          : null,
     );
   }
 
@@ -129,4 +152,33 @@ class Role {
   @override
   String toString() =>
       'Role(name: $name, permissionsCount: ${rolePermissions.length})';
+}
+
+// State class for Role Directory
+class RoleState {
+  final List<Role> roles;
+  final int currentPage;
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  RoleState({
+    this.roles = const [],
+    this.currentPage = 1,
+    this.hasMore = true,
+    this.isLoadingMore = false,
+  });
+
+  RoleState copyWith({
+    List<Role>? roles,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return RoleState(
+      roles: roles ?? this.roles,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
 }
