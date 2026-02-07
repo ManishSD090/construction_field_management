@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/dio_client.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
+import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/enums.dart';
 
@@ -21,8 +22,19 @@ class UserController extends AsyncNotifier<UserState> {
 
   @override
   Future<UserState> build() async {
-    // Initial state: Empty list and null user
-    return UserState();
+    // 1. Listen to AuthController
+    // When the authenticated user changes, update our local UserState
+    ref.listen<AsyncValue<User?>>(authControllerProvider, (previous, next) {
+      next.whenData((user) {
+        if (user != null) {
+          state = AsyncValue.data(state.value!.copyWith(currentUser: user));
+        }
+      });
+    });
+
+    // 2. Initialize with the current auth value if it exists
+    final initialUser = ref.read(authControllerProvider).value;
+    return UserState(currentUser: initialUser);
   }
 
   // ==========================================================================
@@ -119,16 +131,16 @@ class UserController extends AsyncNotifier<UserState> {
           await _dioClient.dio.put('$_basePath/$id', data: updates);
       final updatedUser = User.fromJson(response.data['data']);
 
-      // Synchronize the current logged-in user if they updated themselves
-      User? updatedCurrent = state.value?.currentUser;
-      if (updatedCurrent?.id == id) {
-        updatedCurrent = updatedUser;
+      // If the user updated THEIR OWN profile:
+      if (state.value?.currentUser?.id == id) {
+        // Update the AuthController's state so the whole app knows!
+        ref.read(authControllerProvider.notifier).updateLocalUser(updatedUser);
       }
 
-      // Fetch current page again to ensure list consistency
+      // Refresh the list for the directory
       final refreshedState =
           await _fetchUserPage(page: state.value?.currentPage ?? 1);
-      return refreshedState.copyWith(currentUser: updatedCurrent);
+      return refreshedState.copyWith(currentUser: updatedUser);
     });
   }
 
@@ -143,6 +155,29 @@ class UserController extends AsyncNotifier<UserState> {
       if (state.value != null) {
         final updatedList =
             state.value!.userList.where((u) => u.id != id).toList();
+        state = AsyncValue.data(state.value!.copyWith(userList: updatedList));
+      }
+    });
+  }
+
+  /// Bulk Delete Users using the existing single-delete API
+  /// This iterates through the list of IDs and performs concurrent deletions
+  Future<void> bulkDeleteUsers(List<String> ids) async {
+    if (ids.isEmpty) return;
+
+    // Use guard to handle potential errors during the process
+    await AsyncValue.guard(() async {
+      // Perform all delete requests concurrently for better performance
+      await Future.wait(
+        ids.map((id) => _dioClient.dio.delete('$_basePath/$id')),
+        eagerError: false, // Continue even if one delete fails
+      );
+
+      // After API calls, update the local state once
+      if (state.value != null) {
+        final updatedList =
+            state.value!.userList.where((u) => !ids.contains(u.id)).toList();
+
         state = AsyncValue.data(state.value!.copyWith(userList: updatedList));
       }
     });

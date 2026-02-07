@@ -114,6 +114,24 @@ class RoleController extends AsyncNotifier<RoleState> {
     }
   }
 
+  /// Bulk Delete Roles using the existing single-delete API
+  /// This iterates through the list of IDs and performs concurrent deletions.
+  /// Note: Backend will prevent deletion if role has users assigned.
+  Future<void> bulkDeleteRoles(List<String> ids) async {
+    if (ids.isEmpty) return;
+
+    // Use guard to handle errors and maintain state integrity
+    await AsyncValue.guard(() async {
+      // Perform all delete requests concurrently
+      await Future.wait(
+        ids.map((id) => _dioClient.dio.delete('$_basePath/$id')),
+        eagerError: false, // Continue even if one fails (e.g., role has users)
+      );
+
+      return _fetchRoles(page: 1);
+    });
+  }
+
   /// Bulk Update Role Permissions
   Future<void> updatePermissions(
       String roleId, List<String> permissionCodes) async {

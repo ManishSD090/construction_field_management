@@ -269,6 +269,13 @@ class AuthController extends AsyncNotifier<User?> {
     }
   }
 
+  /// Updates the local user state manually (used after profile updates)
+  void updateLocalUser(User user) {
+    state = AsyncValue.data(user);
+    // Also update the local database so it's persistent offline
+    _db.saveUserOnLogin(user.toEntity());
+  }
+
   // ============================================================================
   // HELPERS
   // ============================================================================
