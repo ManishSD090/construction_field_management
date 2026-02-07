@@ -353,7 +353,7 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           elevation: 0,
         ),
-        child: const Text("Create & Invite Employee",
+        child: const Text("Create User",
             style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,

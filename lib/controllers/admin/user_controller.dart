@@ -11,6 +11,12 @@ final userControllerProvider =
   return UserController();
 });
 
+final userDetailProvider =
+    FutureProvider.autoDispose.family<User, String>((ref, id) async {
+  // Use the notifier to trigger the API-based fetch
+  return await ref.read(userControllerProvider.notifier).fetchUserById(id);
+});
+
 class UserController extends AsyncNotifier<UserState> {
   DioClient get _dioClient => ref.read(dioClientProvider);
   static const String _basePath = '/users';
@@ -110,6 +116,19 @@ class UserController extends AsyncNotifier<UserState> {
     state = AsyncValue.data(currentState.copyWith(isLoadingMore: true));
     state = await AsyncValue.guard(
         () => _fetchUserPage(page: currentState.currentPage + 1));
+  }
+
+  /// Fetch a single employee's full details by ID
+  /// Matches GET /users/:id
+  Future<User> fetchUserById(String id) async {
+    final response = await _dioClient.dio.get('$_basePath/$id'); //
+
+    if (response.data['success'] == true) {
+      return User.fromJson(response.data['data']); //
+    } else {
+      throw Exception(
+          response.data['message'] ?? 'Failed to fetch employee details'); //
+    }
   }
 
   // ==========================================================================

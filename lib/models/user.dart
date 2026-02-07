@@ -42,6 +42,7 @@ class User {
   final String? refreshToken;
   final String? resetPasswordToken;
   final DateTime? resetPasswordExpiry;
+  final bool? accountSetupCompleted;
   final DateTime? lastLogin;
 
   final bool isActive;
@@ -90,6 +91,7 @@ class User {
     this.refreshToken,
     this.resetPasswordToken,
     this.resetPasswordExpiry,
+    this.accountSetupCompleted,
     this.lastLogin,
     required this.isActive,
     this.createdAt,
@@ -134,6 +136,7 @@ class User {
     String? refreshToken,
     String? resetPasswordToken,
     DateTime? resetPasswordExpiry,
+    bool? accountSetupCompleted,
     DateTime? lastLogin,
     bool? isActive,
     DateTime? createdAt,
@@ -177,6 +180,8 @@ class User {
       refreshToken: refreshToken ?? this.refreshToken,
       resetPasswordToken: resetPasswordToken ?? this.resetPasswordToken,
       resetPasswordExpiry: resetPasswordExpiry ?? this.resetPasswordExpiry,
+      accountSetupCompleted:
+          accountSetupCompleted ?? this.accountSetupCompleted,
       lastLogin: lastLogin ?? this.lastLogin,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
@@ -246,6 +251,9 @@ class User {
       resetPasswordToken: json['resetPasswordToken']?.toString(),
       resetPasswordExpiry: json['resetPasswordExpiry'] != null
           ? DateTime.parse(json['resetPasswordExpiry'])
+          : null,
+      accountSetupCompleted: json['accountSetupCompleted'] != null
+          ? json['accountSetupCompleted'] as bool? ?? true
           : null,
       lastLogin:
           json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,

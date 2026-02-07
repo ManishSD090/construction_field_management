@@ -356,9 +356,9 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
                             fontWeight: FontWeight.bold, fontSize: 16),
                         maxLines: 1),
                     const SizedBox(height: 8),
-                    Text("Users: ${role.stats?['users'] ?? 0}",
+                    Text("Assigned Users: ${role.stats?['users'] ?? 0}",
                         style:
-                            const TextStyle(fontSize: 12, color: Colors.blue)),
+                            const TextStyle(fontSize: 14, color: Colors.blue)),
                   ],
                 ),
               ),
