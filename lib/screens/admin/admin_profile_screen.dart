@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../core/services/app_colors.dart'; // Ensure you have your colors file
-import 'manage_users_menu.dart'; // This connects to the 4 buttons screen
+import '../../core/services/app_colors.dart';
+import 'manage_users_menu.dart';
 import 'personal_info_screen.dart';
 import 'company_details_screen.dart';
+import '../../models/company.dart';
 
 class AdminProfileScreen extends StatelessWidget {
   const AdminProfileScreen({super.key});
@@ -22,7 +23,7 @@ class AdminProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- 1. Header Section (Name & ID) ---
+            // --- 1. Header Section ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,7 +32,7 @@ class AdminProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Rahul Verma", // Admin Name
+                      "Rahul Verma",
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -40,7 +41,7 @@ class AdminProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "ABC Infrastructure Pvt Ltd", // Company Name
+                      "ABC Infrastructure Pvt Ltd",
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.black87,
@@ -48,10 +49,10 @@ class AdminProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "Admin", // Role
+                      "Admin",
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF0A6ED1), // Primary Blue
+                        color: Color(0xFF0A6ED1),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -106,7 +107,7 @@ class AdminProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // --- 3. Account Settings List (3 Options) ---
+            // --- 3. Account Settings List ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -137,33 +138,29 @@ class AdminProfileScreen extends StatelessWidget {
                   const Divider(),
 
                   // Option 1: Personal Info
-                  
-                      _buildSettingsTile(
-                        title: "Personal Info",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PersonalInfoScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    
-                  
+                  _buildSettingsTile(
+                    title: "Personal Info",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PersonalInfoScreen(),
+                        ),
+                      );
+                    },
+                  ),
 
                   // Option 2: Company Details
                   _buildSettingsTile(
                     title: "Company Details",
                     onTap: () {
-                     Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CompanyDetailsScreen(),
-      ),
-    );
-
-                      
+                      // Just navigate - Data is handled inside the screen now
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CompanyDetailsScreen(company: Company(name: "ABC Infrastructure Pvt Ltd")),
+                        ),
+                      );
                     },
                   ),
 
@@ -179,22 +176,26 @@ class AdminProfileScreen extends StatelessWidget {
                       );
                     },
                   ),
-
-                  // Option 3: Manage Users & Roles (Opens the 4 Buttons Grid)
                   _buildSettingsTile(
-                    title: "Manage Users and Roles",
+                    title: "Approval History",
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ManageUsersMenuScreen(),
-                        ),
-                      );
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (context) => const ApprovalHistoryScreen(),
+                      //   ),
+                      // );
                     },
                   ),
                 ],
               ),
             ),
+
+                  
+                
+              
+            
+            
 
             const SizedBox(height: 40),
 
@@ -205,11 +206,10 @@ class AdminProfileScreen extends StatelessWidget {
                 height: 45,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Log Out Logic
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF3B30), // Alert Red
+                    backgroundColor: const Color(0xFFFF3B30),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
@@ -226,7 +226,6 @@ class AdminProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
             const SizedBox(height: 20),
           ],
         ),

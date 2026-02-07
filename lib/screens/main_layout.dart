@@ -6,7 +6,7 @@ import 'package:construction_erp/routes.dart';
 // Import your tab views
 import 'package:construction_erp/screens/admin/dashboard_tab.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart';
-import 'package:construction_erp/screens/projects/tasks.dart';
+import 'package:construction_erp/screens/admin/admin_profile_screen.dart';
 
 enum DashboardPopupType { none, verification, setPassword }
 
@@ -33,7 +33,7 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
     const DashboardTab(),
     const ProjectTab(),
     const Center(child: Text("Operations Screen")),
-    const Center(child: Text("Profile Screen")),
+    const AdminProfileScreen()
   ];
 
   @override

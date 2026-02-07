@@ -1,28 +1,53 @@
 import 'package:flutter/material.dart';
 
-class PersonalInfoScreen extends StatefulWidget {
-  const PersonalInfoScreen({super.key});
+class UserInfoScreen extends StatefulWidget {
+  final String name;
+  final String email;
+  final String phone;
+  final String role;
+  final String userId;
+  final String aadharNumber;
+
+  const UserInfoScreen({
+    super.key,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.role,
+    required this.userId,
+    required this.aadharNumber,
+  });
 
   @override
-  State<PersonalInfoScreen> createState() => _PersonalInfoScreenState();
+  State<UserInfoScreen> createState() => _UserInfoScreenState();
 }
 
-class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
-  // State control
+class _UserInfoScreenState extends State<UserInfoScreen> {
   bool _isEditing = false;
 
-  // Controllers to handle text input
-  final TextEditingController _nameController = TextEditingController(text: "Sample Name");
-  final TextEditingController _emailController = TextEditingController(text: "rakesh.sharma@abccinfrastructure.com");
-  final TextEditingController _phoneController = TextEditingController(text: "+91 91234 56789");
-  final TextEditingController _passwordController = TextEditingController(text: "xxxxxxxx");
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _roleController;
+  late TextEditingController _aadharController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.name);
+    _emailController = TextEditingController(text: widget.email);
+    _phoneController = TextEditingController(text: widget.phone);
+    _roleController = TextEditingController(text: widget.role);
+    _aadharController = TextEditingController(text: widget.aadharNumber);
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _passwordController.dispose();
+    _roleController.dispose();
+    _aadharController.dispose();
     super.dispose();
   }
 
@@ -31,16 +56,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
       appBar: AppBar(
-        title: const Text("Profile"),
+        title: const Text("User Info"),
         backgroundColor: const Color(0xFF0A6ED1),
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- 1. Header Section ---
+
+            /// 🔹 Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -48,23 +74,34 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _nameController.text, // Updated to reflect controller
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      _nameController.text,
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold),
                     ),
-                    const Text("ABC Infrastructure Pvt Ltd", style: TextStyle(fontSize: 14)),
                     const Text(
-                      "Admin",
-                      style: TextStyle(fontSize: 14, color: Color(0xFF0A6ED1), fontWeight: FontWeight.w600),
+                      "User Account",
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    Text(
+                      _roleController.text,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF0A6ED1),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
-                const Text("User ID: SYS-ADM-001", style: TextStyle(fontSize: 12, color: Colors.black54)),
+                Text(
+                  "User ID: ${widget.userId}",
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
               ],
             ),
 
             const SizedBox(height: 24),
 
-            // --- 2. Personal Info Card ---
+            /// 🔹 User Info Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -72,17 +109,26 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
+                  /// Card Header + Edit Toggle
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Personal Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      // Toggle Button
+                      const Text(
+                        "User Details",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                       IconButton(
                         onPressed: () {
                           setState(() {
@@ -96,15 +142,19 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       ),
                     ],
                   ),
+
                   const Divider(height: 24, thickness: 1),
 
-                  // Switch between Form and Display Text
+                  /// 🔹 Edit Mode
                   if (_isEditing) ...[
                     _buildTextField("Name", _nameController),
                     _buildTextField("Email", _emailController),
-                    _buildTextField("Password", _passwordController, isPassword: true),
                     _buildTextField("Phone", _phoneController),
+                    _buildTextField("Role", _roleController),
+                    _buildTextField("Aadhar Number", _aadharController),
+
                     const SizedBox(height: 20),
+
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -115,20 +165,27 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                         onPressed: () {
                           setState(() {
                             _isEditing = false;
-                            // Add your API save logic here
+                            // TODO: save/update API call here
                           });
                         },
-                        child: const Text("Save Changes", style: TextStyle(color: Colors.white)),
+                        child: const Text(
+                          "Save Changes",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     )
+
+                  /// 🔹 View Mode
                   ] else ...[
                     _buildDataRow("Name:", _nameController.text),
                     const SizedBox(height: 16),
                     _buildDataRow("Email:", _emailController.text),
                     const SizedBox(height: 16),
-                    _buildDataRow("Password:", _passwordController.text),
-                    const SizedBox(height: 16),
                     _buildDataRow("Phone:", _phoneController.text),
+                    const SizedBox(height: 16),
+                    _buildDataRow("Role:", _roleController.text),
+                    const SizedBox(height: 16),
+                    _buildDataRow("Aadhar No:", _aadharController.text),
                   ],
                 ],
               ),
@@ -139,30 +196,34 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
-  // Helper for Editable Fields
-  Widget _buildTextField(String label, TextEditingController controller, {bool isPassword = false}) {
+  /// 🔹 Editable Field
+  Widget _buildTextField(String label, TextEditingController controller) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
-        obscureText: isPassword,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       ),
     );
   }
 
-  // Helper for Display Rows
+  /// 🔹 Display Row
   Widget _buildDataRow(String label, String value) {
     return RichText(
       text: TextSpan(
         style: const TextStyle(fontSize: 14, color: Colors.black87),
         children: [
-          TextSpan(text: "$label ", style: const TextStyle(color: Color(0xFF666666))),
-          TextSpan(text: value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          TextSpan(
+              text: "$label ",
+              style: const TextStyle(color: Color(0xFF666666))),
+          TextSpan(
+              text: value,
+              style: const TextStyle(fontWeight: FontWeight.w500)),
         ],
       ),
     );
