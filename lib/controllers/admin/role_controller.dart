@@ -9,11 +9,22 @@ final roleControllerProvider =
   return RoleController();
 });
 
+final roleDetailProvider =
+    FutureProvider.autoDispose.family<Role, String>((ref, id) async {
+  final dio = ref.read(dioClientProvider).dio;
+  final response = await dio.get('/roles/$id');
+
+  if (response.data['success'] == true) {
+    return Role.fromJson(response.data['data']);
+  } else {
+    throw Exception(response.data['message'] ?? 'Failed to load role');
+  }
+});
+
 class RoleController extends AsyncNotifier<RoleState> {
   DioClient get _dioClient => ref.read(dioClientProvider);
   static const String _basePath = '/roles';
 
-  // Persistent search filter
   String _searchQuery = '';
 
   @override
@@ -32,26 +43,32 @@ class RoleController extends AsyncNotifier<RoleState> {
       if (_searchQuery.isNotEmpty) 'search': _searchQuery,
     });
 
-    final List<dynamic> data = response.data['data'];
-    final pagination = response.data['pagination'];
+    // Check for successful response structure
+    if (response.data['success'] == true) {
+      final List<dynamic> data = response.data['data'];
+      final pagination = response.data['pagination'];
 
-    final newRoles = data.map((json) => Role.fromJson(json)).toList();
-    final bool hasMore = page < (pagination['pages'] ?? 1);
+      // Mapping JSON to Role models
+      final newRoles = data.map((json) => Role.fromJson(json)).toList();
+      final bool hasMore = page < (pagination['pages'] ?? 1);
 
-    if (page == 1) {
-      return RoleState(
-        roles: newRoles,
-        currentPage: page,
-        hasMore: hasMore,
-      );
+      if (page == 1) {
+        return RoleState(
+          roles: newRoles,
+          currentPage: page,
+          hasMore: hasMore,
+        );
+      } else {
+        final currentList = state.value?.roles ?? [];
+        return state.value!.copyWith(
+          roles: [...currentList, ...newRoles],
+          currentPage: page,
+          hasMore: hasMore,
+          isLoadingMore: false,
+        );
+      }
     } else {
-      final currentList = state.value?.roles ?? [];
-      return state.value!.copyWith(
-        roles: [...currentList, ...newRoles],
-        currentPage: page,
-        hasMore: hasMore,
-        isLoadingMore: false,
-      );
+      throw Exception(response.data['message'] ?? 'Failed to fetch roles');
     }
   }
 
@@ -62,8 +79,15 @@ class RoleController extends AsyncNotifier<RoleState> {
         currentState.isLoadingMore) return;
 
     state = AsyncValue.data(currentState.copyWith(isLoadingMore: true));
-    state = await AsyncValue.guard(
+
+    // Using guard to catch errors and keep the previous list intact if fetch fails
+    final nextState = await AsyncValue.guard(
         () => _fetchRoles(page: currentState.currentPage + 1));
+    if (nextState.hasError) {
+      state = AsyncValue.data(currentState.copyWith(isLoadingMore: false));
+    } else {
+      state = nextState;
+    }
   }
 
   Future<void> refresh({String? search}) async {

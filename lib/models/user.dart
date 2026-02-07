@@ -55,6 +55,8 @@ class User {
 
   final List<String>? permissions;
 
+  final UserStats? stats;
+
   User({
     required this.id,
     this.companyId,
@@ -96,6 +98,7 @@ class User {
     this.createdBy,
     this.settings,
     this.permissions,
+    this.stats,
   });
 
   User copyWith({
@@ -139,6 +142,7 @@ class User {
     User? createdBy,
     UserSettings? settings,
     List<String>? permissions,
+    UserStats? stats,
   }) {
     return User(
       id: id ?? this.id,
@@ -181,6 +185,7 @@ class User {
       createdBy: createdBy ?? this.createdBy,
       settings: settings ?? this.settings,
       permissions: permissions ?? this.permissions,
+      stats: stats ?? this.stats,
     );
   }
 
@@ -256,6 +261,7 @@ class User {
           ? UserSettings.fromJson(json['settings'])
           : null,
       permissions: extractPermissions(),
+      stats: json['stats'] != null ? UserStats.fromJson(json['stats']) : null,
     );
   }
 
@@ -391,6 +397,62 @@ class UserState {
       currentPage: currentPage ?? this.currentPage,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
+}
+
+class UserStats {
+  final int projects;
+  final int tasks;
+  final int attendanceLast30Days;
+  final int? unreadNotifications;
+  final int? upcomingLeaves;
+
+  UserStats({
+    this.projects = 0,
+    this.tasks = 0,
+    this.attendanceLast30Days = 0,
+    this.unreadNotifications,
+    this.upcomingLeaves,
+  });
+
+  factory UserStats.fromJson(Map<String, dynamic> json) {
+    return UserStats(
+      // Mapping from your Node.js backend keys:
+      // projects -> _count.projectAssignments
+      // tasks -> _count.assignedTasks
+      // attendanceLast30Days -> _count.attendances
+      projects: json['projects'] as int? ?? 0,
+      tasks: json['tasks'] as int? ?? 0,
+      attendanceLast30Days: json['attendanceLast30Days'] as int? ?? 0,
+      unreadNotifications: json['unreadNotifications'] as int?,
+      upcomingLeaves: json['upcomingLeaves'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'projects': projects,
+      'tasks': tasks,
+      'attendanceLast30Days': attendanceLast30Days,
+      'unreadNotifications': unreadNotifications,
+      'upcomingLeaves': upcomingLeaves,
+    };
+  }
+
+  UserStats copyWith({
+    int? projects,
+    int? tasks,
+    int? attendanceLast30Days,
+    int? unreadNotifications,
+    int? upcomingLeaves,
+  }) {
+    return UserStats(
+      projects: projects ?? this.projects,
+      tasks: tasks ?? this.tasks,
+      attendanceLast30Days: attendanceLast30Days ?? this.attendanceLast30Days,
+      unreadNotifications: unreadNotifications ?? this.unreadNotifications,
+      upcomingLeaves: upcomingLeaves ?? this.upcomingLeaves,
     );
   }
 }

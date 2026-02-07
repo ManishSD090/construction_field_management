@@ -1,21 +1,19 @@
 import 'package:construction_erp/models/permission.dart';
 
 class RolePermission {
-  final String id;
-  final String roleId;
-  final String permissionId;
+  final String? id;
+  final String? roleId;
+  final String? permissionId;
   final Map<String, dynamic>? constraints;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? grantedById;
-
-  // The actual permission definition
   final Permission? permission;
 
   RolePermission({
-    required this.id,
-    required this.roleId,
-    required this.permissionId,
+    this.id,
+    this.roleId,
+    this.permissionId,
     this.constraints,
     this.createdAt,
     this.updatedAt,
@@ -25,37 +23,34 @@ class RolePermission {
 
   factory RolePermission.fromJson(Map<String, dynamic> json) {
     return RolePermission(
-      id: json['id']?.toString() ?? '',
-      roleId: json['roleId']?.toString() ?? '',
-      permissionId: json['permissionId']?.toString() ?? '',
+      id: json['id']?.toString(),
+      roleId: json['roleId']?.toString(),
+      permissionId: json['permissionId']?.toString(),
       constraints: json['constraints'] != null
           ? Map<String, dynamic>.from(json['constraints'])
           : null,
       createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(), // or provide a sensible default
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
-          : DateTime.now(), // or provide a sensible default
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
       grantedById: json['grantedById']?.toString(),
       permission: json['permission'] != null
-          ? Permission.fromJson(json['permission'])
+          ? Permission.fromJson(json['permission'] as Map<String, dynamic>)
           : null,
     );
   }
 
-  /// Converts the RolePermission instance into a Map for JSON serialization
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'roleId': roleId,
       'permissionId': permissionId,
-      // Map<String, dynamic> is natively supported by json.encode
       'constraints': constraints,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'grantedById': grantedById,
-      // Only include the permission JSON if the object is present
       'permission': permission?.toJson(),
     };
   }
@@ -70,7 +65,6 @@ class Role {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? createdById;
-
   final List<RolePermission> rolePermissions;
   final Map<String, dynamic>? stats;
 
@@ -87,6 +81,70 @@ class Role {
     this.stats,
   });
 
+  factory Role.fromJson(Map<String, dynamic> json) {
+    // 1. Handle Permissions logic
+    // The log shows the key is "permissions"
+    final permissionsData = json['rolePermissions'] ?? json['permissions'];
+    List<RolePermission> parsedPermissions = [];
+
+    if (permissionsData != null && permissionsData is List) {
+      for (var item in permissionsData) {
+        if (item is Map<String, dynamic>) {
+          // If the object contains 'code', it's a Permission object
+          if (item.containsKey('code')) {
+            parsedPermissions.add(RolePermission(
+              id: item['id']?.toString() ?? '',
+              roleId: json['id']?.toString(),
+              permission: Permission.fromJson(item),
+            ));
+          } else {
+            parsedPermissions.add(RolePermission.fromJson(item));
+          }
+        }
+      }
+    }
+
+    return Role(
+      // CRITICAL: Ensure required strings have defaults
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown Role',
+      description: json['description']?.toString(),
+      companyId: json['companyId']?.toString(),
+      isSystemAdmin: json['isSystemAdmin'] == true,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
+      createdById: json['createdById']?.toString(),
+      rolePermissions: parsedPermissions,
+      stats: json['stats'] != null
+          ? Map<String, dynamic>.from(json['stats'] as Map)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'companyId': companyId,
+      'isSystemAdmin': isSystemAdmin,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+      'createdById': createdById,
+      'rolePermissions': rolePermissions.map((rp) => rp.toJson()).toList(),
+      'stats': stats,
+    };
+  }
+
+  List<Permission> get permissions => rolePermissions
+      .where((rp) => rp.permission != null)
+      .map((rp) => rp.permission!)
+      .toList();
+
   Role copyWith({
     String? id,
     String? name,
@@ -102,59 +160,14 @@ class Role {
       isSystemAdmin: isSystemAdmin ?? this.isSystemAdmin,
       rolePermissions: rolePermissions ?? this.rolePermissions,
       stats: stats ?? this.stats,
+      companyId: companyId,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      createdById: createdById,
     );
   }
-
-  factory Role.fromJson(Map<String, dynamic> json) {
-    return Role(
-      id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      description: json['description']?.toString(),
-      companyId: json['companyId']?.toString(),
-      isSystemAdmin: json['isSystemAdmin'] as bool? ?? false,
-      createdAt:
-          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
-      createdById: json['createdById']?.toString(),
-      rolePermissions: json['rolePermissions'] != null
-          ? (json['rolePermissions'] as List)
-              .map((rp) => RolePermission.fromJson(rp))
-              .toList()
-          : [],
-      stats: json['stats'] != null
-          ? Map<String, dynamic>.from(json['stats'])
-          : null,
-    );
-  }
-
-  /// Converts the Role instance into a Map for JSON serialization
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'companyId': companyId,
-      'isSystemAdmin': isSystemAdmin,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-      'createdById': createdById,
-      // Map each RolePermission object back to JSON
-      'rolePermissions': rolePermissions.map((rp) => rp.toJson()).toList(),
-    };
-  }
-
-  List<Permission> get permissions => rolePermissions
-      .where((rp) => rp.permission != null)
-      .map((rp) => rp.permission!)
-      .toList();
-
-  @override
-  String toString() =>
-      'Role(name: $name, permissionsCount: ${rolePermissions.length})';
 }
 
-// State class for Role Directory
 class RoleState {
   final List<Role> roles;
   final int currentPage;

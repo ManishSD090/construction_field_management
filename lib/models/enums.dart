@@ -1,5 +1,19 @@
 // enums.dart — NULL SAFE & CRASH-PROOF
 
+// lib/utils/enum_extensions.dart
+
+extension EnumFormatter on Enum {
+  String toDisplayString() {
+    // This will now work for ANY enum in your app
+    final result = name
+        .replaceAllMapped(
+            RegExp(r'(?<=[a-z])[A-Z]'), (Match m) => ' ${m.group(0)}')
+        .replaceAll('_', ' ');
+
+    return result[0].toUpperCase() + result.substring(1).toLowerCase();
+  }
+}
+
 String _toCamel(String value) {
   return value
       .toLowerCase()

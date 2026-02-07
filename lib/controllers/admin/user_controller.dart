@@ -116,31 +116,43 @@ class UserController extends AsyncNotifier<UserState> {
   // ACTIONS (ADMIN & SELF)
   // ==========================================================================
 
-  /// Create a new employee (Admin Only)
+  /// Matches POST /users
   Future<void> createEmployee(Map<String, dynamic> data) async {
-    await _dioClient.dio.post(_basePath, data: data);
-    await fetchUsers(); // Refresh the list
+    // Guard the call to handle duplicate entry (409) or validation (400) errors
+    await AsyncValue.guard(() async {
+      await _dioClient.dio.post(_basePath, data: data);
+
+      // Re-fetch page 1 to show the new employee in the directory
+      final refreshedState = await _fetchUserPage(page: 1);
+      state = AsyncValue.data(refreshedState);
+    });
   }
 
   /// Update User Details (Self or Admin)
   /// Matches PUT /users/:id
   Future<void> updateUser(String id, Map<String, dynamic> updates) async {
+    // Keep the previous state to avoid losing the list during the transition
+    final previousState = state.value;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final response =
-          await _dioClient.dio.put('$_basePath/$id', data: updates);
-      final updatedUser = User.fromJson(response.data['data']);
 
-      // If the user updated THEIR OWN profile:
-      if (state.value?.currentUser?.id == id) {
-        // Update the AuthController's state so the whole app knows!
-        ref.read(authControllerProvider.notifier).updateLocalUser(updatedUser);
+    state = await AsyncValue.guard(() async {
+      // 1. Perform the update
+      await _dioClient.dio.put('$_basePath/$id', data: updates);
+
+      // 2. If the user updated THEIR OWN profile, we must refresh the Auth/Profile
+      if (previousState?.currentUser?.id == id) {
+        // We use the profile endpoint which returns the full user object
+        await ref.read(authControllerProvider.notifier).fetchAndSyncProfile();
       }
 
-      // Refresh the list for the directory
+      // 3. Re-fetch the current page to get the full, updated user list from the server
       final refreshedState =
-          await _fetchUserPage(page: state.value?.currentPage ?? 1);
-      return refreshedState.copyWith(currentUser: updatedUser);
+          await _fetchUserPage(page: previousState?.currentPage ?? 1);
+
+      // 4. Return the new state with the updated list and the newly synced currentUser
+      return refreshedState.copyWith(
+        currentUser: ref.read(authControllerProvider).value,
+      );
     });
   }
 

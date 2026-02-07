@@ -58,7 +58,7 @@ class AuthController extends AsyncNotifier<User?> {
     if (isOnline) {
       try {
         // 1. Sync User Profile
-        final user = await _fetchAndSyncProfile();
+        final user = await fetchAndSyncProfile();
 
         // 2. Check Status
         await _fetchAuthStatus(identifier: user.phone);
@@ -222,7 +222,7 @@ class AuthController extends AsyncNotifier<User?> {
       });
 
       // 3. Refresh Profile & Status to update UI
-      final updatedUser = await _fetchAndSyncProfile();
+      final updatedUser = await fetchAndSyncProfile();
       await _fetchAuthStatus(identifier: identifier!);
 
       return updatedUser;
@@ -247,7 +247,7 @@ class AuthController extends AsyncNotifier<User?> {
       });
 
       // 3. Refresh Profile & Status
-      final updatedUser = await _fetchAndSyncProfile();
+      final updatedUser = await fetchAndSyncProfile();
       await _fetchAuthStatus(identifier: identifier);
 
       return updatedUser;
@@ -281,7 +281,7 @@ class AuthController extends AsyncNotifier<User?> {
   // ============================================================================
 
   /// Helper: Fetch profile, update DB, return Domain User
-  Future<User> _fetchAndSyncProfile() async {
+  Future<User> fetchAndSyncProfile() async {
     final response = await _dioClient.dio.get('/auth/profile');
     final data = response.data['data'];
     final userDomain = User.fromJson(data['user'] ?? data);
@@ -295,7 +295,7 @@ class AuthController extends AsyncNotifier<User?> {
   /// NEW: Syncs data without showing a loading spinner
   Future<void> _backgroundSync() async {
     try {
-      final updatedUser = await _fetchAndSyncProfile();
+      final updatedUser = await fetchAndSyncProfile();
       state = AsyncValue.data(updatedUser);
     } catch (e) {
       // Handle Token Expiry during background sync

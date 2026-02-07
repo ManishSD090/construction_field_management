@@ -19,21 +19,26 @@ class Permission {
     required this.updatedAt,
   });
 
-  // Factory constructor to create a Permission object from JSON (Prisma API response)
   factory Permission.fromJson(Map<String, dynamic> json) {
     return Permission(
-      id: json['id'] as String,
-      code: json['code'] as String,
-      name: json['name'] as String,
-      module: json['module'] as String,
-      description: json['description'] as String?,
-      category: json['category'] as String?,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      // Use null-aware operators and defaults to prevent crashes
+      id: json['id']?.toString() ?? '',
+      code: json['code']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      module: json['module']?.toString() ?? 'General',
+      description: json['description']?.toString(),
+      category: json['category']?.toString(),
+
+      // tryParse prevents crashes if the date string is null or malformed
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
-  // Method to convert Permission object to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -58,18 +63,20 @@ class PermissionManager {
   static List<Permission> _allPermissions = [];
 
   static void initFromModels(List<Permission> permissions) {
-    _allPermissions = permissions;
+    _allPermissions = List.from(permissions);
     _userPermissionCodes = permissions.map((p) => p.code).toSet();
   }
 
-  static void initFromCodes(List<String> codes) {
-    _userPermissionCodes = codes.toSet();
+  static void initFromCodes(List<String>? codes) {
+    if (codes == null) {
+      _userPermissionCodes = {};
+    } else {
+      _userPermissionCodes = codes.toSet();
+    }
   }
 
-  /// Check if a user has a specific permission
   static bool can(String code) => _userPermissionCodes.contains(code);
 
-  /// Check if user has ANY of the provided permissions
   static bool canAny(List<String> codes) =>
       codes.any((c) => _userPermissionCodes.contains(c));
 

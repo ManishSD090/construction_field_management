@@ -1,207 +1,229 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:construction_erp/controllers/admin/user_controller.dart';
+import 'package:construction_erp/controllers/admin/role_controller.dart';
+import 'package:construction_erp/models/role.dart';
 
-class CreateUserScreen extends StatefulWidget {
+class CreateUserScreen extends ConsumerStatefulWidget {
   const CreateUserScreen({super.key});
 
   @override
-  State<CreateUserScreen> createState() => _CreateUserScreenState();
+  ConsumerState<CreateUserScreen> createState() => _CreateUserScreenState();
 }
 
-class _CreateUserScreenState extends State<CreateUserScreen> {
-  // Form Key for validation
+class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers
+  // 1. Primary Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  // 2. Employment Controllers
+  final TextEditingController _employeeIdController = TextEditingController();
+  final TextEditingController _departmentController = TextEditingController();
+  final TextEditingController _designationController = TextEditingController();
+
+  // 3. Financial & Compliance Controllers
+  final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _aadharController = TextEditingController();
+  final TextEditingController _bankAccountController = TextEditingController();
+  final TextEditingController _ifscController = TextEditingController();
 
-  // Dropdown Values
-  String? _selectedProject;
-  String? _selectedRole;
-
-  // Dummy Data for Dropdowns
-  final List<String> _projects = ['Metro Line 5', 'Highway Expansion', 'City Bridge'];
-  final List<String> _roles = ['Manager', 'Site Engineer', 'Supervisor', 'Staff'];
+  String? _selectedRoleId;
+  String? _selectedSalaryType = 'MONTHLY';
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _employeeIdController.dispose();
+    _departmentController.dispose();
+    _designationController.dispose();
+    _salaryController.dispose();
     _aadharController.dispose();
+
+    _bankAccountController.dispose();
+    _ifscController.dispose();
     super.dispose();
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Form is valid - Proceed with creation logic
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User Created Successfully!')),
-      );
+      if (_selectedRoleId == null) {
+        _showError('Please select a role for the employee');
+        return;
+      }
+
+      // Mapping all controllers to the backend request body
+      final Map<String, dynamic> employeeData = {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'employeeId': _employeeIdController.text.trim(), // Required
+        'department': _departmentController.text.trim(), // Required
+        'designation': _designationController.text.trim(),
+        'salary':
+            double.tryParse(_salaryController.text.trim()), // Numeric Required
+        'salaryType': _selectedSalaryType,
+        'roleId': _selectedRoleId,
+        'aadharNumber': _aadharController.text.trim(),
+        'bankAccount': _bankAccountController.text.trim(),
+        'ifscCode': _ifscController.text.trim(),
+      };
+
+      try {
+        // Triggering the UserController action
+        await ref
+            .read(userControllerProvider.notifier)
+            .createEmployee(employeeData);
+        if (mounted) {
+          Navigator.pop(context); // Return to directory
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Employee successfully invited!')),
+          );
+        }
+      } catch (e) {
+        _showError(e.toString());
+      }
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Reactive role fetching from RoleController
+    final rolesAsync = ref.watch(roleControllerProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
+        backgroundColor: Colors.white,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Create User",
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: const Text("Create Employee",
+            style: TextStyle(
+                color: Colors.black87,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- 1. User Name ---
-              _buildLabel("User Name"),
-              const SizedBox(height: 8),
+              _buildSectionHeader("PRIMARY DETAILS"),
+              _buildLabel("Full Name *"),
               _buildTextField(
-                controller: _nameController,
-                hint: "Enter the user name",
-                validator: (val) => val == null || val.isEmpty ? "Name is required" : null,
+                  controller: _nameController,
+                  hint: "Enter full name",
+                  validator: (val) => val!.isEmpty ? "Name is required" : null),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFieldGroup(
+                        "Email *", _emailController, "email@company.com",
+                        inputType: TextInputType.emailAddress),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildFieldGroup(
+                        "Phone *", _phoneController, "Phone number",
+                        inputType: TextInputType.phone),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 20),
-
-              // --- 2. User Email ---
-              _buildLabel("User Email"),
-              const SizedBox(height: 8),
+              const SizedBox(height: 32),
+              _buildSectionHeader("EMPLOYMENT DETAILS"),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFieldGroup(
+                        "Employee ID *", _employeeIdController, "EMP-001",
+                        validator: (val) => val!.isEmpty ? "Required" : null),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildFieldGroup(
+                        "Department *", _departmentController, "Engineering",
+                        validator: (val) => val!.isEmpty ? "Required" : null),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildLabel("Designation"),
               _buildTextField(
-                controller: _emailController,
-                hint: "Enter user email",
-                inputType: TextInputType.emailAddress,
-                validator: (val) {
-                  if (val == null || val.isEmpty) return "Email is required";
-                  if (!val.contains('@')) return "Enter a valid email";
-                  return null;
-                },
+                  controller: _designationController,
+                  hint: "e.g. Project Manager"),
+              const SizedBox(height: 16),
+              _buildLabel("Access Role *"),
+              rolesAsync.when(
+                data: (roleState) => _buildRoleDropdown(roleState.roles),
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => const Text("Error loading roles",
+                    style: TextStyle(color: Colors.red)),
               ),
-
-              const SizedBox(height: 20),
-
-              // --- 3. Phone Number ---
-              _buildLabel("Phone Number"),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _phoneController,
-                hint: "Enter the user phone number",
-                inputType: TextInputType.phone,
-                validator: (val) {
-                  if (val == null || val.isEmpty) return "Phone number is required";
-                  if (val.length < 10) return "Enter a valid phone number";
-                  return null;
-                },
+              const SizedBox(height: 32),
+              _buildSectionHeader("FINANCIAL & COMPLIANCE"),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFieldGroup(
+                        "Salary Amount *", _salaryController, "0.00",
+                        inputType: TextInputType.number, validator: (val) {
+                      if (val == null || val.isEmpty) return "Required";
+                      if (double.tryParse(val) == null) return "Invalid number";
+                      return null;
+                    }),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel("Salary Type"),
+                        _buildSalaryTypeDropdown(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 20),
-
-              // --- 4. Project Name (Dropdown) ---
-              _buildLabel("Project Name"),
-              const SizedBox(height: 8),
-              _buildDropdown(
-                value: _selectedProject,
-                items: _projects,
-                hint: "Select Project",
-                onChanged: (val) => setState(() => _selectedProject = val),
-              ),
-
-              const SizedBox(height: 20),
-
-              // --- 5. Role Name (Dropdown) ---
-              _buildLabel("Role Name"),
-              const SizedBox(height: 8),
-              _buildDropdown(
-                value: _selectedRole,
-                items: _roles,
-                hint: "Select Role",
-                onChanged: (val) => setState(() => _selectedRole = val),
-              ),
-
-              const SizedBox(height: 20),
-
-              // --- 6. Aadhar Number (Replaced Field) ---
+              const SizedBox(height: 16),
               _buildLabel("Aadhar Number"),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _aadharController,
-                keyboardType: TextInputType.number,
-                maxLength: 12,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  hintText: "Enter 12-digit Aadhar number",
-                  hintStyle: const TextStyle(color: Color(0xFFB0C4DE)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF4A90E2)), // Light Blue Border
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF0A6ED1), width: 2),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.red),
-                  ),
-                  focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.red, width: 2),
-                  ),
-                  counterText: "", // Hides the tiny character counter
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return "Aadhar number is required";
-                  if (val.length != 12) return "Aadhar number must be exactly 12 digits";
-                  return null;
-                },
+              _buildTextField(
+                  controller: _aadharController,
+                  hint: "12-digit number",
+                  inputType: TextInputType.number),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                      child: _buildFieldGroup(
+                          "Bank Account", _bankAccountController, "Account No",
+                          inputType: TextInputType.number)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: _buildFieldGroup(
+                          "IFSC Code", _ifscController, "IFSC0001234")),
+                ],
               ),
-
-              const SizedBox(height: 40),
-
-              // --- 7. Create User Button ---
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A6ED1), // Primary Blue from image
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "Create User",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 48),
+              _buildSubmitButton(),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -209,88 +231,134 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     );
   }
 
-  // --- Helper Widgets ---
+  // --- Helper Build Methods ---
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        color: Colors.black87,
-      ),
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Text(title,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0A6ED1),
+              letterSpacing: 1.1)),
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    TextInputType inputType = TextInputType.text,
-    String? Function(String?)? validator,
-    bool isNumber = false,
-  }) {
+  Widget _buildFieldGroup(
+      String label, TextEditingController controller, String hint,
+      {TextInputType inputType = TextInputType.text,
+      String? Function(String?)? validator}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(label),
+        _buildTextField(
+            controller: controller,
+            hint: hint,
+            inputType: inputType,
+            validator: validator),
+      ],
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54)),
+    );
+  }
+
+  Widget _buildTextField(
+      {required TextEditingController controller,
+      required String hint,
+      TextInputType inputType = TextInputType.text,
+      String? Function(String?)? validator}) {
     return TextFormField(
       controller: controller,
       keyboardType: inputType,
-      inputFormatters: isNumber ? [FilteringTextInputFormatter.digitsOnly] : [],
       validator: validator,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFFB0C4DE)), // Light blue-grey hint
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: const TextStyle(color: Color(0xFFB0C4DE), fontSize: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFD),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF4A90E2)), // Matching blue border from image
-        ),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE1EEFA))),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0A6ED1), width: 2),
-        ),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF0A6ED1), width: 1.5)),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 2),
-        ),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Colors.red)),
       ),
     );
   }
 
-  Widget _buildDropdown({
-    required String? value,
-    required List<String> items,
-    required String hint,
-    required void Function(String?) onChanged,
-  }) {
+  Widget _buildRoleDropdown(List<Role> roles) {
     return DropdownButtonFormField<String>(
-      value: value,
-      items: items.map((item) {
-        return DropdownMenuItem(value: item, child: Text(item));
-      }).toList(),
-      onChanged: onChanged,
-      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF0A6ED1)), // Blue chevron
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF4A90E2)),
+      value: _selectedRoleId,
+      items: roles
+          .map((role) =>
+              DropdownMenuItem(value: role.id, child: Text(role.name)))
+          .toList(),
+      onChanged: (val) => setState(() => _selectedRoleId = val),
+      decoration: _dropdownDecoration("Select access role"),
+      validator: (val) => val == null ? "Required" : null,
+    );
+  }
+
+  Widget _buildSalaryTypeDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedSalaryType,
+      items: ['MONTHLY', 'WEEKLY', 'DAILY', 'HOURLY']
+          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+          .toList(),
+      onChanged: (val) => setState(() => _selectedSalaryType = val),
+      decoration: _dropdownDecoration("Type"),
+    );
+  }
+
+  InputDecoration _dropdownDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      filled: true,
+      fillColor: const Color(0xFFF8FAFD),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE1EEFA))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF0A6ED1))),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: _submitForm,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0A6ED1),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          elevation: 0,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0A6ED1), width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
+        child: const Text("Create & Invite Employee",
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
       ),
-      hint: Text(
-        hint,
-        style: const TextStyle(color: Color(0xFFB0C4DE)),
-      ),
-      validator: (val) => val == null ? "Please select an option" : null,
     );
   }
 }
