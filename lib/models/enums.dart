@@ -1,7 +1,3 @@
-// enums.dart — NULL SAFE & CRASH-PROOF
-
-// lib/utils/enum_extensions.dart
-
 extension EnumFormatter on Enum {
   String toDisplayString() {
     // This will now work for ANY enum in your app
