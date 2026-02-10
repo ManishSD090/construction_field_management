@@ -435,8 +435,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
               Expanded(
                 child: Column(
                   children: [
-                    _buildDetailLinkRow(
-                        "Client:", project.client?.companyName ?? "N/A"),
+                    // _buildDetailLinkRow(
+                    //     "Client:", project.client?.companyName ?? "N/A"),
                     _buildDetailLinkRow("Location:", project.location),
                     _buildDetailLinkRow("Project Manager:",
                         project.createdBy?.name ?? "Not Assigned"),
