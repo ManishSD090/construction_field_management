@@ -25,8 +25,8 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
   final Map<String, int> _tabRouteMap = {
     'dashboard': 0,
     'project': 1,
-    'operation': 3,
-    'profile': 4,
+    'operation': 2,
+    'profile': 3,
   };
 
   final List<Widget> _pages = [

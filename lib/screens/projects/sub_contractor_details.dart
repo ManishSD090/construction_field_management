@@ -1,3 +1,4 @@
+import 'package:construction_erp/screens/projects/edit_sub_contractor_project.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Added Riverpod
 import 'package:construction_erp/controllers/subcontractor/subcontractor_controller.dart'; // ✅ Import your controller
@@ -80,41 +81,59 @@ class SubContractorDetailsScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // --- 1. Header Name & Edit Icon ---
+                        // --- 1. Header Name & Edit/Delete Icons ---
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              contractor['name'] ?? "Sample Name",
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                            // Wrap the text in Expanded so it occupies only the available space
+                            Expanded(
+                              child: Text(
+                                contractor['name'] ?? "Sample Name",
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                overflow: TextOverflow
+                                    .ellipsis, // Adds "..." if the name is too long
+                                maxLines: 2,
                               ),
                             ),
-                            InkWell(
-                              onTap: () {
-                                // Navigator.push(
-                                //   context,
-                                //   MaterialPageRoute(
-                                //     builder: (context) =>
-                                //         EditSubContractorScreen(
-                                //       subContractorData: data, // Pass full data
-                                //     ),
-                                //   ),
-                                // );
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.2),
-                                  shape: BoxShape.circle,
+                            const SizedBox(
+                                width: 12), // Space between text and icons
+
+                            // Action Buttons Row
+                            Row(
+                              mainAxisSize:
+                                  MainAxisSize.min, // Keep icons tight
+                              children: [
+                                // Edit Button
+                                _buildIconButton(
+                                  icon: Icons.edit,
+                                  color: Colors.grey,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            EditContractorProjectScreen(
+                                          contractorProjectId: data['id'],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                                child: const Icon(Icons.edit,
-                                    color: Colors.grey, size: 20),
-                              ),
-                            )
+                                const SizedBox(width: 10),
+
+                                // Delete Button
+                                _buildIconButton(
+                                  icon: Icons.delete_outline,
+                                  color: Colors.red,
+                                  onTap: () {
+                                    _confirmDelete(context, ref, data['id']);
+                                  },
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -128,6 +147,8 @@ class SubContractorDetailsScreen extends ConsumerWidget {
                         _buildInfoRow("Email:", contractor['email'] ?? "N/A"),
                         _buildInfoRow("Assigned Project:",
                             data['project']['name'] ?? "N/A"),
+                        _buildInfoRow(
+                            "Scope of Work:", data['scopeOfWork'] ?? "N/A"),
                         _buildInfoRow(
                             "Start date:", formatDate(data['startDate'])),
                         _buildInfoRow(
@@ -264,6 +285,51 @@ class SubContractorDetailsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, String id) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Remove Assignment?"),
+        content: const Text(
+            "This will remove the sub-contractor from this project. This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Remove", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (proceed == true) {
+      try {
+        // Show a loading snackbar or indicator if preferred
+        await ref
+            .read(subcontractorControllerProvider.notifier)
+            .deleteContractorProject(id);
+
+        // In a ConsumerWidget, we check context.mounted instead of this.mounted
+        if (context.mounted) {
+          Navigator.pop(context); // Go back to the previous screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Assignment removed successfully")),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: ${e.toString()}")),
+          );
+        }
+      }
+    }
+  }
+
   // --- HELPER WIDGETS (Keep exactly as your previous UI) ---
   Widget _buildSectionHeader(String title, {bool isInsideCard = false}) {
     return Column(
@@ -317,6 +383,25 @@ class SubContractorDetailsScreen extends ConsumerWidget {
             style: TextStyle(
                 fontSize: 14, fontWeight: FontWeight.bold, color: valueColor)),
       ],
+    );
+  }
+
+  Widget _buildIconButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1), // Subtler themed background
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
     );
   }
 }

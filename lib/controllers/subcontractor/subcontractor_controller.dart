@@ -157,6 +157,38 @@ class SubcontractorController extends AsyncNotifier<SubcontractorState> {
         .post('$_basePath/$contractorId/$projectId', data: payload);
   }
 
+  /// Updates a specific Contractor Project association (e.g., budget, duration)
+  /// PATCH /subcontractors/projects/:contractorProjectId
+  Future<void> updateContractorProject(
+      String contractorProjectId, Map<String, dynamic> updates) async {
+    try {
+      await _dioClient.dio.patch(
+        '$_basePath/projects/$contractorProjectId',
+        data: updates,
+      );
+
+      // Invalidate the specific details provider so the UI updates automatically
+      ref.invalidate(contractorProjectDetailsProvider(contractorProjectId));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Deletes/Removes a subcontractor from a project
+  /// DELETE /subcontractors/projects/:contractorProjectId
+  Future<void> deleteContractorProject(String contractorProjectId) async {
+    try {
+      await _dioClient.dio.delete(
+        '$_basePath/projects/$contractorProjectId',
+      );
+
+      // Optionally refresh the main list if this deletion affects the dashboard
+      // await refresh();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> updateSubcontractor(
       String id, Map<String, dynamic> updates) async {
     state = const AsyncValue.loading();
