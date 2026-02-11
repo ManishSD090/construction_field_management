@@ -3,17 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added Riverpod
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/contractor.dart'; // Import your models
 import 'package:construction_erp/controllers/subcontractor/subcontractor_controller.dart'; // Import your controller
-import 'package:construction_erp/screens/projects/sub_contractor_details.dart';
+import 'package:construction_erp/screens/projects/project_sub_contractor_details.dart';
 
-class SubContractorsList extends ConsumerStatefulWidget {
+class ProjectSubContractorsList extends ConsumerStatefulWidget {
   final String projectId; // Assuming you pass the current project ID
-  const SubContractorsList({super.key, required this.projectId});
+  const ProjectSubContractorsList({super.key, required this.projectId});
 
   @override
-  ConsumerState<SubContractorsList> createState() => _SubContractorsListState();
+  ConsumerState<ProjectSubContractorsList> createState() =>
+      _ProjectSubContractorsListState();
 }
 
-class _SubContractorsListState extends ConsumerState<SubContractorsList> {
+class _ProjectSubContractorsListState
+    extends ConsumerState<ProjectSubContractorsList> {
   // We'll use a Future to fetch the projects specific to this screen
   late Future<List<ContractorProject>> _projectsFuture;
 
@@ -96,7 +98,7 @@ class _SubContractorsListState extends ConsumerState<SubContractorsList> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SubContractorDetailsScreen(
+            builder: (context) => ProjectSubContractorDetailsScreen(
               contractorProjectId: project.id,
             ),
           ),

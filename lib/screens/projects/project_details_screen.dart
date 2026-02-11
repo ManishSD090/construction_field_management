@@ -10,7 +10,7 @@ import 'package:construction_erp/controllers/project/project_controller.dart';
 import 'package:construction_erp/screens/projects/edit_project.dart';
 import 'package:construction_erp/screens/projects/tasks.dart';
 import 'package:construction_erp/screens/projects/create_task.dart';
-import 'package:construction_erp/screens/projects/sub_contractors_list.dart';
+import 'package:construction_erp/screens/projects/project_sub_contractors_list.dart';
 import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 import 'package:construction_erp/screens/projects/timeline.dart';
 import 'package:construction_erp/screens/projects/create_timeline.dart' as ct;
@@ -421,7 +421,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   Widget _buildTabContent() {
     if (_selectedTab == 'Tasks') return const ProjectTasksTab();
     if (_selectedTab == 'Sub-contractor') {
-      return SubContractorsList(projectId: project.id);
+      return ProjectSubContractorsList(projectId: project.id);
     }
     if (_selectedTab == 'Timeline') return const TimelineTab();
 

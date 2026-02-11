@@ -5,11 +5,11 @@ import 'package:construction_erp/controllers/subcontractor/subcontractor_control
 import 'package:construction_erp/screens/sub_contractor/edit_sub_contractor.dart';
 import 'package:intl/intl.dart'; // ✅ For date formatting
 
-class SubContractorDetailsScreen extends ConsumerWidget {
+class ProjectSubContractorDetailsScreen extends ConsumerWidget {
   // ✅ Changed to ConsumerWidget
   final String contractorProjectId;
 
-  const SubContractorDetailsScreen(
+  const ProjectSubContractorDetailsScreen(
       {super.key, required this.contractorProjectId});
 
   @override

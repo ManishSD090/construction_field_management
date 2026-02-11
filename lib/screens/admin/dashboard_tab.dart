@@ -165,10 +165,8 @@ class DashboardTab extends ConsumerWidget {
 
         _buildActionCard(Icons.inventory_2_outlined, Colors.red[50]!,
             Colors.redAccent, "Projects", "3 active", () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ProjectTab()),
-          );
+          Navigator.pushNamed(context, AppRoutes.home,
+              arguments: HomeArguments.project);
         }),
       ],
     );
