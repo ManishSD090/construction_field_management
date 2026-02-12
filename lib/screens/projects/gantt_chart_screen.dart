@@ -1,17 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
+import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
+// import 'package:construction_erp/models/project_management.dart';
 
-class GanttChartScreen extends StatelessWidget {
-  const GanttChartScreen({super.key});
+class GanttChartScreen extends ConsumerStatefulWidget {
+  final String timelineId;
 
-  final double _monthWidth = 60.0; // Width for one month column
-  final double _rowHeight = 60.0; // Fixed height for each task row
-  final double _headerHeight = 50.0; // Fixed height for timeline header
+  const GanttChartScreen({
+    super.key,
+    required this.timelineId,
+  });
+
+  @override
+  ConsumerState<GanttChartScreen> createState() => _GanttChartScreenState();
+}
+
+class _GanttChartScreenState extends ConsumerState<GanttChartScreen> {
+  final double _monthWidth = 140.0; // Slightly wider for better date spacing
+  final double _rowHeight = 65.0;
+  final double _headerHeight = 50.0;
+  final double _labelWidth = 130.0;
 
   @override
   Widget build(BuildContext context) {
-    // Total width of the chart (12 months)
-    final double totalChartWidth = _monthWidth * 12;
+    final ganttAsync = ref.watch(timelineGanttProvider(widget.timelineId));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -27,349 +41,329 @@ class GanttChartScreen extends StatelessWidget {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- Header Info (Project Title & Status) ---
-            _buildProjectHeader(),
-            const SizedBox(height: 20),
+      body: ganttAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text("Error: $err")),
+        data: (jsonResponse) {
+          // Based on your provided API response structure
+          final data = jsonResponse;
+          final String? timelineName = data['timelineName'];
+          final String? startStr = data['startDate'];
+          final String? endStr = data['endDate'];
+          final List<dynamic> ganttData = data['ganttData'] ?? [];
+          final Map<String, dynamic> metrics = data['metrics'] ?? {};
 
-            // --- Overall Progress Bar ---
-            const Text("Progress : 50 %",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: 0.5,
-                minHeight: 10,
-                backgroundColor: Colors.blue.withOpacity(0.1),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-              ),
-            ),
-            const SizedBox(height: 20),
+          if (startStr == null || endStr == null) {
+            return const Center(child: Text("Invalid timeline date range"));
+          }
 
-            // --- Legend ---
-            Row(
-              children: [
-                _buildLegendItem(Colors.red, "Backlog"),
-                const SizedBox(width: 15),
-                _buildLegendItem(const Color(0xFFF9A825), "Ongoing"),
-                const SizedBox(width: 15),
-                _buildLegendItem(const Color(0xFF009688), "Completed"),
-              ],
-            ),
-            const SizedBox(height: 20),
+          final DateTime timelineStart = DateTime.parse(startStr);
+          final DateTime timelineEnd = DateTime.parse(endStr);
 
-            // --- SCROLLABLE GANTT CHART AREA ---
-            Row(
+          // Calculate total months range for the horizontal scroll width
+          final int totalMonths =
+              ((timelineEnd.year - timelineStart.year) * 12) +
+                  timelineEnd.month -
+                  timelineStart.month +
+                  1;
+          final double totalChartWidth = _monthWidth * totalMonths;
+
+          return SingleChildScrollView(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. FIXED LEFT COLUMN (Task Names)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Empty Corner Header
-                    Container(
-                      height: _headerHeight,
-                      width: 100,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBlue,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Task Name List
-                    _buildFixedTaskLabel("Task Name"),
-                    _buildFixedTaskLabel("Task Name"),
-                    _buildFixedTaskLabel("Task Name"),
-                    _buildFixedTaskLabel("Task Name"),
-                    _buildFixedTaskLabel("Task Name"),
-                    _buildFixedTaskLabel("Task Name"),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _buildProjectHeader(
+                          timelineName, startStr, endStr, metrics),
+                      const SizedBox(height: 25),
+                      _buildLegend(),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 5),
-
-                // 2. SCROLLABLE RIGHT AREA (Timeline)
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: totalChartWidth,
-                      child: Column(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. FIXED LEFT COLUMN (Task Names)
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Timeline Header (Year & Months)
-                          _buildTimelineHeader(totalChartWidth),
-                          const SizedBox(height: 10),
-
-                          // Timeline Rows (Bars)
-                          // Jan-Feb (Ongoing)
-                          _buildTimelineRow(totalChartWidth, 0, 90,
-                              const Color(0xFFF9A825), "12 Jan - 28 Feb"),
-                          // Apr-Jun (Completed)
-                          _buildTimelineRow(totalChartWidth, 210, 150,
-                              const Color(0xFF009688), ""),
-                          // May-Jun (Backlog)
-                          _buildTimelineRow(
-                              totalChartWidth, 280, 80, Colors.red, ""),
-                          // Aug-Oct (Future/Blue)
-                          _buildTimelineRow(totalChartWidth, 450, 100,
-                              Colors.blue.withOpacity(0.3), ""),
-                          // Placeholder Empty Rows
-                          _buildTimelineRow(
-                              totalChartWidth, 0, 0, Colors.transparent, ""),
-                          _buildTimelineRow(
-                              totalChartWidth, 0, 0, Colors.transparent, ""),
+                          Container(
+                            height: _headerHeight + 10,
+                            width: _labelWidth,
+                            alignment: Alignment.centerLeft,
+                            child: const Text("TASK LIST",
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryBlue)),
+                          ),
+                          ...ganttData.map((t) =>
+                              _buildFixedTaskLabel(t['text'] ?? "Unnamed")),
                         ],
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      // 2. SCROLLABLE GANTT AREA
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: totalChartWidth,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildTimelineHeader(
+                                    timelineStart, totalMonths),
+                                const SizedBox(height: 10),
+                                ...ganttData.map((t) {
+                                  return _buildTimelineRow(
+                                    chartStart: timelineStart,
+                                    totalMonths: totalMonths,
+                                    task: t,
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 50),
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // --- Helper Widgets ---
-
-  Widget _buildTimelineHeader(double totalWidth) {
+  Widget _buildProjectHeader(
+      String? name, String start, String end, Map<String, dynamic> metrics) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Year Header
-        Container(
-          width: totalWidth,
-          height: 25,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: AppColors.primaryBlue,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-          ),
-          child: const Text("2026",
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12)),
+        Text(
+          name ?? "Timeline Overview",
+          style: const TextStyle(
+              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
         ),
-        // Months Header
-        Container(
-          width: totalWidth,
-          height: 25,
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(8)),
-          ),
-          child: Row(
-            children: List.generate(12, (index) {
-              // Month Names
-              final months = [
-                "JAN",
-                "FEB",
-                "MAR",
-                "APR",
-                "MAY",
-                "JUN",
-                "JUL",
-                "AUG",
-                "SEP",
-                "OCT",
-                "NOV",
-                "DEC"
-              ];
-              return Container(
-                width: _monthWidth,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  border: Border(
-                      right: BorderSide(
-                          color: Colors.white.withOpacity(0.5), width: 1)),
-                ),
-                child: Text(
-                  months[index],
-                  style: const TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFixedTaskLabel(String label) {
-    return Container(
-      height: _rowHeight, // Fixed Height to match timeline rows
-      alignment: Alignment.topCenter, // Align with the bar top
-      child: Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        margin: const EdgeInsets.only(bottom: 15), // Spacing between chips
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center),
-      ),
-    );
-  }
-
-  Widget _buildTimelineRow(double totalWidth, double startOffset,
-      double durationWidth, Color color, String text) {
-    return Container(
-      height: _rowHeight, // Fixed Height
-      alignment: Alignment.topCenter,
-      child: Container(
-        height: 35, // Bar Height (smaller than row height for padding)
-        width: totalWidth,
-        margin: const EdgeInsets.only(bottom: 15),
-        child: Stack(
-          children: [
-            // Vertical Grid Lines
-            Row(
-              children: List.generate(12, (index) {
-                return Container(
-                  width: _monthWidth,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(color: Colors.grey.shade200),
-                    ),
-                  ),
-                );
-              }),
-            ),
-            // Colored Bar
-            if (durationWidth > 0)
-              Positioned(
-                left: startOffset,
-                child: Container(
-                  width: durationWidth,
-                  height: 35,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: text.isNotEmpty
-                      ? Text(text,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis)
-                      : null,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProjectHeader() {
-    return Column(
-      children: [
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Site A - Residential Block",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87),
-                  ),
-                  SizedBox(height: 4),
-                  Text("Mumbai | ID-2341",
-                      style: TextStyle(color: Colors.grey, fontSize: 13)),
-                ],
-              ),
-            ),
+            _buildMetricItem("Total", "${metrics['totalTasks'] ?? 0}"),
+            _buildMetricItem("Rate", "${metrics['completionRate'] ?? 0}%"),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                RichText(
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 11, color: Colors.black87),
-                    children: [
-                      TextSpan(text: "Progress: "),
-                      TextSpan(
-                          text: "75 %",
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                RichText(
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 11, color: Colors.black87),
-                    children: [
-                      TextSpan(text: "Priority: "),
-                      TextSpan(
-                          text: "High",
-                          style: TextStyle(
-                              color: Colors.red, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9A825),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    children: [
-                      Text("Ongoing",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold)),
-                      SizedBox(width: 4),
-                      Icon(Icons.edit, color: Colors.white, size: 10)
-                    ],
-                  ),
-                ),
+                Text(
+                    "Start: ${DateFormat('dd MMM yyyy').format(DateTime.parse(start))}",
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                    "End: ${DateFormat('dd MMM yyyy').format(DateTime.parse(end))}",
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
-            )
-          ],
-        ),
-        const SizedBox(height: 10),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Start date: 12 JAN 2026",
-                style: TextStyle(fontSize: 11, color: Colors.blue)),
-            Text("Estimated end date: 13 Oct 2026",
-                style: TextStyle(fontSize: 11, color: Colors.blue)),
+            ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildMetricItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryBlue)),
+      ],
+    );
+  }
+
+  Widget _buildLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildLegendItem(Colors.red, "Critical"),
+          _buildLegendItem(AppColors.primaryBlue, "Scheduled"),
+          _buildLegendItem(AppColors.successGreen, "Completed"),
+        ],
+      ),
     );
   }
 
   Widget _buildLegendItem(Color color, String label) {
     return Row(
       children: [
-        CircleAvatar(radius: 5, backgroundColor: color),
-        const SizedBox(width: 5),
+        Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
         Text(label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
       ],
+    );
+  }
+
+  Widget _buildTimelineHeader(DateTime start, int totalMonths) {
+    return Container(
+      height: _headerHeight,
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: List.generate(totalMonths, (index) {
+          final monthDate = DateTime(start.year, start.month + index);
+          final monthLabel = DateFormat('MMM yyyy').format(monthDate);
+          return Container(
+            width: _monthWidth,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border(
+                  right: BorderSide(color: Colors.white.withOpacity(0.2))),
+            ),
+            child: Text(
+              monthLabel,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildFixedTaskLabel(String label) {
+    return Container(
+      height: _rowHeight,
+      width: _labelWidth,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.only(right: 10),
+      child: Text(
+        label,
+        style: const TextStyle(
+            fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildTimelineRow({
+    required DateTime chartStart,
+    required int totalMonths,
+    required dynamic task,
+  }) {
+    // Parse Dates from the API "yyyy-MM-dd"
+    final DateTime taskStart = DateTime.parse(task['start_date']);
+    final DateTime taskEnd = DateTime.parse(task['end_date']);
+    final String status =
+        (task['status'] ?? 'scheduled').toString().toLowerCase();
+    final String priority =
+        (task['priority'] ?? 'medium').toString().toLowerCase();
+
+    // 1. Calculate Horizontal Offset (Left)
+    // Find how many months difference from chart start
+    int monthsDiff = (taskStart.year - chartStart.year) * 12 +
+        taskStart.month -
+        chartStart.month;
+    // Calculate fractional day offset within that month
+    double dayRatio =
+        (taskStart.day - 1) / 30; // Approximation for visual placement
+    double leftPosition = (monthsDiff * _monthWidth) + (dayRatio * _monthWidth);
+
+    // 2. Calculate Width (Duration)
+    // We use the duration from API or calculate from dates
+    int durationDays = taskEnd.difference(taskStart).inDays;
+    if (durationDays <= 0) durationDays = 1;
+    double barWidth = (durationDays / 30) * _monthWidth;
+
+    // 3. Determine Color
+    Color barColor = AppColors.primaryBlue;
+    if (priority == 'critical' || priority == 'high') barColor = Colors.red;
+    if (status == 'completed' || status == 'done')
+      barColor = AppColors.successGreen;
+
+    return SizedBox(
+      height: _rowHeight,
+      child: Stack(
+        children: [
+          // Vertical Grid Lines (Months)
+          Row(
+            children: List.generate(
+                totalMonths,
+                (index) => Container(
+                      width: _monthWidth,
+                      decoration: BoxDecoration(
+                          border: Border(
+                              right: BorderSide(color: Colors.grey.shade100))),
+                    )),
+          ),
+          // Task Horizontal Bar
+          Positioned(
+            left: leftPosition,
+            top: 15,
+            child: Container(
+              width:
+                  barWidth < 10 ? 10 : barWidth, // Minimum width for visibility
+              height: 28,
+              decoration: BoxDecoration(
+                  color: barColor.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                        color: barColor.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2))
+                  ]),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (priority == 'critical')
+                      const Icon(Icons.bolt, color: Colors.white, size: 10),
+                    if (barWidth > 40)
+                      Expanded(
+                        child: Text(
+                          "${task['duration']}d",
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.clip,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

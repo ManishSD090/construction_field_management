@@ -348,6 +348,32 @@ class TimelineController extends AsyncNotifier<TimelineState> {
     return TimelineVersion.fromJson(response.data['data']);
   }
 
+  /// PUT /timelines/:id/versions/:versionNumber
+  Future<void> updateTimelineVersion(String timelineId, int versionNumber,
+      Map<String, dynamic> payload) async {
+    await _dioClient.dio
+        .put('$_basePath/$timelineId/versions/$versionNumber', data: payload);
+    // Invalidate details and relevant caches
+    ref.invalidate(timelineDetailsProvider(timelineId));
+  }
+
+  /// DELETE /timelines/:id/versions/:versionNumber
+  Future<void> deleteTimelineVersion(
+      String timelineId, int versionNumber) async {
+    await _dioClient.dio
+        .delete('$_basePath/$timelineId/versions/$versionNumber');
+    ref.invalidate(timelineDetailsProvider(timelineId));
+  }
+
+  /// POST /timelines/:id/versions/:versionNumber/submit
+  Future<void> submitVersionForApproval(String timelineId, int versionNumber,
+      Map<String, dynamic> payload) async {
+    await _dioClient.dio.post(
+        '$_basePath/$timelineId/versions/$versionNumber/submit',
+        data: payload);
+    ref.invalidate(timelineDetailsProvider(timelineId));
+  }
+
   /// POST /timelines/:id/versions/:version/set-baseline
   Future<void> setVersionAsBaseline(
       String timelineId, int versionNumber) async {

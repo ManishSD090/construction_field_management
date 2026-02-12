@@ -603,17 +603,27 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        ElevatedButton(
-          onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const GanttChartScreen())),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              minimumSize: const Size(80, 28),
-              shape: StadiumBorder()),
-          child: const Text("VIEW",
-              style: TextStyle(color: Colors.white, fontSize: 10)),
+        FutureBuilder<String?>(
+          future: _timelineIdFuture,
+          builder: (context, snapshot) {
+            final timelineId = snapshot.data;
+            return ElevatedButton(
+              onPressed: timelineId != null
+                  ? () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => GanttChartScreen(
+                                timelineId: timelineId,
+                              )))
+                  : null,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  minimumSize: const Size(80, 28),
+                  shape: const StadiumBorder()),
+              child: const Text("VIEW",
+                  style: TextStyle(color: Colors.white, fontSize: 10)),
+            );
+          },
         )
       ],
     );

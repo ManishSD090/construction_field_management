@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/screens/projects/edit_timeline.dart';
+import 'package:construction_erp/controllers/admin/user_controller.dart';
 import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
 import 'package:construction_erp/models/timeline.dart'; // Import TimelineVersion
+import 'package:construction_erp/models/enums.dart';
 
 class TimelineTab extends ConsumerStatefulWidget {
-  final String timelineId; // Need this to fetch specific timeline data
+  final String timelineId;
 
   const TimelineTab({
     super.key,
@@ -38,11 +40,8 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
     final now = DateTime.now();
     _selectedMonth = now.month;
     _selectedYear = now.year;
-
-    // Generate years dynamically (e.g., previous year to 3 years in future)
     _years = List.generate(5, (i) => now.year - 1 + i);
 
-    // First fetch available versions, then fetch calendar
     _fetchVersions();
   }
 
@@ -55,10 +54,7 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
       if (mounted) {
         setState(() {
           _versions = versions;
-          // Default to the latest version if available (versions are usually sorted desc)
-          // If versions list is empty, _selectedVersionId remains null (fetching current state)
-          if (versions.isNotEmpty) {
-            // You can choose to default to the active/current one, or just the first in list
+          if (versions.isNotEmpty && _selectedVersionId == null) {
             _selectedVersionId = versions.first.id;
           }
           _isLoadingVersions = false;
@@ -68,7 +64,6 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingVersions = false);
-        // Still try to fetch calendar without version
         _fetchCalendarData();
       }
     }
@@ -81,6 +76,156 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
           .getTimelineCalendar(widget.timelineId, _selectedYear, _selectedMonth,
               versionId: _selectedVersionId);
     });
+  }
+
+  TimelineVersion? get _selectedVersion {
+    if (_selectedVersionId == null || _versions.isEmpty) return null;
+    try {
+      return _versions.firstWhere((v) => v.id == _selectedVersionId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _submitForApproval() async {
+    final version = _selectedVersion;
+    if (version == null) return;
+
+    // 1. Trigger User Fetch (To get potential approvers)
+    await ref
+        .read(userControllerProvider.notifier)
+        .fetchUsers(status: 'ACTIVE');
+
+    if (!mounted) return;
+
+    final commentController = TextEditingController();
+    String? selectedApproverId;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        // Use StatefulBuilder to manage dialog state
+        builder: (context, setDialogState) =>
+            Consumer(builder: (context, ref, _) {
+          final userState = ref.watch(userControllerProvider);
+          final users = userState.value?.userList ?? [];
+          final bool isLoadingUsers = userState.isLoading;
+
+          return AlertDialog(
+            title: const Text("Submit for Approval"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Choose an approver and add any relevant notes."),
+                const SizedBox(height: 20),
+
+                // --- Approver Selection ---
+                const Text("Approver",
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: isLoadingUsers
+                      ? const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: LinearProgressIndicator())
+                      : DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedApproverId,
+                            isExpanded: true,
+                            hint: const Text("Select Admin/Manager"),
+                            items: users
+                                .map((u) => DropdownMenuItem(
+                                      value: u.id,
+                                      child: Text(u.name ?? u.email ?? u.id),
+                                    ))
+                                .toList(),
+                            onChanged: (val) {
+                              // Correctly update state inside the dialog
+                              setDialogState(() {
+                                selectedApproverId = val;
+                              });
+                            },
+                          ),
+                        ),
+                ),
+
+                const SizedBox(height: 15),
+
+                // --- Comments ---
+                const Text("Submission Notes",
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: commentController,
+                  decoration: const InputDecoration(
+                    hintText:
+                        "E.g., Adjusted foundation dates due to weather...",
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                )
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text("Cancel")),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue),
+                child:
+                    const Text("Submit", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+
+    if (confirm == true) {
+      if (selectedApproverId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Please select an approver."),
+            backgroundColor: AppColors.alertRed));
+        return;
+      }
+
+      try {
+        await ref
+            .read(timelineControllerProvider.notifier)
+            .submitVersionForApproval(
+                widget.timelineId, version.versionNumber, {
+          "approverId": selectedApproverId,
+          "comments": commentController.text.trim(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text("Submitted for review successfully"),
+              backgroundColor: AppColors.successGreen));
+          _fetchVersions();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text("Submission failed: $e"),
+              backgroundColor: AppColors.alertRed));
+        }
+      }
+    }
   }
 
   String _getMonthAbbreviation(int month) {
@@ -115,35 +260,51 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Version Selector (Only show if loaded and multiple versions or just for clarity)
         if (!_isLoadingVersions && _versions.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 15.0),
-            child: _buildVersionSelector(),
+            child: Row(
+              children: [
+                Expanded(child: _buildVersionSelector()),
+                if (_selectedVersion?.status == TimelineVersionStatus.draft ||
+                    _selectedVersion?.status == TimelineVersionStatus.rejected)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10.0),
+                    child: ElevatedButton(
+                      onPressed: _submitForApproval,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text("SUBMIT",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+              ],
+            ),
           ),
-
         FutureBuilder<Map<String, dynamic>>(
             future: _calendarFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
                     child: Padding(
-                  padding: EdgeInsets.all(40.0),
-                  child: CircularProgressIndicator(),
-                ));
+                        padding: EdgeInsets.all(40.0),
+                        child: CircularProgressIndicator()));
               }
 
               if (snapshot.hasError) {
                 return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(40.0),
-                    child: Text(
-                      "Error loading timeline: ${snapshot.error}",
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
+                    child: Padding(
+                        padding: const EdgeInsets.all(40.0),
+                        child: Text("Error: ${snapshot.error}",
+                            style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center)));
               }
 
               final data = snapshot.data;
@@ -152,7 +313,6 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
               final tasksByWeek =
                   (data?['tasksByWeek'] as Map<String, dynamic>?) ?? {};
 
-              // Calculate fallbacks if API data is missing
               final totalTasks = summary['totalTasks'] ?? 0;
               final totalWeeks = summary['totalWeeks'] ?? 0;
               final startDate = timelineInfo['startDate'];
@@ -161,45 +321,35 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- 1. Header Section ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        timelineInfo['name'] ?? "Timeline",
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      Text(timelineInfo['name'] ?? "Timeline",
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                       InkWell(
                         onTap: () {
                           Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => EditTimelineScreen(
-                                      timelineId: widget
-                                          .timelineId, // Pass ID to edit screen
-                                    )),
-                          ).then((_) {
-                            // Refresh versions and data when returning from edit screen
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => EditTimelineScreen(
+                                          timelineId: widget.timelineId)))
+                              .then((_) {
                             _fetchVersions();
                           });
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.edit,
-                              color: Colors.grey, size: 18),
-                        ),
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.2),
+                                shape: BoxShape.circle),
+                            child: const Icon(Icons.edit,
+                                color: Colors.grey, size: 18)),
                       )
                     ],
                   ),
                   const SizedBox(height: 15),
-
-                  // --- 2. Stats Row ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -209,47 +359,46 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                       Text("Active Weeks - $totalWeeks",
                           style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w500)),
-                      Text("Status: ${timelineInfo['status'] ?? 'N/A'}",
+                      Text(
+                          "Status: ${_selectedVersion?.status.toDisplayString() ?? 'N/A'}",
                           style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w500)),
                     ],
                   ),
                   const SizedBox(height: 15),
-
-                  // --- 3. Filters & Date Range ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Dropdowns
                       Row(
                         children: [
                           _buildDropdown(
-                            value: _selectedMonth,
-                            items: _months,
-                            labelBuilder: (val) => _getMonthAbbreviation(val),
-                            onChanged: (val) {
-                              if (val != null && val != _selectedMonth) {
-                                _selectedMonth = val;
-                                _fetchCalendarData();
-                              }
-                            },
-                          ),
+                              value: _selectedMonth,
+                              items: _months,
+                              labelBuilder: (val) => _getMonthAbbreviation(val),
+                              onChanged: (val) {
+                                if (val != null && val != _selectedMonth) {
+                                  setState(() {
+                                    _selectedMonth = val;
+                                    _fetchCalendarData();
+                                  });
+                                }
+                              }),
                           const SizedBox(width: 10),
                           _buildDropdown(
-                            value: _selectedYear,
-                            items: _years,
-                            labelBuilder: (val) => val.toString(),
-                            onChanged: (val) {
-                              if (val != null && val != _selectedYear) {
-                                _selectedYear = val;
-                                _fetchCalendarData();
-                              }
-                            },
-                          ),
+                              value: _selectedYear,
+                              items: _years,
+                              labelBuilder: (val) => val.toString(),
+                              onChanged: (val) {
+                                if (val != null && val != _selectedYear) {
+                                  setState(() {
+                                    _selectedYear = val;
+                                    _fetchCalendarData();
+                                  });
+                                }
+                              }),
                         ],
                       ),
-                      // Date Range Text
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -266,31 +415,22 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                   const SizedBox(height: 10),
                   const Divider(color: Colors.blue, thickness: 1.5),
                   const SizedBox(height: 15),
-
-                  // --- 4. Month Title ---
                   Center(
-                    child: Text(
-                      "${_getMonthAbbreviation(_selectedMonth)} $_selectedYear",
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                      child: Text(
+                          "${_getMonthAbbreviation(_selectedMonth)} $_selectedYear",
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 20),
-
-                  // --- 5. Weekly Tasks List ---
                   const Text("Weekly Tasks",
                       style:
                           TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 15),
-
                   if (tasksByWeek.isEmpty)
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 30),
-                      child: Center(
-                        child: Text("No tasks scheduled for this month.",
-                            style: TextStyle(color: Colors.grey)),
-                      ),
-                    )
+                        padding: EdgeInsets.symmetric(vertical: 30),
+                        child: Center(
+                            child: Text("No tasks scheduled for this month.",
+                                style: TextStyle(color: Colors.grey))))
                   else
                     ListView.builder(
                       shrinkWrap: true,
@@ -299,17 +439,12 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                       itemBuilder: (context, index) {
                         String weekKey = tasksByWeek.keys.elementAt(index);
                         List<dynamic> tasks = tasksByWeek[weekKey];
-
-                        // Extract just the number from "Week X" if possible
                         String weekNumStr =
                             weekKey.replaceAll(RegExp(r'[^0-9]'), '');
                         int weekNum = int.tryParse(weekNumStr) ?? (index + 1);
-
                         return _buildWeeklyTaskItem(weekNum, tasks);
                       },
                     ),
-
-                  // Extra space at bottom
                   const SizedBox(height: 80),
                 ],
               );
@@ -318,15 +453,13 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
     );
   }
 
-  // --- Version Selector Widget ---
   Widget _buildVersionSelector() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5)),
-        borderRadius: BorderRadius.circular(8),
-      ),
+          color: Colors.white,
+          border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(8)),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedVersionId,
@@ -377,31 +510,26 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
     );
   }
 
-  // --- Helper Widgets ---
-
-  Widget _buildDropdown<T>({
-    required T value,
-    required List<T> items,
-    required String Function(T) labelBuilder,
-    required ValueChanged<T?> onChanged,
-  }) {
+  Widget _buildDropdown<T>(
+      {required T value,
+      required List<T> items,
+      required String Function(T) labelBuilder,
+      required ValueChanged<T?> onChanged}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primaryBlue),
-        borderRadius: BorderRadius.circular(8),
-      ),
+          border: Border.all(color: AppColors.primaryBlue),
+          borderRadius: BorderRadius.circular(8)),
       child: DropdownButton<T>(
         value: value,
         items: items
             .map((e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(labelBuilder(e),
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryBlue)),
-                ))
+                value: e,
+                child: Text(labelBuilder(e),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryBlue))))
             .toList(),
         onChanged: onChanged,
         underline: const SizedBox(),
@@ -419,43 +547,32 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Blue Vertical Bar with Week Number
             Container(
               width: 40,
               decoration: const BoxDecoration(
-                color: Color(0xFF3B71CA), // Darker Blue
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
-                ),
-              ),
+                  color: Color(0xFF3B71CA),
+                  borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      bottomLeft: Radius.circular(8))),
               child: Center(
-                child: Text(
-                  "$weekNum",
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16),
-                ),
-              ),
+                  child: Text("$weekNum",
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16))),
             ),
-
-            // List of Tasks (Expandable)
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(8),
+                        bottomRight: Radius.circular(8)),
+                    border: Border.all(color: Colors.grey.shade200)),
                 child: Column(
-                  children: tasks.map((taskData) {
-                    return _buildExpandableTask(taskData);
-                  }).toList(),
-                ),
+                    children: tasks
+                        .map((taskData) => _buildExpandableTask(taskData))
+                        .toList()),
               ),
             ),
           ],
@@ -480,21 +597,17 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
         title: Row(
           children: [
             Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87),
-              ),
-            ),
+                child: Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87))),
             if (isCritical)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(4)),
                 child: Text("CRITICAL",
                     style: TextStyle(
                         fontSize: 10,
@@ -529,28 +642,18 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                   const SizedBox(height: 6),
                   ...subtasks.map((sub) {
                     final subDesc = sub['description'] ?? 'Unnamed subtask';
-
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 6.0, left: 8.0),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "• ",
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 14,
-                            ),
-                          ),
+                          const Text("• ",
+                              style: TextStyle(
+                                  color: Colors.black87, fontSize: 14)),
                           Expanded(
-                            child: Text(
-                              subDesc,
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
+                              child: Text(subDesc,
+                                  style: const TextStyle(
+                                      color: Colors.black87, fontSize: 14))),
                         ],
                       ),
                     );
