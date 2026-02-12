@@ -4,7 +4,6 @@ import 'package:construction_erp/core/dio_client.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/models/timeline.dart';
 import 'package:construction_erp/models/enums.dart';
-
 // ==========================================================================
 // PROVIDERS
 // ==========================================================================
@@ -187,7 +186,24 @@ class TimelineController extends AsyncNotifier<TimelineState> {
   Future<Timeline> getTimelineById(String id) async {
     try {
       final response = await _dioClient.dio.get('$_basePath/$id');
-      return Timeline.fromJson(response.data['data']);
+      var timeline = Timeline.fromJson(response.data['data']);
+
+      // Fix for duplicate tasks: Filter tasks to only include those belonging to the
+      // latest version returned in timelineVersions (which corresponds to currentVersion).
+      if (timeline.timelineTasks != null &&
+          timeline.timelineVersions != null &&
+          timeline.timelineVersions!.isNotEmpty) {
+        // The backend sorts timelineVersions desc by versionNumber, so first is active/latest
+        final activeVersionId = timeline.timelineVersions!.first.id;
+
+        final filteredTasks = timeline.timelineTasks!
+            .where((t) => t.timelineVersionId == activeVersionId)
+            .toList();
+
+        timeline = timeline.copyWith(timelineTasks: filteredTasks);
+      }
+
+      return timeline;
     } catch (e) {
       rethrow;
     }
@@ -203,6 +219,44 @@ class TimelineController extends AsyncNotifier<TimelineState> {
     });
     // Invalidate details provider to force refresh on detail screens
     ref.invalidate(timelineDetailsProvider(id));
+  }
+
+  /// Orchestrated flow to update Timeline, bulk update existing tasks, and create new ones
+  Future<void> saveEditedTimeline({
+    required String timelineId,
+    required Map<String, dynamic> headerUpdates,
+    required List<Map<String, dynamic>> taskUpdates,
+    required List<Map<String, dynamic>> newTasks,
+  }) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      // 1. Update Timeline Header
+      if (headerUpdates.isNotEmpty) {
+        await _dioClient.dio.put('$_basePath/$timelineId', data: headerUpdates);
+      }
+
+      // 2. Bulk Update Existing Tasks
+      if (taskUpdates.isNotEmpty) {
+        await _dioClient.dio.put('$_basePath/$timelineId/tasks/bulk', data: {
+          'updates': taskUpdates,
+        });
+      }
+
+      // 3. Create New Tasks
+      // Assuming new tasks need to be created sequentially since there is no bulk create endpoint for NEW tasks.
+      if (newTasks.isNotEmpty) {
+        for (final newTaskPayload in newTasks) {
+          await _dioClient.dio
+              .post('$_basePath/$timelineId/tasks/new', data: newTaskPayload);
+        }
+      }
+
+      // Refresh list view
+      return _fetchPage(page: 1, isRefresh: true);
+    });
+
+    // Invalidate the specific timeline details to ensure fresh data on UI
+    ref.invalidate(timelineDetailsProvider(timelineId));
   }
 
   /// DELETE /timelines/:id
@@ -286,6 +340,14 @@ class TimelineController extends AsyncNotifier<TimelineState> {
     return list.map((e) => TimelineVersion.fromJson(e)).toList();
   }
 
+  /// GET /timelines/:id/versions/:versionNumber
+  Future<TimelineVersion> getTimelineVersionById(
+      String timelineId, int versionNumber) async {
+    final response = await _dioClient.dio
+        .get('$_basePath/$timelineId/versions/$versionNumber');
+    return TimelineVersion.fromJson(response.data['data']);
+  }
+
   /// POST /timelines/:id/versions/:version/set-baseline
   Future<void> setVersionAsBaseline(
       String timelineId, int versionNumber) async {
@@ -332,6 +394,23 @@ class TimelineController extends AsyncNotifier<TimelineState> {
     ref.invalidate(timelineDetailsProvider(timelineId));
   }
 
+  /// PUT /timelines/:id/tasks/bulk
+  Future<void> bulkUpdateTimelineTasks(
+      String timelineId, List<Map<String, dynamic>> updates) async {
+    await _dioClient.dio.put('$_basePath/$timelineId/tasks/bulk', data: {
+      'updates': updates,
+    });
+    ref.invalidate(timelineDetailsProvider(timelineId));
+  }
+
+  /// PUT /timelines/:id/tasks/:taskId
+  Future<void> updateTimelineTaskDetails(
+      String timelineId, String taskId, Map<String, dynamic> payload) async {
+    await _dioClient.dio
+        .put('$_basePath/$timelineId/tasks/$taskId', data: payload);
+    ref.invalidate(timelineDetailsProvider(timelineId));
+  }
+
   /// PATCH /timelines/:id/tasks/:taskId/status
   Future<void> updateTaskStatus(
       String timelineId, String taskId, String status, String? notes) async {
@@ -350,10 +429,15 @@ class TimelineController extends AsyncNotifier<TimelineState> {
 
   /// GET /timelines/:id/calendar
   Future<Map<String, dynamic>> getTimelineCalendar(
-      String timelineId, int year, int month) async {
+      String timelineId, int year, int month,
+      {String? versionId}) async {
     final response = await _dioClient.dio.get(
       '$_basePath/$timelineId/calendar',
-      queryParameters: {'year': year, 'month': month},
+      queryParameters: {
+        'year': year,
+        'month': month,
+        if (versionId != null) 'timelineVersionId': versionId,
+      },
     );
     return response.data['data'];
   }

@@ -5,6 +5,7 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
+import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
 
 // Tab and Screen Imports
 import 'package:construction_erp/screens/projects/edit_project.dart';
@@ -14,6 +15,7 @@ import 'package:construction_erp/screens/projects/project_sub_contractors_list.d
 import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 import 'package:construction_erp/screens/projects/timeline_tab.dart';
 import 'package:construction_erp/screens/projects/create_timeline.dart' as ct;
+import 'package:construction_erp/screens/projects/create_timeline_version.dart'; // New Import
 import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
 
 class ProjectDetailsScreen extends ConsumerStatefulWidget {
@@ -28,12 +30,44 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   String _selectedTab = 'Overview';
   late Project project;
 
+  // Future to hold the timeline ID
+  Future<String?>? _timelineIdFuture;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Project) {
+    if (args is Project && _timelineIdFuture == null) {
       project = args;
+      // Fetch the timeline ID as soon as we have the project
+      _timelineIdFuture = _fetchTimelineId();
+    }
+  }
+
+  // ================== TIMELINE LOGIC ==================
+
+  Future<String?> _fetchTimelineId() async {
+    try {
+      final summary = await ref
+          .read(timelineControllerProvider.notifier)
+          .getProjectTimelineSummary(project.id);
+
+      final timelines = summary['timelines'];
+      if (timelines == null) return null;
+
+      // Prefer the active timeline first, then approved, then any available
+      if (timelines['active'] != null) return timelines['active']['id'];
+      if (timelines['approved'] != null) return timelines['approved']['id'];
+
+      final all = timelines['all'] as List?;
+      if (all != null && all.isNotEmpty) {
+        return all.first['id'];
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching timeline id: $e');
+      return null;
     }
   }
 
@@ -144,7 +178,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   }
 
   Future<void> _performDeleteProject() async {
-    // Call the delete method from your ProjectController
     await ref
         .read(projectControllerProvider.notifier)
         .deleteProject(project.id);
@@ -264,11 +297,12 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   // ================== COMPONENTS ==================
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline'].contains(_selectedTab))
+    if (!['Tasks', 'Sub-contractor', 'Timeline'].contains(_selectedTab)) {
       return null;
+    }
 
     return FloatingActionButton(
-      onPressed: () {
+      onPressed: () async {
         if (_selectedTab == 'Tasks') {
           Navigator.push(
               context,
@@ -281,10 +315,39 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                   builder: (context) =>
                       AddSubContractorScreen(projectId: project.id)));
         } else if (_selectedTab == 'Timeline') {
-          Navigator.push(
+          // Check if timeline exists to decide destination
+          final timelineId = await _timelineIdFuture;
+
+          if (!mounted) return;
+
+          if (timelineId != null) {
+            // Timeline exists -> Open Create Version Screen
+            Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const ct.CreateTimelineScreen()));
+                builder: (context) =>
+                    CreateTimelineVersionScreen(timelineId: timelineId),
+              ),
+            ).then((_) {
+              // Refresh if needed (e.g., if version creation changes active timeline)
+              setState(() {
+                _timelineIdFuture = _fetchTimelineId();
+              });
+            });
+          } else {
+            // No timeline -> Open Create Timeline Screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      ct.CreateTimelineScreen(projectId: project.id)),
+            ).then((_) {
+              // Refresh timeline ID future after creating a timeline
+              setState(() {
+                _timelineIdFuture = _fetchTimelineId();
+              });
+            });
+          }
         }
       },
       backgroundColor: AppColors.primaryBlue,
@@ -423,7 +486,62 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     if (_selectedTab == 'Sub-contractor') {
       return ProjectSubContractorsList(projectId: project.id);
     }
-    if (_selectedTab == 'Timeline') return const TimelineTab();
+    if (_selectedTab == 'Timeline') {
+      return FutureBuilder<String?>(
+        future: _timelineIdFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(40.0),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final timelineId = snapshot.data;
+
+          if (timelineId == null) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40.0),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.calendar_month_outlined,
+                        size: 56, color: AppColors.textGrey),
+                    const SizedBox(height: 16),
+                    const Text("No active timeline found for this project.",
+                        style:
+                            TextStyle(color: AppColors.textGrey, fontSize: 14)),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text("Create Timeline"),
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => ct.CreateTimelineScreen(
+                                  projectId: project.id))).then((_) {
+                        setState(() {
+                          _timelineIdFuture = _fetchTimelineId();
+                        });
+                      }),
+                    )
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return TimelineTab(timelineId: timelineId);
+        },
+      );
+    }
 
     if (_selectedTab == 'Overview') {
       return Column(
@@ -435,8 +553,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
               Expanded(
                 child: Column(
                   children: [
-                    // _buildDetailLinkRow(
-                    //     "Client:", project.client?.companyName ?? "N/A"),
                     _buildDetailLinkRow("Location:", project.location),
                     _buildDetailLinkRow("Project Manager:",
                         project.createdBy?.name ?? "Not Assigned"),

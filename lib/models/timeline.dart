@@ -1,8 +1,9 @@
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/task.dart';
+
 // ==========================================
-// TIMELINE MODELS
+// TIMELINE MODELS (Null-Safe Resilient Version)
 // ==========================================
 
 class Timeline {
@@ -141,13 +142,20 @@ class Timeline {
 
   factory Timeline.fromJson(Map<String, dynamic> json) {
     return Timeline(
-      id: json['id'] as String,
-      projectId: json['projectId'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      // Extract projectId from root or nested project object safely
+      projectId: json['projectId'] as String? ??
+          json['project']?['id'] as String? ??
+          '',
+      name: json['name'] as String? ?? 'Untitled Timeline',
       description: json['description'] as String?,
-      startDate: DateTime.parse(json['startDate'] as String),
-      endDate: DateTime.parse(json['endDate'] as String),
-      status: TimelineStatus.fromJson(json['status'] as String? ?? 'DRAFT'),
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'].toString())
+          : DateTime.now(),
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'].toString())
+          : DateTime.now(),
+      status: TimelineStatus.fromJson(json['status']),
       currentVersion: json['currentVersion'] as int? ?? 1,
       isCurrent: json['isCurrent'] as bool? ?? true,
       isBaseline: json['isBaseline'] as bool? ?? false,
@@ -155,27 +163,31 @@ class Timeline {
       approvedBy:
           json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
       approvedAt: json['approvedAt'] != null
-          ? DateTime.parse(json['approvedAt'] as String)
+          ? DateTime.parse(json['approvedAt'].toString())
           : null,
       rejectionReason: json['rejectionReason'] as String?,
       lockedAt: json['lockedAt'] != null
-          ? DateTime.parse(json['lockedAt'] as String)
+          ? DateTime.parse(json['lockedAt'].toString())
           : null,
       lockedById: json['lockedById'] as String?,
       lockedBy:
           json['lockedBy'] != null ? User.fromJson(json['lockedBy']) : null,
       archivedAt: json['archivedAt'] != null
-          ? DateTime.parse(json['archivedAt'] as String)
+          ? DateTime.parse(json['archivedAt'].toString())
           : null,
       archivedById: json['archivedById'] as String?,
       archivedBy:
           json['archivedBy'] != null ? User.fromJson(json['archivedBy']) : null,
-      createdById: json['createdById'] as String,
+      createdById: json['createdById'] as String? ?? '',
       createdBy:
           json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
       versionComment: json['versionComment'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'].toString())
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'].toString())
+          : DateTime.now(),
       timelineVersions: (json['timelineVersions'] as List?)
           ?.map((v) => TimelineVersion.fromJson(v))
           .toList(),
@@ -204,10 +216,24 @@ class Timeline {
       'isCurrent': isCurrent,
       'isBaseline': isBaseline,
       'approvedById': approvedById,
+      'approvedBy': approvedBy?.toJson(),
       'approvedAt': approvedAt?.toIso8601String(),
+      'rejectionReason': rejectionReason,
+      'lockedAt': lockedAt?.toIso8601String(),
+      'lockedById': lockedById,
+      'lockedBy': lockedBy?.toJson(),
+      'archivedAt': archivedAt?.toIso8601String(),
+      'archivedById': archivedById,
+      'archivedBy': archivedBy?.toJson(),
       'createdById': createdById,
+      'createdBy': createdBy?.toJson(),
+      'versionComment': versionComment,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'timelineVersions': timelineVersions?.map((v) => v.toJson()).toList(),
+      'timelineTasks': timelineTasks?.map((tt) => tt.toJson()).toList(),
+      'timelineHistory': timelineHistory?.map((h) => h.toJson()).toList(),
+      'approvals': approvals?.map((a) => a.toJson()).toList(),
     };
   }
 }
@@ -315,40 +341,74 @@ class TimelineVersion {
 
   factory TimelineVersion.fromJson(Map<String, dynamic> json) {
     return TimelineVersion(
-      id: json['id'] as String,
-      timelineId: json['timelineId'] as String,
-      versionNumber: json['versionNumber'] as int,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      timelineId: json['timelineId'] as String? ?? '',
+      versionNumber: json['versionNumber'] as int? ?? 1,
+      name: json['name'] as String? ?? '',
       description: json['description'] as String?,
-      startDate: DateTime.parse(json['startDate'] as String),
-      endDate: DateTime.parse(json['endDate'] as String),
-      status:
-          TimelineVersionStatus.fromJson(json['status'] as String? ?? 'DRAFT'),
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'].toString())
+          : DateTime.now(),
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'].toString())
+          : DateTime.now(),
+      status: TimelineVersionStatus.fromJson(json['status']),
       isBaseline: json['isBaseline'] as bool? ?? false,
       changesSummary: json['changesSummary'] as String?,
-      createdById: json['createdById'] as String,
+      createdById: json['createdById'] as String? ?? '',
       createdBy:
           json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
       approvedById: json['approvedById'] as String?,
       approvedBy:
           json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
       approvedAt: json['approvedAt'] != null
-          ? DateTime.parse(json['approvedAt'] as String)
+          ? DateTime.parse(json['approvedAt'].toString())
           : null,
       rejectionReason: json['rejectionReason'] as String?,
       submittedAt: json['submittedAt'] != null
-          ? DateTime.parse(json['submittedAt'] as String)
+          ? DateTime.parse(json['submittedAt'].toString())
           : null,
       submittedById: json['submittedById'] as String?,
       submittedBy: json['submittedBy'] != null
           ? User.fromJson(json['submittedBy'])
           : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'].toString())
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'].toString())
+          : DateTime.now(),
       timelineTasks: (json['timelineTasks'] as List?)
           ?.map((tt) => TimelineTask.fromJson(tt))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'timelineId': timelineId,
+      'versionNumber': versionNumber,
+      'name': name,
+      'description': description,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'status': status.toJson(),
+      'isBaseline': isBaseline,
+      'changesSummary': changesSummary,
+      'createdById': createdById,
+      'createdBy': createdBy?.toJson(),
+      'approvedById': approvedById,
+      'approvedBy': approvedBy?.toJson(),
+      'approvedAt': approvedAt?.toIso8601String(),
+      'rejectionReason': rejectionReason,
+      'submittedAt': submittedAt?.toIso8601String(),
+      'submittedById': submittedById,
+      'submittedBy': submittedBy?.toJson(),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'timelineTasks': timelineTasks?.map((tt) => tt.toJson()).toList(),
+    };
   }
 }
 
@@ -436,28 +496,31 @@ class TimelineTask {
 
   factory TimelineTask.fromJson(Map<String, dynamic> json) {
     return TimelineTask(
-      id: json['id'] as String,
-      timelineId: json['timelineId'] as String,
-      timelineVersionId: json['timelineVersionId'] as String,
-      taskId: json['taskId'] as String,
+      id: json['id'] as String? ?? '',
+      timelineId: json['timelineId'] as String? ?? '',
+      timelineVersionId: json['timelineVersionId'] as String? ?? '',
+      taskId: json['taskId'] as String? ?? json['task']?['id'] as String? ?? '',
       task: json['task'] != null ? Task.fromJson(json['task']) : null,
-      month: json['month'] as int,
-      year: json['year'] as int,
-      week: json['week'] as int,
-      weekOfMonth: json['weekOfMonth'] as int,
+      month: json['month'] as int? ?? 1,
+      year: json['year'] as int? ?? DateTime.now().year,
+      week: json['week'] as int? ?? 1,
+      weekOfMonth: json['weekOfMonth'] as int? ?? 1,
       order: json['order'] as int? ?? 0,
       plannedStartDate: json['plannedStartDate'] != null
-          ? DateTime.parse(json['plannedStartDate'] as String)
+          ? DateTime.parse(json['plannedStartDate'].toString())
           : null,
       plannedEndDate: json['plannedEndDate'] != null
-          ? DateTime.parse(json['plannedEndDate'] as String)
+          ? DateTime.parse(json['plannedEndDate'].toString())
           : null,
-      timelineStatus: TimelineTaskStatus.fromJson(
-          json['timelineStatus'] as String? ?? 'SCHEDULED'),
+      timelineStatus: TimelineTaskStatus.fromJson(json['timelineStatus']),
       isCritical: json['isCritical'] as bool? ?? false,
       notes: json['notes'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'].toString())
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'].toString())
+          : DateTime.now(),
     );
   }
 
@@ -467,6 +530,7 @@ class TimelineTask {
       'timelineId': timelineId,
       'timelineVersionId': timelineVersionId,
       'taskId': taskId,
+      'task': task?.toJson(),
       'month': month,
       'year': year,
       'week': week,
@@ -477,6 +541,8 @@ class TimelineTask {
       'timelineStatus': timelineStatus.toJson(),
       'isCritical': isCritical,
       'notes': notes,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 }
@@ -538,20 +604,38 @@ class TimelineHistory {
 
   factory TimelineHistory.fromJson(Map<String, dynamic> json) {
     return TimelineHistory(
-      id: json['id'] as String,
-      timelineId: json['timelineId'] as String,
+      id: json['id'] as String? ?? '',
+      timelineId: json['timelineId'] as String? ?? '',
       timelineVersionId: json['timelineVersionId'] as String?,
-      action: json['action'] as String,
-      entityType: json['entityType'] as String,
+      action: json['action'] as String? ?? 'UNKNOWN',
+      entityType: json['entityType'] as String? ?? 'TIMELINE',
       entityId: json['entityId'] as String?,
       changes: json['changes'] as Map<String, dynamic>?,
-      performedById: json['performedById'] as String,
+      performedById: json['performedById'] as String? ?? '',
       performedBy: json['performedBy'] != null
           ? User.fromJson(json['performedBy'])
           : null,
-      performedAt: DateTime.parse(json['performedAt'] as String),
+      performedAt: json['performedAt'] != null
+          ? DateTime.parse(json['performedAt'].toString())
+          : DateTime.now(),
       notes: json['notes'] as String?,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'timelineId': timelineId,
+      'timelineVersionId': timelineVersionId,
+      'action': action,
+      'entityType': entityType,
+      'entityId': entityId,
+      'changes': changes,
+      'performedById': performedById,
+      'performedBy': performedBy?.toJson(),
+      'performedAt': performedAt.toIso8601String(),
+      'notes': notes,
+    };
   }
 }
 
@@ -632,29 +716,52 @@ class TimelineApproval {
 
   factory TimelineApproval.fromJson(Map<String, dynamic> json) {
     return TimelineApproval(
-      id: json['id'] as String,
-      timelineId: json['timelineId'] as String,
+      id: json['id'] as String? ?? '',
+      timelineId: json['timelineId'] as String? ?? '',
       timelineVersionId: json['timelineVersionId'] as String?,
-      approvalType: json['approvalType'] as String,
-      entityType: json['entityType'] as String,
+      approvalType: json['approvalType'] as String? ?? '',
+      entityType: json['entityType'] as String? ?? 'TIMELINE',
       entityId: json['entityId'] as String?,
-      requestedById: json['requestedById'] as String,
+      requestedById: json['requestedById'] as String? ?? '',
       requestedBy: json['requestedBy'] != null
           ? User.fromJson(json['requestedBy'])
           : null,
-      requestedAt: DateTime.parse(json['requestedAt'] as String),
-      approverId: json['approverId'] as String,
+      requestedAt: json['requestedAt'] != null
+          ? DateTime.parse(json['requestedAt'].toString())
+          : DateTime.now(),
+      approverId: json['approverId'] as String? ?? '',
       approver:
           json['approver'] != null ? User.fromJson(json['approver']) : null,
       status: json['status'] as String? ?? 'PENDING',
       decision: json['decision'] as String?,
       decisionNotes: json['decisionNotes'] as String?,
       decidedAt: json['decidedAt'] != null
-          ? DateTime.parse(json['decidedAt'] as String)
+          ? DateTime.parse(json['decidedAt'].toString())
           : null,
       dueDate: json['dueDate'] != null
-          ? DateTime.parse(json['dueDate'] as String)
+          ? DateTime.parse(json['dueDate'].toString())
           : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'timelineId': timelineId,
+      'timelineVersionId': timelineVersionId,
+      'approvalType': approvalType,
+      'entityType': entityType,
+      'entityId': entityId,
+      'requestedById': requestedById,
+      'requestedBy': requestedBy?.toJson(),
+      'requestedAt': requestedAt.toIso8601String(),
+      'approverId': approverId,
+      'approver': approver?.toJson(),
+      'status': status,
+      'decision': decision,
+      'decisionNotes': decisionNotes,
+      'decidedAt': decidedAt?.toIso8601String(),
+      'dueDate': dueDate?.toIso8601String(),
+    };
   }
 }
