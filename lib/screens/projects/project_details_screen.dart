@@ -12,7 +12,7 @@ import 'package:construction_erp/screens/projects/tasks.dart';
 import 'package:construction_erp/screens/projects/create_task.dart';
 import 'package:construction_erp/screens/projects/project_sub_contractors_list.dart';
 import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
-import 'package:construction_erp/screens/projects/timeline.dart';
+import 'package:construction_erp/screens/projects/timeline_tab.dart';
 import 'package:construction_erp/screens/projects/create_timeline.dart' as ct;
 import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
 

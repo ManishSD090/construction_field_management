@@ -422,3 +422,66 @@ enum PaymentStatus {
 
   String toJson() => _toSnake(name);
 }
+
+enum TimelineStatus {
+  draft,
+  pendingApproval,
+  approved,
+  rejected,
+  active,
+  archived,
+  locked;
+
+  static TimelineStatus fromJson(String? value) {
+    if (value == null || value.isEmpty) return TimelineStatus.draft;
+
+    final camel = _toCamel(value);
+    return TimelineStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => TimelineStatus.draft,
+    );
+  }
+
+  String toJson() => _toSnake(name).toUpperCase();
+}
+
+enum TimelineVersionStatus {
+  draft,
+  pendingReview,
+  approved,
+  rejected,
+  active,
+  archived;
+
+  static TimelineVersionStatus fromJson(String? value) {
+    if (value == null || value.isEmpty) return TimelineVersionStatus.draft;
+
+    final camel = _toCamel(value);
+    return TimelineVersionStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => TimelineVersionStatus.draft,
+    );
+  }
+
+  String toJson() => _toSnake(name).toUpperCase();
+}
+
+enum TimelineTaskStatus {
+  scheduled,
+  inProgress,
+  completed,
+  delayed,
+  cancelled;
+
+  static TimelineTaskStatus fromJson(String? value) {
+    if (value == null || value.isEmpty) return TimelineTaskStatus.scheduled;
+
+    final camel = _toCamel(value);
+    return TimelineTaskStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => TimelineTaskStatus.scheduled,
+    );
+  }
+
+  String toJson() => _toSnake(name).toUpperCase();
+}

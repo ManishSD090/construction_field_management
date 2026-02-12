@@ -210,7 +210,7 @@ class AdminProfileScreen extends ConsumerWidget {
                   },
                 ),
                 _buildSettingsTile(
-                  title: "Manage Sub Contractors",
+                  title: "Manage Sub-Contractors",
                   onTap: () {
                     Navigator.push(
                       context,

@@ -85,7 +85,7 @@ class Contractor {
       bankName: json['bankName']?.toString(),
       bankAccount: json['bankAccount']?.toString(),
       bankBranch: json['bankBranch']?.toString(),
-      ifscCode: json['ifscCode']?.toString(),
+      ifscCode: json['bankIfsc']?.toString(),
       // Handle numeric null-safety and defaults
       maxWorkers: (json['maxWorkers'] as num?)?.toInt() ?? 10,
       rating: (json['rating'] as num?)?.toDouble() ?? 5.0,
@@ -127,7 +127,7 @@ class Contractor {
       'bankName': bankName,
       'bankAccount': bankAccount,
       'bankBranch': bankBranch,
-      'ifscCode': ifscCode,
+      'bankIfsc': ifscCode,
       'maxWorkers': maxWorkers,
       'rating': rating,
       'status': status?.toJson(),
