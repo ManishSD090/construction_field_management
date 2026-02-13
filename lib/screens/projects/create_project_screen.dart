@@ -175,6 +175,12 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                 ],
               ),
               const SizedBox(height: 15),
+              _buildLabel("Contract Value"),
+              _buildTextField(
+                  controller: _contractValueController,
+                  hint: "Contract Value",
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 15),
               _buildLabel("Estimated Budget"),
               _buildTextField(
                   controller: _budgetController,

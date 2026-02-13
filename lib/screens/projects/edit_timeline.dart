@@ -27,7 +27,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
   List<TimelineVersion> _versions = [];
   bool _isLoadingVersions = true;
 
-  // Helper to get the currently selected version object
   TimelineVersion? get _selectedVersion {
     if (_selectedVersionId == null || _versions.isEmpty) return null;
     try {
@@ -120,8 +119,7 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Timeline"),
-        content: const Text(
-            "Are you sure you want to permanently delete this entire timeline and all its versions? This action cannot be undone."),
+        content: const Text("Are you sure? This action cannot be undone."),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -143,10 +141,10 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
         await ref
             .read(timelineControllerProvider.notifier)
             .deleteTimeline(widget.timelineId);
-        _showSuccess("Timeline deleted successfully");
+        _showSuccess("Timeline deleted");
         if (mounted) Navigator.pop(context);
       } catch (e) {
-        _showError("Failed to delete timeline: $e");
+        _showError("Failed: $e");
         setState(() => _isLoading = false);
       }
     }
@@ -155,7 +153,7 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
   void _deleteSelectedVersion() async {
     final ver = _selectedVersion;
     if (ver == null || _versions.length <= 1) {
-      _showError("Cannot delete the only version of a timeline.");
+      _showError("Cannot delete the only version.");
       return;
     }
 
@@ -163,7 +161,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Delete Version ${ver.versionNumber}"),
-        content: Text("Are you sure you want to delete '${ver.name}'?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -185,11 +182,11 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
         await ref
             .read(timelineControllerProvider.notifier)
             .deleteTimelineVersion(widget.timelineId, ver.versionNumber);
-        _showSuccess("Version deleted successfully");
-        _selectedVersionId = null; // Reset selection so refresh picks latest
+        _showSuccess("Version deleted");
+        _selectedVersionId = null;
         _fetchVersions();
       } catch (e) {
-        _showError("Failed to delete version: $e");
+        _showError("Failed: $e");
         setState(() => _isLoading = false);
       }
     }
@@ -200,7 +197,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Task"),
-        content: const Text("Are you sure you want to remove this task?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -221,7 +217,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
         await ref
             .read(timelineControllerProvider.notifier)
             .removeTaskFromTimeline(widget.timelineId, task.taskId);
-        _showSuccess("Task removed");
         await _loadTimelineData();
       } catch (e) {
         _showError("Failed: $e");
@@ -307,20 +302,18 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Manage Timeline",
-          style: TextStyle(
-              color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context)),
+        title: const Text("Manage Timeline",
+            style: TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_forever, color: AppColors.alertRed),
-            tooltip: "Delete Timeline",
-            onPressed: _deleteWholeTimeline,
-          ),
+              icon: const Icon(Icons.delete_forever, color: AppColors.alertRed),
+              tooltip: "Delete Timeline",
+              onPressed: _deleteWholeTimeline),
           const SizedBox(width: 8),
         ],
       ),
@@ -343,7 +336,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Version Selector
                     if (!_isLoadingVersions && _versions.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 20.0),
@@ -363,14 +355,9 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
                           ],
                         ),
                       ),
-
-                    // 2. Timeline Details Card
                     _buildSectionHeader("Timeline Details", _openHeaderEditor),
                     _buildTimelineCard(),
-
                     const SizedBox(height: 25),
-
-                    // 3. NEW: Selected Version Detail Card
                     if (_selectedVersion != null) ...[
                       _buildSectionHeader(
                           "Version V${_selectedVersion!.versionNumber} Info",
@@ -378,21 +365,17 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
                       _buildVersionDetailCard(),
                       const SizedBox(height: 30),
                     ],
-
-                    // 4. Tasks List
                     const Text("Scheduled Tasks",
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primaryBlue)),
                     const SizedBox(height: 15),
-
                     if (_timeline!.timelineTasks == null ||
                         _timeline!.timelineTasks!.isEmpty)
                       _buildEmptyState()
                     else
                       _buildGroupedTaskList(),
-
                     const SizedBox(height: 80),
                   ],
                 ),
@@ -400,8 +383,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
             ),
     );
   }
-
-  // ==================== WIDGET COMPONENTS ====================
 
   Widget _buildSectionHeader(String title, VoidCallback onEdit) {
     return Row(
@@ -413,10 +394,9 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
                 fontWeight: FontWeight.bold,
                 color: AppColors.primaryBlue)),
         TextButton.icon(
-          onPressed: onEdit,
-          icon: const Icon(Icons.edit, size: 16),
-          label: const Text("Edit", style: TextStyle(fontSize: 13)),
-        )
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit, size: 16),
+            label: const Text("Edit", style: TextStyle(fontSize: 13))),
       ],
     );
   }
@@ -426,22 +406,18 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(_timeline!.name,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          if (_timeline!.description?.isNotEmpty == true) ...[
-            const SizedBox(height: 4),
-            Text(_timeline!.description!,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
-          ],
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.calendar_today,
-              "${DateFormat('dd MMM yyyy').format(_timeline!.startDate)} - ${DateFormat('dd MMM yyyy').format(_timeline!.endDate)}"),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_timeline!.name,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        if (_timeline!.description?.isNotEmpty == true) ...[
+          const SizedBox(height: 4),
+          Text(_timeline!.description!,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
         ],
-      ),
+        const SizedBox(height: 12),
+        _buildInfoRow(Icons.calendar_today,
+            "${DateFormat('dd MMM yyyy').format(_timeline!.startDate)} - ${DateFormat('dd MMM yyyy').format(_timeline!.endDate)}"),
+      ]),
     );
   }
 
@@ -451,52 +427,43 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                  child: Text(v.name,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold))),
-              _buildVersionStatusChip(v.status),
-            ],
-          ),
-          if (v.description?.isNotEmpty == true) ...[
-            const SizedBox(height: 6),
-            Text(v.description!,
-                style: const TextStyle(fontSize: 13, color: Colors.black87)),
-          ],
-          if (v.changesSummary?.isNotEmpty == true) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(6)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Changes Summary:",
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey)),
-                  const SizedBox(height: 4),
-                  Text(v.changesSummary!,
-                      style:
-                          const TextStyle(fontSize: 12, color: Colors.black54)),
-                ],
-              ),
-            )
-          ],
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.history,
-              "Created by ${v.createdBy?.name ?? 'Unknown'} on ${DateFormat('dd MMM').format(v.createdAt)}"),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Expanded(
+              child: Text(v.name,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold))),
+          _buildVersionStatusChip(v.status),
+        ]),
+        if (v.description?.isNotEmpty == true) ...[
+          const SizedBox(height: 6),
+          Text(v.description!,
+              style: const TextStyle(fontSize: 13, color: Colors.black87)),
         ],
-      ),
+        if (v.changesSummary?.isNotEmpty == true) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(6)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("Changes Summary:",
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
+              const SizedBox(height: 4),
+              Text(v.changesSummary!,
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            ]),
+          )
+        ],
+        const SizedBox(height: 12),
+        _buildInfoRow(Icons.history,
+            "Created by ${v.createdBy?.name ?? 'Unknown'} on ${DateFormat('dd MMM').format(v.createdAt)}"),
+      ]),
     );
   }
 
@@ -520,30 +487,27 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
   }
 
   Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: AppColors.primaryBlue),
-        const SizedBox(width: 8),
-        Expanded(
-            child: Text(text,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w500))),
-      ],
-    );
+    return Row(children: [
+      Icon(icon, size: 14, color: AppColors.primaryBlue),
+      const SizedBox(width: 8),
+      Expanded(
+          child: Text(text,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
+    ]);
   }
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.grey.shade200),
-      boxShadow: [
-        BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 5,
-            offset: const Offset(0, 2))
-      ],
-    );
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 5,
+              offset: const Offset(0, 2))
+        ]);
   }
 
   Widget _buildVersionSelector() {
@@ -666,54 +630,52 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       decoration: BoxDecoration(
           border: Border(
               bottom: BorderSide(color: Colors.grey.shade200, width: 1))),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(children: [
-                    Expanded(
-                        child: Text(tt.task?.title ?? 'Task',
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w500))),
-                    if (tt.isCritical)
-                      Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                              color: Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(4)),
-                          child: const Text("CRITICAL",
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold))),
-                  ]),
-                  const SizedBox(height: 4),
-                  Text(tt.task?.description ?? (tt.notes ?? 'No description'),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: [
+                  Expanded(
+                      child: Text(tt.task?.title ?? 'Task',
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w500))),
+                  if (tt.isCritical)
+                    Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(4)),
+                        child: const Text("CRITICAL",
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold))),
                 ]),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-              onPressed: () => _openTaskEditor(task: tt),
-              icon: const Icon(Icons.edit_outlined,
-                  color: AppColors.primaryBlue, size: 20),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints()),
-          IconButton(
-              onPressed: () => _deleteTask(tt),
-              icon: const Icon(Icons.delete_outline,
-                  color: AppColors.alertRed, size: 20),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints()),
-        ],
-      ),
+                const SizedBox(height: 4),
+                Text(tt.task?.description ?? (tt.notes ?? 'No description'),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ]),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+            onPressed: () => _openTaskEditor(task: tt),
+            icon: const Icon(Icons.edit_outlined,
+                color: AppColors.primaryBlue, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints()),
+        IconButton(
+            onPressed: () => _deleteTask(tt),
+            icon: const Icon(Icons.delete_outline,
+                color: AppColors.alertRed, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints()),
+      ]),
     );
   }
 }
@@ -839,31 +801,28 @@ class _VersionFormSheetState extends ConsumerState<_VersionFormSheet> {
           style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
       const SizedBox(height: 6),
       Container(
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade300)),
-        child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 12))),
-      )
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300)),
+          child: TextField(
+              controller: controller,
+              maxLines: maxLines,
+              decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 12)))),
     ]);
   }
 }
 
 // ============================================================================
-// HEADER FORM SHEET (MAIN TIMELINE)
+// HEADER FORM SHEET
 // ============================================================================
 
 class _HeaderFormSheet extends ConsumerStatefulWidget {
   final Timeline timeline;
   final VoidCallback onSaved;
-
   const _HeaderFormSheet({required this.timeline, required this.onSaved});
-
   @override
   ConsumerState<_HeaderFormSheet> createState() => _HeaderFormSheetState();
 }
@@ -874,7 +833,6 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
   late TextEditingController _startCtrl;
   late TextEditingController _endCtrl;
   late TextEditingController _commentCtrl;
-
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isSaving = false;
@@ -905,13 +863,12 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
 
   Future<void> _selectDate(BuildContext context, bool isStart) async {
     final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: isStart
-          ? (_startDate ?? DateTime.now())
-          : (_endDate ?? _startDate ?? DateTime.now()),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
+        context: context,
+        initialDate: isStart
+            ? (_startDate ?? DateTime.now())
+            : (_endDate ?? _startDate ?? DateTime.now()),
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100));
     if (picked != null) {
       setState(() {
         if (isStart) {
@@ -939,7 +896,7 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
       "startDate": DateFormat('yyyy-MM-dd').format(_startDate!),
       "endDate": DateFormat('yyyy-MM-dd').format(_endDate!),
       if (_commentCtrl.text.trim().isNotEmpty)
-        "versionComment": _commentCtrl.text.trim(),
+        "versionComment": _commentCtrl.text.trim()
     };
     try {
       await ref
@@ -970,47 +927,47 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
           top: 20),
       child: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text("Edit Timeline Header",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context))
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                const Text("Edit Timeline Header",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context))
+              ]),
+              const SizedBox(height: 10),
+              _buildTextField("Timeline Name", _nameCtrl),
+              const SizedBox(height: 15),
+              _buildTextField("Description", _descCtrl, maxLines: 2),
+              const SizedBox(height: 15),
+              Row(children: [
+                Expanded(
+                    child: _buildDatePicker("Start Date", _startCtrl, true)),
+                const SizedBox(width: 15),
+                Expanded(child: _buildDatePicker("End Date", _endCtrl, false))
+              ]),
+              const SizedBox(height: 15),
+              _buildTextField("Version Comment", _commentCtrl),
+              const SizedBox(height: 25),
+              SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                      onPressed: _isSaving ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25))),
+                      child: _isSaving
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Save Changes",
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 16)))),
+              const SizedBox(height: 20),
             ]),
-            const SizedBox(height: 10),
-            _buildTextField("Timeline Name", _nameCtrl),
-            const SizedBox(height: 15),
-            _buildTextField("Description", _descCtrl, maxLines: 2),
-            const SizedBox(height: 15),
-            Row(children: [
-              Expanded(child: _buildDatePicker("Start Date", _startCtrl, true)),
-              const SizedBox(width: 15),
-              Expanded(child: _buildDatePicker("End Date", _endCtrl, false)),
-            ]),
-            const SizedBox(height: 15),
-            _buildTextField("Version Comment (Reason for edit)", _commentCtrl),
-            const SizedBox(height: 25),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25))),
-                child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Save Changes",
-                        style: TextStyle(color: Colors.white, fontSize: 16)),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
       ),
     );
   }
@@ -1022,17 +979,16 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
           style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
       const SizedBox(height: 6),
       Container(
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade300)),
-        child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 12))),
-      )
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300)),
+          child: TextField(
+              controller: controller,
+              maxLines: maxLines,
+              decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 12)))),
     ]);
   }
 
@@ -1055,13 +1011,13 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(
                               horizontal: 16, vertical: 14),
-                          suffixIcon: Icon(Icons.calendar_today, size: 18))))))
+                          suffixIcon: Icon(Icons.calendar_today, size: 18)))))),
     ]);
   }
 }
 
 // ============================================================================
-// TASK FORM SCREEN (Kept same as before)
+// TASK FORM SCREEN
 // ============================================================================
 
 class _TaskFormScreen extends ConsumerStatefulWidget {
@@ -1112,7 +1068,10 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
         text: _pStart != null ? DateFormat('yyyy-MM-dd').format(_pStart!) : '');
     _pEndCtrl = TextEditingController(
         text: _pEnd != null ? DateFormat('yyyy-MM-dd').format(_pEnd!) : '');
+
+    // AUTO-FILL SUBTASKS FIX
     if (t?.task?.subtasks != null && t!.task!.subtasks!.isNotEmpty) {
+      _subtasks.clear();
       for (var sub in t.task!.subtasks!) {
         _subtasks.add(SubtaskData(id: sub.id, text: sub.description));
       }
@@ -1329,7 +1288,7 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
                   _buildLabel("Est. Hours"),
                   _buildTextField(_hoursCtrl, "E.g., 40",
                       inputType: TextInputType.number)
-                ])),
+                ]))
           ]),
           const SizedBox(height: 10),
           CheckboxListTile(
@@ -1469,14 +1428,11 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
       ]);
 }
 
-// Helper class to manage subtask data
 class SubtaskData {
   final String? id;
   final TextEditingController controller;
-
   SubtaskData({this.id, String text = ''})
       : controller = TextEditingController(text: text);
-
   void dispose() {
     controller.dispose();
   }
