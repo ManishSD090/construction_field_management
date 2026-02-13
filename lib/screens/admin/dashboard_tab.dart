@@ -98,41 +98,23 @@ class DashboardTab extends ConsumerWidget {
                   style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
-          Row(
+          Stack(
             children: [
               IconButton(
-                onPressed: () async {
-                  await ref.read(authControllerProvider.notifier).logout();
-                  if (context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRoutes.login,
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: () {},
+                icon: const Icon(Icons.notifications,
+                    color: Colors.white, size: 28),
               ),
-              const SizedBox(width: 5),
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.notifications,
-                        color: Colors.white, size: 28),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                          color: Colors.red, shape: BoxShape.circle),
-                    ),
-                  )
-                ],
-              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                      color: Colors.red, shape: BoxShape.circle),
+                ),
+              )
             ],
           ),
         ],

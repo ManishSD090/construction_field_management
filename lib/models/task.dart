@@ -349,3 +349,39 @@ class TaskAttachment {
     };
   }
 }
+
+// ==========================================================================
+// STATE CLASS
+// ==========================================================================
+
+class TaskState {
+  final List<Task> tasks;
+  final int currentPage;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final bool isRefreshing; // New flag for background refresh indicators
+
+  TaskState({
+    this.tasks = const [],
+    this.currentPage = 1,
+    this.hasMore = true,
+    this.isLoadingMore = false,
+    this.isRefreshing = false,
+  });
+
+  TaskState copyWith({
+    List<Task>? tasks,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoadingMore,
+    bool? isRefreshing,
+  }) {
+    return TaskState(
+      tasks: tasks ?? this.tasks,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+    );
+  }
+}

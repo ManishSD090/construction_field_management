@@ -9,7 +9,7 @@ import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
 
 // Tab and Screen Imports
 import 'package:construction_erp/screens/projects/edit_project.dart';
-import 'package:construction_erp/screens/projects/tasks.dart';
+import 'package:construction_erp/screens/projects/tasks_tab.dart';
 import 'package:construction_erp/screens/projects/create_task.dart';
 import 'package:construction_erp/screens/projects/project_sub_contractors_list.dart';
 import 'package:construction_erp/screens/projects/add_sub_contractor.dart';

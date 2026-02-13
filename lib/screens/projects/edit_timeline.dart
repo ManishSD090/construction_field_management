@@ -22,7 +22,6 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
   Timeline? _timeline;
   bool _isLoading = true;
 
-  // Version Control
   String? _selectedVersionId;
   List<TimelineVersion> _versions = [];
   bool _isLoadingVersions = true;
@@ -263,6 +262,8 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
         builder: (context) => _TaskFormScreen(
           timeline: _timeline!,
           existingTask: task,
+          selectedVersionId:
+              _selectedVersionId, // Pass the currently selected version ID
           onSaved: () => _loadTimelineData(),
         ),
       ),
@@ -1023,9 +1024,15 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
 class _TaskFormScreen extends ConsumerStatefulWidget {
   final Timeline timeline;
   final TimelineTask? existingTask;
+  final String? selectedVersionId; // New: Pass selected version ID from parent
   final VoidCallback onSaved;
+
   const _TaskFormScreen(
-      {required this.timeline, this.existingTask, required this.onSaved});
+      {required this.timeline,
+      this.existingTask,
+      this.selectedVersionId,
+      required this.onSaved});
+
   @override
   ConsumerState<_TaskFormScreen> createState() => _TaskFormScreenState();
 }
@@ -1055,21 +1062,24 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
     _titleCtrl = TextEditingController(text: t?.task?.title ?? '');
     _descCtrl =
         TextEditingController(text: t?.task?.description ?? (t?.notes ?? ''));
+
     _hoursCtrl =
         TextEditingController(text: t?.task?.estimatedHours?.toString() ?? '');
+
     _selectedYear = t?.year;
     _selectedMonth = t?.month;
     _selectedWeek = t?.week;
     _priority = t?.task?.priority.name.toUpperCase() ?? 'MEDIUM';
     _isCritical = t?.isCritical ?? false;
+
     _pStart = t?.plannedStartDate;
     _pEnd = t?.plannedEndDate;
+
     _pStartCtrl = TextEditingController(
         text: _pStart != null ? DateFormat('yyyy-MM-dd').format(_pStart!) : '');
     _pEndCtrl = TextEditingController(
         text: _pEnd != null ? DateFormat('yyyy-MM-dd').format(_pEnd!) : '');
 
-    // AUTO-FILL SUBTASKS FIX
     if (t?.task?.subtasks != null && t!.task!.subtasks!.isNotEmpty) {
       _subtasks.clear();
       for (var sub in t.task!.subtasks!) {
@@ -1142,8 +1152,15 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
     if (_titleCtrl.text.trim().isEmpty ||
         _selectedYear == null ||
         _selectedMonth == null ||
-        _selectedWeek == null) return;
+        _selectedWeek == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Required fields are missing"),
+          backgroundColor: AppColors.alertRed));
+      return;
+    }
+
     setState(() => _isSaving = true);
+
     List<Map<String, dynamic>> validSubtasks = _subtasks
         .where((s) => s.controller.text.trim().isNotEmpty)
         .map((s) => {
@@ -1151,59 +1168,62 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
               "description": s.controller.text.trim()
             })
         .toList();
+
     try {
+      final String hoursText = _hoursCtrl.text.trim();
+      final double? hoursValue =
+          hoursText.isEmpty ? null : double.tryParse(hoursText);
+
+      // Use the version ID passed from the parent screen (selected in dropdown)
+      String? versionId = widget.selectedVersionId;
+
+      // Construct Payload conditionally to ensure truthy values reach the backend's conditional spread
+      final Map<String, dynamic> payload = {
+        "year": _selectedYear,
+        "month": _selectedMonth,
+        "week": _selectedWeek,
+        "isCritical": _isCritical,
+        "notes": _descCtrl.text.trim(),
+        "title": _titleCtrl.text.trim(),
+        "priority": _priority,
+        "subtasks": validSubtasks
+      };
+
+      // Only add timelineVersionId if it's not null
+      if (versionId != null) payload["timelineVersionId"] = versionId;
+
+      // Only add dates if they are NOT null.
+      if (_pStart != null)
+        payload["plannedStartDate"] = DateFormat('yyyy-MM-dd').format(_pStart!);
+      if (_pEnd != null)
+        payload["plannedEndDate"] = DateFormat('yyyy-MM-dd').format(_pEnd!);
+
+      // Only include estimatedHours if parsed successfully
+      if (hoursValue != null) payload["estimatedHours"] = hoursValue;
+
       if (widget.existingTask != null) {
-        final payload = {
-          "year": _selectedYear,
-          "month": _selectedMonth,
-          "week": _selectedWeek,
-          "isCritical": _isCritical,
-          "notes": _descCtrl.text.trim(),
-          if (_pStart != null)
-            "plannedStartDate": DateFormat('yyyy-MM-dd').format(_pStart!),
-          if (_pEnd != null)
-            "plannedEndDate": DateFormat('yyyy-MM-dd').format(_pEnd!),
-          "title": _titleCtrl.text.trim(),
-          "priority": _priority,
-          "estimatedHours": int.tryParse(_hoursCtrl.text.trim()) ?? 0,
-          "subtasks": validSubtasks
-        };
         await ref
             .read(timelineControllerProvider.notifier)
             .updateTimelineTaskDetails(
                 widget.timeline.id, widget.existingTask!.taskId, payload);
       } else {
-        String? versionId = widget.timeline.timelineVersions?.isNotEmpty == true
-            ? widget.timeline.timelineVersions!.first.id
-            : null;
-        final payload = {
-          "title": _titleCtrl.text.trim(),
-          if (_descCtrl.text.trim().isNotEmpty)
-            "description": _descCtrl.text.trim(),
-          "year": _selectedYear,
-          "month": _selectedMonth,
-          "week": _selectedWeek,
-          "isCritical": _isCritical,
-          "priority": _priority,
-          "estimatedHours": int.tryParse(_hoursCtrl.text.trim()) ?? 0,
-          if (_pStart != null)
-            "plannedStartDate": DateFormat('yyyy-MM-dd').format(_pStart!),
-          if (_pEnd != null)
-            "plannedEndDate": DateFormat('yyyy-MM-dd').format(_pEnd!),
-          "subtasks": validSubtasks,
-          if (versionId != null) "timelineVersionId": versionId
-        };
         await ref
             .read(timelineControllerProvider.notifier)
             .createTaskAndAddToTimeline(widget.timeline.id, payload);
       }
+
       if (mounted) {
         widget.onSaved();
         Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Task saved successfully"),
+            backgroundColor: AppColors.successGreen));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()), backgroundColor: AppColors.alertRed));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString()), backgroundColor: AppColors.alertRed));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -1419,7 +1439,6 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
                     child: TextField(
                         controller: controller,
                         decoration: const InputDecoration(
-                            hintText: "YYYY-MM-DD",
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 14),

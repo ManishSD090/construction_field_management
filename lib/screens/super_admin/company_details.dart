@@ -2,9 +2,9 @@ import 'package:construction_erp/models/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/services/app_colors.dart';
-import '../../models/company.dart';
-import '../../controllers/super_admin/super_admin_controller.dart';
+import 'package:construction_erp/core/services/app_colors.dart';
+import 'package:construction_erp/models/company.dart';
+import 'package:construction_erp/controllers/super_admin/super_admin_controller.dart';
 import 'package:construction_erp/routes.dart';
 
 class CompanyDetailsScreen extends ConsumerStatefulWidget {
@@ -22,6 +22,11 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
   bool _isProcessing = false;
   bool _isLoadingFresh = true;
 
+  final _formKey = GlobalKey<FormState>();
+  final _adminNameController = TextEditingController();
+  final _adminEmailController = TextEditingController();
+  final _adminPhoneController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +34,14 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchFreshDetails();
     });
+  }
+
+  @override
+  void dispose() {
+    _adminNameController.dispose();
+    _adminEmailController.dispose();
+    _adminPhoneController.dispose();
+    super.dispose();
   }
 
   /// Fetches fresh data using the Controller's getCompanyById
@@ -51,8 +64,6 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
   }
 
   void _navigateToEdit() async {
-    // Convert current model to Map for the Update Screen
-    // Adjust keys to match what UpdateCompanyScreen expects
     final Map<String, dynamic> companyMap = {
       'id': _company.id,
       'companyName': _company.name,
@@ -67,11 +78,194 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
     await Navigator.pushNamed(context, AppRoutes.updateCompany,
         arguments: companyMap);
 
-    // Refresh details when returning from edit screen
     _fetchFreshDetails();
   }
 
-  // --- Action Bottom Sheet ---
+  // --- Add/Update Admin UI Logic ---
+
+  void _showAdminSheet({User? admin}) {
+    if (admin != null) {
+      _adminNameController.text = admin.name;
+      _adminEmailController.text = admin.email ?? "";
+      _adminPhoneController.text = admin.phone;
+    } else {
+      _adminNameController.clear();
+      _adminEmailController.clear();
+      _adminPhoneController.clear();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 24,
+          right: 24,
+          top: 24,
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(admin == null ? "Add Company Admin" : "Update Admin Details",
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _adminNameController,
+                decoration: const InputDecoration(
+                    labelText: "Full Name", hintText: "Enter admin name"),
+                validator: (val) => val!.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _adminEmailController,
+                decoration: const InputDecoration(
+                    labelText: "Email Address", hintText: "Enter email"),
+                keyboardType: TextInputType.emailAddress,
+                validator: (val) => val!.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _adminPhoneController,
+                decoration: const InputDecoration(
+                    labelText: "Phone Number", hintText: "Enter phone"),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
+                  ),
+                  onPressed: () => _handleAdminSubmit(adminId: admin?.id),
+                  child: Text(admin == null ? "Create Admin" : "Save Changes",
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAdminSubmit({String? adminId}) async {
+    if (!_formKey.currentState!.validate()) return;
+
+    Navigator.pop(context); // Close sheet
+    setState(() => _isProcessing = true);
+
+    try {
+      final payload = {
+        'name': _adminNameController.text.trim(),
+        'email': _adminEmailController.text.trim(),
+        'phone': _adminPhoneController.text.trim(),
+      };
+
+      if (adminId == null) {
+        // Create Logic - Automatically including FULL_COMPANY_ACCESS
+        await ref.read(superAdminControllerProvider.notifier).addCompanyAdmin(
+          companyId: _company.id!,
+          adminData: {
+            ...payload,
+            'userType': 'COMPANY_ADMIN',
+            'permissions': ['FULL_COMPANY_ACCESS'],
+          },
+        );
+      } else {
+        // Update Logic - Using the new updateCompanyAdmin method
+        await ref
+            .read(superAdminControllerProvider.notifier)
+            .updateCompanyAdmin(
+              companyId: _company.id!,
+              adminId: adminId,
+              adminData: payload,
+            );
+      }
+
+      _fetchFreshDetails();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(adminId == null
+                ? "Admin added successfully"
+                : "Admin updated successfully"),
+            backgroundColor: AppColors.successGreen),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("Error: $e"), backgroundColor: AppColors.alertRed),
+      );
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+  // --- Admin Permissions Management ---
+  void _showAdminPermissionsSheet(User admin) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Permissions: ${admin.name}",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            const Text("Manage roles and access for this admin",
+                style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+            const SizedBox(height: 20),
+            _buildPermissionTile("Manage Users", true),
+            _buildPermissionTile("Manage Inventory", false),
+            _buildPermissionTile("Financial Reports", true),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue),
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Save Permissions",
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPermissionTile(String title, bool val) {
+    return SwitchListTile(
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      value: val,
+      onChanged: (v) {},
+      activeColor: AppColors.primaryBlue,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  // --- Action Bottom Sheet (Suspension) ---
   void _showActionSheet() {
     final bool isCurrentlyActive = _company.isActive ?? true;
     bool isChecked = false;
@@ -259,7 +453,6 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
     final int userCount = _company.counts?.users ?? 0;
     final int clientCount = _company.counts?.clients ?? 0;
 
-    // Logic for Status Tag
     final Color statusColor = isActive ? AppColors.tagGreen : AppColors.tagRed;
 
     final DateTime createdDate = _company.createdAt ?? DateTime.now();
@@ -297,7 +490,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Header with Edit Button ---
+                  // --- Header ---
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -309,7 +502,6 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
                                 height: 1.2)),
                       ),
                       const SizedBox(width: 8),
-                      // Edit Button
                       InkWell(
                         onTap: _navigateToEdit,
                         borderRadius: BorderRadius.circular(20),
@@ -328,33 +520,29 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
 
                   const SizedBox(height: 4),
 
-                  // ID Text
                   Text("ID - ${_company.id?.substring(0, 8) ?? '...'}",
                       style:
                           TextStyle(color: Colors.grey.shade600, fontSize: 13)),
 
                   const SizedBox(height: 16),
 
-                  // --- Date and Big Status Tag Row ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text("Created on: $formattedDate",
                           style: TextStyle(
                               color: Colors.grey.shade600, fontSize: 13)),
-
-                      // Bigger, Solid Status Tag
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 6),
                         decoration: BoxDecoration(
-                          color: statusColor, // Solid Background
+                          color: statusColor,
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
                           isActive ? "Active" : "Suspended",
                           style: const TextStyle(
-                              color: Colors.white, // White Text
+                              color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.bold),
                         ),
@@ -364,7 +552,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // --- Stats Section ---
+                  // --- Stats ---
                   Row(
                     children: [
                       Expanded(
@@ -402,38 +590,72 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // --- Admin Details ---
-                  const Text("Admin details",
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 16),
+                  // --- Admin Details Header ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Admin details",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      TextButton.icon(
+                        onPressed: () => _showAdminSheet(),
+                        icon: const Icon(Icons.add_circle_outline,
+                            size: 18, color: AppColors.primaryBlue),
+                        label: const Text("Add Admin",
+                            style: TextStyle(
+                                fontSize: 13, color: AppColors.primaryBlue)),
+                      ),
+                    ],
+                  ),
                   const Divider(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
                   if (admins != null && admins.isNotEmpty) ...[
                     ...admins.map((admin) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (admins.length > 1)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: Text("Admin Account",
-                                  style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12)),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(admin.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15)),
+                                InkWell(
+                                  onTap: () => _showAdminSheet(admin: admin),
+                                  child: const Icon(Icons.edit_outlined,
+                                      size: 18, color: AppColors.primaryBlue),
+                                ),
+                              ],
                             ),
-                          _buildDetailRow("Name", admin.name),
-                          _buildDetailRow("Email", admin.email!),
-                          _buildDetailRow("Phone", admin.phone),
-                          const SizedBox(height: 24),
-                        ],
+                            const SizedBox(height: 8),
+                            _buildDetailRow("Email", admin.email!,
+                                isCompact: true),
+                            _buildDetailRow("Phone", admin.phone,
+                                isCompact: true),
+                          ],
+                        ),
                       );
                     }),
                   ] else ...[
-                    const Text("No Admin Assigned",
-                        style: TextStyle(color: Colors.red)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Text("No Admin Assigned",
+                            style: TextStyle(
+                                color: AppColors.alertRed,
+                                fontWeight: FontWeight.w500)),
+                      ),
+                    ),
                   ],
 
                   const SizedBox(height: 40),
@@ -488,15 +710,16 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isLink = false}) {
+  Widget _buildDetailRow(String label, String value,
+      {bool isLink = false, bool isCompact = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: EdgeInsets.only(bottom: isCompact ? 8.0 : 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: const TextStyle(color: AppColors.textGrey, fontSize: 12)),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(value,
               style: TextStyle(
                   fontWeight: FontWeight.w500,
