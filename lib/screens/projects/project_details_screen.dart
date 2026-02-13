@@ -30,6 +30,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   String _selectedTab = 'Overview';
   late Project project;
 
+  bool _isInventoryMaterialSelected = true;
+
   // Future to hold the timeline ID
   Future<String?>? _timelineIdFuture;
 
@@ -446,6 +448,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
       'Tasks',
       'Sub-contractor',
       "Timeline",
+      "Inventory",
       'Attendance',
       'DPR'
     ];
@@ -485,6 +488,9 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     if (_selectedTab == 'Tasks') return const ProjectTasksTab();
     if (_selectedTab == 'Sub-contractor') {
       return ProjectSubContractorsList(projectId: project.id);
+    }
+    if (_selectedTab == 'Inventory') {
+      return _buildInventoryTab();
     }
     if (_selectedTab == 'Timeline') {
       return FutureBuilder<String?>(
@@ -571,7 +577,264 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     }
     return Center(child: Text("$_selectedTab Content"));
   }
+// ================== INVENTORY TAB METHODS ==================
 
+  Widget _buildInventoryTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search Bar
+        TextField(
+          decoration: InputDecoration(
+            hintText: "Search Name",
+            prefixIcon: const Icon(Icons.search, color: Colors.grey),
+            suffixIcon: const Icon(Icons.mic, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey[100],
+            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Custom Toggle
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F1FF),
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            children: [
+              _buildInventoryToggleButton("Materials", _isInventoryMaterialSelected, () {
+                setState(() => _isInventoryMaterialSelected = true);
+              }),
+              _buildInventoryToggleButton("Equipments", !_isInventoryMaterialSelected, () {
+                setState(() => _isInventoryMaterialSelected = false);
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Stats Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      children: [
+                        TextSpan(
+                          text: _isInventoryMaterialSelected ? '20 ' : '5 ',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
+                        ),
+                        TextSpan(text: _isInventoryMaterialSelected ? 'Total Materials' : 'Total Equipments'),
+                      ],
+                    ),
+                  ),
+                  if (!_isInventoryMaterialSelected) ...[
+                     const SizedBox(height: 4),
+                     RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        children: [
+                          TextSpan(text: '7 ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                          TextSpan(text: 'Total Equipments'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                      children: [
+                        TextSpan(text: '₹42,300 ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                        TextSpan(text: 'Total Usage'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (!_isInventoryMaterialSelected)
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.access_time, color: AppColors.primaryBlue),
+                      onPressed: () {},
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const Text("View History", style: TextStyle(color: AppColors.primaryBlue, fontSize: 10)),
+                  ],
+                )
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // List Header
+        Row(
+          children: [
+            Text(
+              _isInventoryMaterialSelected ? "Materials List" : "Equipments List",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(6)),
+              child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.tune, size: 16, color: Colors.black87),
+              label: const Text("Filter", style: TextStyle(color: Colors.black87)),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Grid List
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.05,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemCount: 6,
+          itemBuilder: (context, index) {
+            return _isInventoryMaterialSelected
+                ? _buildInventoryMaterialCard(index == 2 || index == 5)
+                : _buildInventoryEquipmentCard();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInventoryToggleButton(String text, bool isSelected, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.grey[600],
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInventoryMaterialCard(bool showAlert) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ItemDetailsScreen(
+              isMaterial: true,
+              itemName: "Cement", 
+              showVendorDetails: false,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Cement", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                if (showAlert) const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+              ],
+            ),
+            const Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const Spacer(),
+            const Text("Total: 120", style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+            const Text("Used: 40", style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+            const Text("Remaining: 80", style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInventoryEquipmentCard() {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ItemDetailsScreen(
+              isMaterial: false,
+              itemName: "Equipment Name", 
+              showVendorDetails: false,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Equipment Name", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Spacer(),
+            Text("Available: 120", style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+            Text("In use: 40", style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+            Text("Damaged: 80", style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+          ],
+        ),
+      ),
+    );
+  }
   // ================== HELPERS ==================
 
   Widget _buildProgressCircle() {
@@ -759,4 +1022,350 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
         Icon(c ? Icons.check_circle : Icons.radio_button_unchecked,
             color: c ? AppColors.successGreen : AppColors.textGrey, size: 20)
       ]));
+}
+class ItemDetailsScreen extends StatelessWidget {
+  final bool isMaterial;
+  final String itemName;
+  final bool showVendorDetails;
+
+  const ItemDetailsScreen({
+    super.key,
+    required this.isMaterial,
+    required this.itemName,
+    this.showVendorDetails = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryBlue,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          isMaterial ? "Material Details" : "Equipment Details",
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              itemName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            
+            _buildInfoCard(),
+            const SizedBox(height: 16),
+            
+           if (showVendorDetails) ...[
+              _buildVendorCard(),
+              const SizedBox(height: 24),
+            ],
+            
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _showRequestModal(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00B48A), 
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: const Text("Request", style: TextStyle(fontSize: 16, color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _showTransferModal(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: const Text("Transfer", style: TextStyle(fontSize: 16, color: Colors.white)),
+                  ),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isMaterial ? "Material Info" : "Equipment Info",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: Colors.grey[200], shape: BoxShape.circle),
+                child: const Icon(Icons.edit, size: 16, color: Colors.grey),
+              )
+            ],
+          ),
+          const Divider(height: 24),
+          _buildInfoRow("Name:", itemName),
+          const SizedBox(height: 12),
+          if (isMaterial) ...[
+            _buildInfoRow("Unit:", "kg"),
+            const SizedBox(height: 12),
+            _buildInfoRow("Cost per unit:", "Rs/kg"),
+            const SizedBox(height: 12),
+            _buildInfoRow("Total cost:", "8,00,000/-"),
+            const SizedBox(height: 12),
+          ],
+          _buildInfoRow("Total Quantity:", "12"),
+          const SizedBox(height: 12),
+          _buildInfoRow(isMaterial ? "Used:" : "In Use:", "6"),
+          if (isMaterial) ...[
+            const SizedBox(height: 12),
+            _buildInfoRow("Remaining:", "6"),
+            const SizedBox(height: 12),
+            _buildInfoRow("Low Stock Threshold:", "6"),
+          ],
+          if (!isMaterial) ...[
+            const SizedBox(height: 12),
+            _buildInfoRow("Remaining:", "6"),
+            const SizedBox(height: 12),
+            _buildInfoRow("Damaged:", "2"),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVendorCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Vendor Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: Colors.grey[200], shape: BoxShape.circle),
+                child: const Icon(Icons.edit, size: 16, color: Colors.grey),
+              )
+            ],
+          ),
+          const Divider(height: 24),
+          _buildInfoRow("Name:", "Vendor Name"),
+          const SizedBox(height: 12),
+          _buildInfoRow("Email ID:", "abc@gmail.com"),
+          const SizedBox(height: 12),
+          _buildInfoRow("Phone Number:", "xxxxxxxxxx"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      children: [
+        Text(label, style: const TextStyle(color: Colors.black87)),
+        const SizedBox(width: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  void _showRequestModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.arrow_back, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      isMaterial ? "Request Material" : "Request Equipment",
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                
+                
+                const SizedBox(height: 12),
+                _buildTextField("Quantity to Request"),
+                const SizedBox(height: 12),
+                _buildTextField("Required Date"),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00B48A),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: Text(
+                      isMaterial ? "Request Material" : "Request Equipment",
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showTransferModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.arrow_back, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      isMaterial ? "Transfer Material" : "Transfer Equipment",
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Text("Project Name", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.primaryBlue),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primaryBlue),
+                      items: const [], 
+                      onChanged: (value) {},
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildTextField("Quantity to Transfer"),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: Text(
+                      isMaterial ? "Transfer Material" : "Transfer Equipment",
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTextField(String label) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        const SizedBox(height: 4),
+        TextField(
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primaryBlue),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: 1, 
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: AppColors.primaryBlue,
+      unselectedItemColor: Colors.grey,
+      onTap: (index) {
+        if (index == 0) {
+          Navigator.popUntil(context, (route) => route.isFirst);
+        } else if (index == 1) {
+          Navigator.pop(context); 
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
+        BottomNavigationBarItem(icon: Icon(Icons.book), label: "Project"),
+        BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Report"),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+      ],
+    );
+  }
 }

@@ -6,6 +6,7 @@ import 'package:construction_erp/models/user.dart';
 // ✅ Import the new screen
 import 'package:construction_erp/screens/admin/approvals_screen.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart';
+import 'package:construction_erp/screens/admin/inventory/inventory_screen.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -152,7 +153,12 @@ class DashboardTab extends ConsumerWidget {
         _buildActionCard(Icons.person_outline, Colors.blue[50]!, Colors.blue,
             "Attendance", "45/50 present", () {}),
         _buildActionCard(Icons.assignment_outlined, Colors.teal[50]!,
-            Colors.teal, "Inventory", "1,42,300 total usage", () {}),
+            Colors.teal, "Inventory", "1,42,300 total usage", () {
+              Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const InventoryScreen()),
+        );
+            }),
 
         // ✅ CLICKABLE APPROVALS CARD
         _buildActionCard(Icons.description_outlined, Colors.orange[50]!,
