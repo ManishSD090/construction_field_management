@@ -157,13 +157,13 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
     );
   }
 
-  // Keep your _buildDynamicPopupContent logic here...
   Widget _buildDynamicPopupContent() {
     final status = ref.read(authStatusProvider);
     String title = "";
     String message = "";
     String btnText = "";
     VoidCallback onAction = () {};
+    Widget? secondaryAction;
 
     if (_currentPopup == DashboardPopupType.verification) {
       title = "Verification Required";
@@ -177,6 +177,33 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
         _closePopup();
         Navigator.pushNamed(context, AppRoutes.verification);
       };
+
+      // Check if partially verified (at least one method is verified)
+      if (status?.emailVerified == true || status?.phoneVerified == true) {
+        secondaryAction = SizedBox(
+          width: double.infinity,
+          height: 45,
+          child: OutlinedButton(
+            onPressed: () {
+              _closePopup();
+              // If they still need a password, go there. Otherwise just close popup (continue to dashboard).
+              if (status?.needsPassword == true) {
+                Navigator.pushNamed(context, AppRoutes.setPassword);
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF0D6EFD)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text("Continue",
+                style: TextStyle(
+                    color: Color(0xFF0D6EFD),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14)),
+          ),
+        );
+      }
     } else if (_currentPopup == DashboardPopupType.setPassword) {
       title = "Set Your Password";
       message =
@@ -255,6 +282,10 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                       fontSize: 14)),
             ),
           ),
+          if (secondaryAction != null) ...[
+            const SizedBox(height: 10),
+            secondaryAction,
+          ],
           const SizedBox(height: 10),
           TextButton(
             onPressed: _closePopup,

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/admin/user_controller.dart';
-import 'package:construction_erp/controllers/admin/role_controller.dart'; // Ensure you have this path
-import '../../models/user.dart';
-import '../../models/role.dart';
+import 'package:construction_erp/controllers/admin/role_controller.dart';
+import 'package:construction_erp/models/user.dart';
+import 'package:construction_erp/models/role.dart';
 import 'create_role_screen.dart';
 import 'create_user_screen.dart';
 import 'user_info_screen.dart';
@@ -81,21 +81,71 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
     );
   }
 
-  // --- Content Builders with Loading States ---
+  // --- Content Builders with Refresh Indicators ---
 
   Widget _buildUsersContent(AsyncValue<UserState> userState) {
     return userState.when(
-      data: (state) => _buildUsersListView(state),
+      data: (state) => RefreshIndicator(
+        onRefresh: () => ref.read(userControllerProvider.notifier).refresh(),
+        color: AppColors.primaryBlue,
+        child: _buildUsersListView(state),
+      ),
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text("Error fetching users: $err")),
+      error: (err, _) => RefreshIndicator(
+        onRefresh: () => ref.read(userControllerProvider.notifier).refresh(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                  const SizedBox(height: 16),
+                  Text("Error fetching users: $err"),
+                  const SizedBox(height: 8),
+                  const Text("Pull down to retry",
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildRolesContent(AsyncValue<RoleState> roleState) {
     return roleState.when(
-      data: (state) => _buildRolesGridView(state),
+      data: (state) => RefreshIndicator(
+        onRefresh: () => ref.read(roleControllerProvider.notifier).refresh(),
+        color: AppColors.primaryBlue,
+        child: _buildRolesGridView(state),
+      ),
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text("Error fetching roles: $err")),
+      error: (err, _) => RefreshIndicator(
+        onRefresh: () => ref.read(roleControllerProvider.notifier).refresh(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                  const SizedBox(height: 16),
+                  Text("Error fetching roles: $err"),
+                  const SizedBox(height: 8),
+                  const Text("Pull down to retry",
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -119,7 +169,7 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
             style: IconButton.styleFrom(backgroundColor: Colors.red.shade50),
           ),
           const SizedBox(width: 8),
-          _buildFilterBtn(), // Added back here
+          _buildFilterBtn(),
         ],
       ),
     );
@@ -128,13 +178,12 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
   Widget _buildFilterBtn() {
     return PopupMenuButton<String>(
       onSelected: (String status) {
-        // Status is 'active', 'inactive', or 'all'
         ref.read(userControllerProvider.notifier).fetchUsers(
               status: status == 'all' ? null : status,
             );
       },
       itemBuilder: (BuildContext context) => [
-        const PopupMenuItem(value: '', child: Text("All Users")),
+        const PopupMenuItem(value: 'all', child: Text("All Users")),
         const PopupMenuItem(value: 'active', child: Text("Active Only")),
         const PopupMenuItem(value: 'inactive', child: Text("Inactive Only")),
       ],
@@ -197,11 +246,16 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
         return false;
       },
       child: ListView.builder(
+        physics:
+            const AlwaysScrollableScrollPhysics(), // Important for RefreshIndicator
         padding: const EdgeInsets.all(16),
         itemCount: state.userList.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.userList.length) {
-            return const Center(child: CircularProgressIndicator());
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24.0),
+              child: Center(child: CircularProgressIndicator()),
+            );
           }
           final user = state.userList[index];
           bool isSelected = selectedUserIds.contains(user.id);
@@ -213,7 +267,6 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
   }
 
   Widget _buildUserTile(User user, bool isSelected) {
-    // Accessing the stats from the User model mapped in fromJson
     final projectCount = user.stats?.projects ?? 0;
 
     return GestureDetector(
@@ -260,7 +313,6 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
               const SizedBox(height: 4),
               Text("Role: ${user.role?.name ?? 'Employee'}",
                   style: const TextStyle(color: Colors.blue, fontSize: 13)),
-              // --- New Project Count Display ---
               Row(
                 children: [
                   const Icon(Icons.assignment_outlined,
@@ -311,6 +363,8 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
 
   Widget _buildRolesGridView(RoleState state) {
     return GridView.builder(
+      physics:
+          const AlwaysScrollableScrollPhysics(), // Important for RefreshIndicator
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -481,6 +535,12 @@ class _ManageUsersMenuScreenState extends ConsumerState<ManageUsersMenuScreen> {
       onTap: () => setState(() {
         activeTab = t;
         _searchController.clear();
+        // Trigger a fresh fetch for the newly active tab
+        if (t == "Users") {
+          ref.read(userControllerProvider.notifier).refresh();
+        } else {
+          ref.read(roleControllerProvider.notifier).refresh();
+        }
       }),
       child: Container(
         alignment: Alignment.center,

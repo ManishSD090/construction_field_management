@@ -10,7 +10,6 @@ import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
 // Tab and Screen Imports
 import 'package:construction_erp/screens/projects/edit_project.dart';
 import 'package:construction_erp/screens/projects/tasks_tab.dart';
-import 'package:construction_erp/screens/projects/create_task.dart';
 import 'package:construction_erp/screens/projects/project_sub_contractors_list.dart';
 import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 import 'package:construction_erp/screens/projects/timeline_tab.dart';
@@ -299,18 +298,13 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   // ================== COMPONENTS ==================
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline'].contains(_selectedTab)) {
+    if (!['Sub-contractor', 'Timeline'].contains(_selectedTab)) {
       return null;
     }
 
     return FloatingActionButton(
       onPressed: () async {
-        if (_selectedTab == 'Tasks') {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const CreateTaskScreen()));
-        } else if (_selectedTab == 'Sub-contractor') {
+        if (_selectedTab == 'Sub-contractor') {
           Navigator.push(
               context,
               MaterialPageRoute(
@@ -609,10 +603,12 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           ),
           child: Row(
             children: [
-              _buildInventoryToggleButton("Materials", _isInventoryMaterialSelected, () {
+              _buildInventoryToggleButton(
+                  "Materials", _isInventoryMaterialSelected, () {
                 setState(() => _isInventoryMaterialSelected = true);
               }),
-              _buildInventoryToggleButton("Equipments", !_isInventoryMaterialSelected, () {
+              _buildInventoryToggleButton(
+                  "Equipments", !_isInventoryMaterialSelected, () {
                 setState(() => _isInventoryMaterialSelected = false);
               }),
             ],
@@ -640,19 +636,28 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                       children: [
                         TextSpan(
                           text: _isInventoryMaterialSelected ? '20 ' : '5 ',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryBlue),
                         ),
-                        TextSpan(text: _isInventoryMaterialSelected ? 'Total Materials' : 'Total Equipments'),
+                        TextSpan(
+                            text: _isInventoryMaterialSelected
+                                ? 'Total Materials'
+                                : 'Total Equipments'),
                       ],
                     ),
                   ),
                   if (!_isInventoryMaterialSelected) ...[
-                     const SizedBox(height: 4),
-                     RichText(
+                    const SizedBox(height: 4),
+                    RichText(
                       text: const TextSpan(
                         style: TextStyle(fontSize: 14, color: Colors.grey),
                         children: [
-                          TextSpan(text: '7 ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                          TextSpan(
+                              text: '7 ',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryBlue)),
                           TextSpan(text: 'Total Equipments'),
                         ],
                       ),
@@ -663,7 +668,11 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                     text: const TextSpan(
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                       children: [
-                        TextSpan(text: '₹42,300 ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                        TextSpan(
+                            text: '₹42,300 ',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryBlue)),
                         TextSpan(text: 'Total Usage'),
                       ],
                     ),
@@ -674,12 +683,15 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                 Column(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.access_time, color: AppColors.primaryBlue),
+                      icon: const Icon(Icons.access_time,
+                          color: AppColors.primaryBlue),
                       onPressed: () {},
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
-                    const Text("View History", style: TextStyle(color: AppColors.primaryBlue, fontSize: 10)),
+                    const Text("View History",
+                        style: TextStyle(
+                            color: AppColors.primaryBlue, fontSize: 10)),
                   ],
                 )
             ],
@@ -691,22 +703,29 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
         Row(
           children: [
             Text(
-              _isInventoryMaterialSelected ? "Materials List" : "Equipments List",
+              _isInventoryMaterialSelected
+                  ? "Materials List"
+                  : "Equipments List",
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Spacer(),
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(6)),
-              child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+              decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(6)),
+              child:
+                  const Icon(Icons.delete_outline, color: Colors.red, size: 20),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: () {},
               icon: const Icon(Icons.tune, size: 16, color: Colors.black87),
-              label: const Text("Filter", style: TextStyle(color: Colors.black87)),
+              label:
+                  const Text("Filter", style: TextStyle(color: Colors.black87)),
               style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
             ),
@@ -735,7 +754,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     );
   }
 
-  Widget _buildInventoryToggleButton(String text, bool isSelected, VoidCallback onTap) {
+  Widget _buildInventoryToggleButton(
+      String text, bool isSelected, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -766,7 +786,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           MaterialPageRoute(
             builder: (context) => const ItemDetailsScreen(
               isMaterial: true,
-              itemName: "Cement", 
+              itemName: "Cement",
               showVendorDetails: false,
             ),
           ),
@@ -785,15 +805,23 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Cement", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                if (showAlert) const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                const Text("Cement",
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                if (showAlert)
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Colors.red, size: 20),
               ],
             ),
-            const Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const Text("Quantity",
+                style: TextStyle(color: Colors.grey, fontSize: 12)),
             const Spacer(),
-            const Text("Total: 120", style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
-            const Text("Used: 40", style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
-            const Text("Remaining: 80", style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+            const Text("Total: 120",
+                style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+            const Text("Used: 40",
+                style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+            const Text("Remaining: 80",
+                style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
           ],
         ),
       ),
@@ -808,7 +836,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           MaterialPageRoute(
             builder: (context) => const ItemDetailsScreen(
               isMaterial: false,
-              itemName: "Equipment Name", 
+              itemName: "Equipment Name",
               showVendorDetails: false,
             ),
           ),
@@ -824,12 +852,17 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Equipment Name", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Text("Equipment Name",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text("Quantity",
+                style: TextStyle(color: Colors.grey, fontSize: 12)),
             Spacer(),
-            Text("Available: 120", style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
-            Text("In use: 40", style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
-            Text("Damaged: 80", style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+            Text("Available: 120",
+                style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+            Text("In use: 40",
+                style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+            Text("Damaged: 80",
+                style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
           ],
         ),
       ),
@@ -1023,6 +1056,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
             color: c ? AppColors.successGreen : AppColors.textGrey, size: 20)
       ]));
 }
+
 class ItemDetailsScreen extends StatelessWidget {
   final bool isMaterial;
   final String itemName;
@@ -1058,26 +1092,25 @@ class ItemDetailsScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
             _buildInfoCard(),
             const SizedBox(height: 16),
-            
-           if (showVendorDetails) ...[
+            if (showVendorDetails) ...[
               _buildVendorCard(),
               const SizedBox(height: 24),
             ],
-            
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => _showRequestModal(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00B48A), 
+                      backgroundColor: const Color(0xFF00B48A),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: const Text("Request", style: TextStyle(fontSize: 16, color: Colors.white)),
+                    child: const Text("Request",
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1087,9 +1120,11 @@ class ItemDetailsScreen extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryBlue,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: const Text("Transfer", style: TextStyle(fontSize: 16, color: Colors.white)),
+                    child: const Text("Transfer",
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
               ],
@@ -1117,11 +1152,13 @@ class ItemDetailsScreen extends StatelessWidget {
             children: [
               Text(
                 isMaterial ? "Material Info" : "Equipment Info",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: Colors.grey[200], shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                    color: Colors.grey[200], shape: BoxShape.circle),
                 child: const Icon(Icons.edit, size: 16, color: Colors.grey),
               )
             ],
@@ -1171,10 +1208,12 @@ class ItemDetailsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Vendor Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text("Vendor Info",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: Colors.grey[200], shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                    color: Colors.grey[200], shape: BoxShape.circle),
                 child: const Icon(Icons.edit, size: 16, color: Colors.grey),
               )
             ],
@@ -1205,7 +1244,8 @@ class ItemDetailsScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
@@ -1221,12 +1261,11 @@ class ItemDetailsScreen extends StatelessWidget {
                     const SizedBox(width: 16),
                     Text(
                       isMaterial ? "Request Material" : "Request Equipment",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-                
-                
                 const SizedBox(height: 12),
                 _buildTextField("Quantity to Request"),
                 const SizedBox(height: 12),
@@ -1239,7 +1278,8 @@ class ItemDetailsScreen extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00B48A),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
                     ),
                     child: Text(
                       isMaterial ? "Request Material" : "Request Equipment",
@@ -1260,7 +1300,8 @@ class ItemDetailsScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
@@ -1276,12 +1317,14 @@ class ItemDetailsScreen extends StatelessWidget {
                     const SizedBox(width: 16),
                     Text(
                       isMaterial ? "Transfer Material" : "Transfer Equipment",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text("Project Name", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                const Text("Project Name",
+                    style: TextStyle(fontSize: 13, color: Colors.black87)),
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1292,8 +1335,9 @@ class ItemDetailsScreen extends StatelessWidget {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primaryBlue),
-                      items: const [], 
+                      icon: const Icon(Icons.keyboard_arrow_down,
+                          color: AppColors.primaryBlue),
+                      items: const [],
                       onChanged: (value) {},
                     ),
                   ),
@@ -1308,7 +1352,8 @@ class ItemDetailsScreen extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryBlue,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
                     ),
                     child: Text(
                       isMaterial ? "Transfer Material" : "Transfer Equipment",
@@ -1328,18 +1373,21 @@ class ItemDetailsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        Text(label,
+            style: const TextStyle(fontSize: 13, color: Colors.black87)),
         const SizedBox(height: 4),
         TextField(
           decoration: InputDecoration(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppColors.primaryBlue),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
+              borderSide:
+                  const BorderSide(color: AppColors.primaryBlue, width: 2),
             ),
           ),
         ),
@@ -1349,7 +1397,7 @@ class ItemDetailsScreen extends StatelessWidget {
 
   Widget _buildBottomNav(BuildContext context) {
     return BottomNavigationBar(
-      currentIndex: 1, 
+      currentIndex: 1,
       type: BottomNavigationBarType.fixed,
       selectedItemColor: AppColors.primaryBlue,
       unselectedItemColor: Colors.grey,
@@ -1357,11 +1405,12 @@ class ItemDetailsScreen extends StatelessWidget {
         if (index == 0) {
           Navigator.popUntil(context, (route) => route.isFirst);
         } else if (index == 1) {
-          Navigator.pop(context); 
+          Navigator.pop(context);
         }
       },
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard), label: "Dashboard"),
         BottomNavigationBarItem(icon: Icon(Icons.book), label: "Project"),
         BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Report"),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),

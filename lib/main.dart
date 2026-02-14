@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'routes.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/widgets/common/error/no_internet_widget.dart';
 
 void main() async {
   // 1. Ensure bindings are initialized first
@@ -70,12 +72,27 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        // This applies Lexend to all text styles in the app automatically
-        textTheme: GoogleFonts.lexendTextTheme(
-          Theme.of(context).textTheme,
-        ),
+        textTheme: GoogleFonts.lexendTextTheme(Theme.of(context).textTheme),
       ),
       routes: AppRoutes.routes,
+      // --- ADD THIS BUILDER ---
+      builder: (context, child) {
+        return StreamBuilder<List<ConnectivityResult>>(
+          stream: Connectivity().onConnectivityChanged,
+          builder: (context, snapshot) {
+            final connectivityResult = snapshot.data;
+
+            // If we have data and it contains 'none', show the prompt
+            if (connectivityResult != null &&
+                connectivityResult.contains(ConnectivityResult.none)) {
+              return NoInternetWidget(child: child!);
+            }
+
+            // Otherwise, show the app normally (child is the current route)
+            return child!;
+          },
+        );
+      },
     );
   }
 }

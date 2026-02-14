@@ -38,6 +38,27 @@ class TaskController extends AsyncNotifier<TaskState> {
   Future<TaskState> build() async {
     return _fetchPage(page: 1, isRefresh: true);
   }
+// --- PRIVATE UTILITIES ---
+
+  /// Helper to update a single task in the current list without a full refresh
+  /// Optimized helper to update a single task while preserving existing relations
+  void _updateLocalTask(String taskId, Task Function(Task) updateFn) {
+    final currentState = state.value;
+    if (currentState == null) return;
+
+    final updatedTasks = currentState.tasks.map((task) {
+      if (task.id == taskId) {
+        // We pass the existing 'task' to the update function to allow merging
+        return updateFn(task);
+      }
+      return task;
+    }).toList();
+
+    state = AsyncValue.data(currentState.copyWith(
+      tasks: updatedTasks,
+      isRefreshing: false,
+    ));
+  }
 
   Future<TaskState> _fetchPage({
     required int page,
@@ -68,6 +89,8 @@ class TaskController extends AsyncNotifier<TaskState> {
       isRefreshing: false,
     );
   }
+
+  // --- PUBLIC ACTIONS ---
 
   Future<void> loadNextPage() async {
     final currentState = state.value;
@@ -100,49 +123,81 @@ class TaskController extends AsyncNotifier<TaskState> {
     state = await AsyncValue.guard(() => _fetchPage(page: 1, isRefresh: true));
   }
 
+  // --- OPTIMIZED MUTATIONS (No full refresh) ---
+
   Future<void> bulkUpdateSubtasks(
       String taskId, List<Map<String, dynamic>> updates) async {
-    if (state.value != null) {
-      state = AsyncValue.data(state.value!.copyWith(isRefreshing: true));
-    }
-
-    await _dioClient.dio.put('$_basePath/subtasks/bulk', data: {
+    // 1. Perform API Call
+    final response =
+        await _dioClient.dio.put('$_basePath/subtasks/bulk', data: {
       'taskId': taskId,
       'updates': updates,
     });
 
+    // 2. Fetch the fresh task data for just this one task
+    // (Better than refreshing the whole list of 50+ tasks)
+    final updatedTask = Task.fromJson(response.data['data']);
+
+    // 3. Update locally
+    _updateLocalTask(taskId, (_) => updatedTask);
+
+    // Invalidate details provider if someone else is watching it
     ref.invalidate(taskDetailsProvider(taskId));
-    state = await AsyncValue.guard(() => _fetchPage(page: 1, isRefresh: true));
   }
 
   Future<void> updateTaskStatus(String id, String status, int progress) async {
-    if (state.value != null) {
-      state = AsyncValue.data(state.value!.copyWith(isRefreshing: true));
-    }
-    await _dioClient.dio
+    final response = await _dioClient.dio
         .put('$_basePath/$id', data: {'status': status, 'progress': progress});
+
+    final newTask = Task.fromJson(response.data['data']);
+
+    // FIX: Merge the new status/info with the existing subtasks
+    _updateLocalTask(id, (oldTask) {
+      return newTask.copyWith(
+        subtasks: (newTask.subtasks != null && newTask.subtasks!.isNotEmpty)
+            ? newTask.subtasks
+            : oldTask.subtasks,
+        comments: newTask.comments ?? oldTask.comments,
+        attachments: newTask.attachments ?? oldTask.attachments,
+      );
+    });
+
     ref.invalidate(taskDetailsProvider(id));
-    state = await AsyncValue.guard(() => _fetchPage(page: 1, isRefresh: true));
   }
 
   Future<void> createSubtask(String taskId, String description) async {
-    if (state.value != null) {
-      state = AsyncValue.data(state.value!.copyWith(isRefreshing: true));
-    }
-    await _dioClient.dio.post('$_basePath/subtasks',
+    final response = await _dioClient.dio.post('$_basePath/subtasks',
         data: {'taskId': taskId, 'description': description});
+
+    // Usually the API returns the updated Task object or the new subtask
+    // We fetch the updated task to ensure ID consistency
+    final updatedTaskData = await getTaskById(taskId);
+    _updateLocalTask(taskId, (_) => updatedTaskData);
     ref.invalidate(taskDetailsProvider(taskId));
-    state = await AsyncValue.guard(() => _fetchPage(page: 1, isRefresh: true));
   }
 
   Future<void> updateSubtask(
       String subtaskId, String taskId, Map<String, dynamic> updates) async {
-    if (state.value != null) {
-      state = AsyncValue.data(state.value!.copyWith(isRefreshing: true));
-    }
     await _dioClient.dio.put('$_basePath/subtasks/$subtaskId', data: updates);
+
+    // Manually update the subtask in the local state to be ultra-fast
+    _updateLocalTask(taskId, (task) {
+      final updatedSubtasks = task.subtasks?.map((s) {
+        if (s.id == subtaskId) {
+          // Merge updates locally
+          if (updates.containsKey('isCompleted')) {
+            return s.copyWith(isCompleted: updates['isCompleted']);
+          }
+          if (updates.containsKey('description')) {
+            return s.copyWith(description: updates['description']);
+          }
+        }
+        return s;
+      }).toList();
+      return task.copyWith(subtasks: updatedSubtasks);
+    });
+
     ref.invalidate(taskDetailsProvider(taskId));
-    state = await AsyncValue.guard(() => _fetchPage(page: 1, isRefresh: true));
   }
 
   Future<Task> getTaskById(String id) async {

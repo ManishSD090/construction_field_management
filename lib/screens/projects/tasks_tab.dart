@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/task.dart';
-import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/models/enums.dart'; // Ensure TaskStatus/Priority and EnumFormatter are here
 import 'package:construction_erp/controllers/task/task_controller.dart';
 
 class ProjectTasksTab extends ConsumerStatefulWidget {
@@ -27,6 +27,7 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
   @override
   void initState() {
     super.initState();
+    // Initial fetch or refresh based on projectId constraint
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.projectId != null) {
         ref
@@ -60,6 +61,7 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
       data: (state) {
         Widget content = Column(
           children: [
+            // Linear loader for background refreshes (pagination/filtering)
             if (state.isRefreshing)
               const Padding(
                 padding: EdgeInsets.only(bottom: 8.0),
@@ -70,6 +72,8 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
                       AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
                 ),
               ),
+
+            // Search Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
@@ -90,6 +94,8 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
               ),
             ),
             const SizedBox(height: 25),
+
+            // Header Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -104,36 +110,51 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
               ],
             ),
             const SizedBox(height: 15),
+
+            // Task List
+            // Removed Expanded to prevent RenderFlex overflow when inside a ScrollView
             RefreshIndicator(
               onRefresh: () =>
-                  ref.read(taskControllerProvider.notifier).refresh(),
+                  ref.read(taskControllerProvider.notifier).refresh(
+                        projectId: widget.projectId,
+                      ),
               child: ListView.builder(
+                // shrinkWrap allows the ListView to take only required space
                 shrinkWrap: true,
+                // NeverScrollableScrollPhysics delegates scrolling to the parent (SingleChildScrollView)
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: state.tasks.length + (state.hasMore ? 1 : 0),
                 itemBuilder: (context, index) {
+                  // Pagination Loader
                   if (index == state.tasks.length) {
-                    ref.read(taskControllerProvider.notifier).loadNextPage();
+                    // Trigger load next page
+                    if (!state.isLoadingMore) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        ref
+                            .read(taskControllerProvider.notifier)
+                            .loadNextPage();
+                      });
+                    }
                     return const Center(
-                        child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ));
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   final task = state.tasks[index];
-
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: TaskCard(
                       task: task,
+                      // Pass global refreshing state to indicate updates
                       isUpdating: state.isRefreshing,
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 80),
           ],
         );
 
@@ -162,22 +183,28 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
   }
 
   Widget _buildFilterButton() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primaryBlue),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Row(
-        children: [
-          Text("Filter",
-              style: TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12)),
-          SizedBox(width: 4),
-          Icon(Icons.tune, size: 14, color: AppColors.primaryBlue)
-        ],
+    return InkWell(
+      onTap: () {
+        // Implement filter modal logic here
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.primaryBlue),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Row(
+          children: [
+            Text("Filter",
+                style: TextStyle(
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
+            SizedBox(width: 4),
+            Icon(Icons.tune, size: 14, color: AppColors.primaryBlue)
+          ],
+        ),
       ),
     );
   }
@@ -199,6 +226,7 @@ class TaskCard extends ConsumerStatefulWidget {
 
 class _TaskCardState extends ConsumerState<TaskCard> {
   bool _isEditing = false;
+  bool _isLocalUpdating = false; // Add local loading state
   final Map<String, TextEditingController> _controllers = {};
   final TextEditingController _newSubtaskController = TextEditingController();
 
@@ -211,71 +239,145 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     super.dispose();
   }
 
+  // --- COLOR LOGIC WITHIN WIDGET ---
+
+  Color _getStatusColor(TaskStatus status) {
+    // Normalize to SNAKE_CASE for robust comparison
+    final normalized = _toSnake(status.name);
+
+    if (normalized == 'COMPLETED' || normalized == 'DONE') {
+      return AppColors.successGreen;
+    }
+    if (normalized == 'IN_PROGRESS' || normalized == 'DOING') {
+      return const Color(0xFFF9A825);
+    }
+    if (normalized == 'REVIEW') return Colors.purple;
+    if (normalized == 'BLOCKED') return AppColors.alertRed;
+    return AppColors.textGrey; // TODO
+  }
+
+  Color _getPriorityColor(Priority priority) {
+    final normalized = _toSnake(priority.name);
+
+    if (normalized == 'CRITICAL' || normalized == 'HIGH') {
+      return AppColors.alertRed;
+    }
+    if (normalized == 'MEDIUM') return const Color(0xFFF9A825);
+    if (normalized == 'LOW') return AppColors.successGreen;
+    return AppColors.primaryBlue;
+  }
+
+  // --- HELPER FOR UPDATES ---
+  Future<void> _performUpdate(Future<void> Function() action) async {
+    if (_isLocalUpdating) return;
+    setState(() => _isLocalUpdating = true);
+    try {
+      await action();
+    } catch (e) {
+      debugPrint("Update failed: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLocalUpdating = false);
+      }
+    }
+  }
+
+  // --- ACTIONS ---
+
   Future<void> _toggleEditMode() async {
     if (_isEditing) {
-      // Gather all updates to send in one bulk request
-      final subtasks = widget.task.subtasks ?? [];
-      final List<Map<String, dynamic>> updates = [];
+      // SAVE CHANGES
+      await _performUpdate(() async {
+        final subtasks = widget.task.subtasks ?? [];
+        final List<Map<String, dynamic>> updates = [];
 
-      for (var sub in subtasks) {
-        final controller = _controllers[sub.id];
-        if (controller != null && controller.text.trim() != sub.description) {
-          updates.add({
-            'id': sub.id,
-            'description': controller.text.trim(),
-          });
+        // 1. Check existing subtasks for text changes
+        for (var sub in subtasks) {
+          final controller = _controllers[sub.id];
+          if (controller != null && controller.text.trim() != sub.description) {
+            updates.add({
+              'id': sub.id,
+              'description': controller.text.trim(),
+            });
+          }
         }
-      }
 
-      // 1. Bulk Update existing modified subtasks
-      if (updates.isNotEmpty) {
-        await ref.read(taskControllerProvider.notifier).bulkUpdateSubtasks(
-              widget.task.id,
-              updates,
-            );
-      }
+        // 2. Bulk Update API Call
+        if (updates.isNotEmpty) {
+          await ref.read(taskControllerProvider.notifier).bulkUpdateSubtasks(
+                widget.task.id,
+                updates,
+              );
+        }
 
-      // 2. Submit new inline subtask if present
-      await _submitNewSubtask();
+        // 3. Create new subtask if text exists
+        await _submitNewSubtask(isInternalCall: true);
+      });
     }
     setState(() => _isEditing = !_isEditing);
   }
 
-  Future<void> _submitNewSubtask() async {
+  Future<void> _submitNewSubtask({bool isInternalCall = false}) async {
     final text = _newSubtaskController.text.trim();
     if (text.isNotEmpty) {
-      await ref
-          .read(taskControllerProvider.notifier)
-          .createSubtask(widget.task.id, text);
-      _newSubtaskController.clear();
+      // If called internally by _toggleEditMode, we don't want to double wrap in _performUpdate
+      final action = () async {
+        await ref
+            .read(taskControllerProvider.notifier)
+            .createSubtask(widget.task.id, text);
+        _newSubtaskController.clear();
+      };
+
+      if (isInternalCall) {
+        await action();
+      } else {
+        await _performUpdate(action);
+      }
     }
   }
 
   Future<void> _handleSubtaskToggle(String subtaskId, bool isCompleted) async {
-    await ref.read(taskControllerProvider.notifier).updateSubtask(
-      subtaskId,
-      widget.task.id,
-      {'isCompleted': isCompleted},
-    );
+    await _performUpdate(() async {
+      // 1. Optimistic Update via Controller
+      await ref.read(taskControllerProvider.notifier).updateSubtask(
+        subtaskId,
+        widget.task.id,
+        {'isCompleted': isCompleted},
+      );
 
-    final subtasks = widget.task.subtasks ?? [];
-    final updatedList = subtasks
-        .map(
-            (s) => s.id == subtaskId ? s.copyWith(isCompleted: isCompleted) : s)
-        .toList();
-    final total = updatedList.length;
-    final completed = updatedList.where((s) => s.isCompleted).length;
+      // 2. Logic for Auto-Status Transition
+      final subtasks = widget.task.subtasks ?? [];
 
-    // Auto-transition logic
-    if (total > 0 && completed == total) {
-      await ref
-          .read(taskControllerProvider.notifier)
-          .updateTaskStatus(widget.task.id, 'REVIEW', 100);
-    } else if (completed > 0 &&
-        widget.task.status.toJson().toUpperCase() == 'TODO') {
-      await ref.read(taskControllerProvider.notifier).updateTaskStatus(
-          widget.task.id, 'IN_PROGRESS', (completed / total * 100).toInt());
-    }
+      final updatedList = subtasks.map((s) {
+        return s.id == subtaskId ? s.copyWith(isCompleted: isCompleted) : s;
+      }).toList();
+
+      final total = updatedList.length;
+      final completed = updatedList.where((s) => s.isCompleted).length;
+      final newProgress = total > 0 ? (completed / total * 100).toInt() : 0;
+
+      final currentStatusStr = _toSnake(widget.task.status.name);
+
+      // Auto-transition to REVIEW if all done
+      if (total > 0 &&
+          completed == total &&
+          currentStatusStr != 'REVIEW' &&
+          currentStatusStr != 'COMPLETED') {
+        await ref.read(taskControllerProvider.notifier).updateTaskStatus(
+              widget.task.id,
+              'REVIEW',
+              100,
+            );
+      }
+      // Auto-transition to IN_PROGRESS if started
+      else if (completed > 0 && currentStatusStr == 'TODO') {
+        await ref.read(taskControllerProvider.notifier).updateTaskStatus(
+              widget.task.id,
+              'IN_PROGRESS',
+              newProgress,
+            );
+      }
+    });
   }
 
   @override
@@ -284,7 +386,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     final completedCount = subtasks.where((s) => s.isCompleted).length;
     final totalCount = subtasks.length;
     final double progress = totalCount > 0 ? completedCount / totalCount : 0;
-    final Color statusColor = _getStatusColor(widget.task.status.toJson());
+
+    // Use local methods for colors
+    final Color statusColor = _getStatusColor(widget.task.status);
+    final Color priorityColor = _getPriorityColor(widget.task.priority);
 
     return Stack(
       children: [
@@ -308,8 +413,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title & Status Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                             child: Text(widget.task.title,
@@ -317,34 +424,49 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textDark))),
-                        Row(
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            _buildStatusPicker(
-                                context,
-                                widget.task.status.toDisplayString(),
-                                statusColor),
-                            const SizedBox(width: 8),
-                            _buildSmallIcon(
-                                _isEditing ? Icons.check_circle : Icons.edit,
-                                _isEditing
-                                    ? AppColors.successGreen
-                                    : AppColors.primaryBlue,
-                                _toggleEditMode),
+                            Row(
+                              children: [
+                                _buildStatusPicker(context, statusColor),
+                                const SizedBox(width: 8),
+                                _buildSmallIcon(
+                                    _isEditing
+                                        ? Icons.check_circle
+                                        : Icons.edit,
+                                    _isEditing
+                                        ? AppColors.successGreen
+                                        : AppColors.primaryBlue,
+                                    _toggleEditMode),
+                              ],
+                            ),
                           ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
+
+                    // Priority & Progress Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: priorityColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4)),
+                          child: Text(
+                            // Use existing extension toDisplayString()
                             "Priority: ${widget.task.priority.toDisplayString()}",
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: _getPriorityColor(
-                                    widget.task.priority.toJson()))),
+                                color: priorityColor),
+                          ),
+                        ),
                         Text("$completedCount/$totalCount subtasks",
                             style: const TextStyle(
                                 fontSize: 11, color: AppColors.textGrey)),
@@ -354,6 +476,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 ),
               ),
               const Divider(height: 1),
+
+              // Subtasks List
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
@@ -370,6 +494,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                       if (_isEditing) {
                         _controllers.putIfAbsent(sub.id,
                             () => TextEditingController(text: sub.description));
+
                         return Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 4),
@@ -405,6 +530,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         );
                       }
                     }),
+
+                    // Add New Subtask Input
                     if (_isEditing)
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -430,6 +557,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   ],
                 ),
               ),
+
+              // Progress Bar
               ClipRRect(
                 borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(12),
@@ -446,11 +575,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             ],
           ),
         ),
-        if (widget.isUpdating)
+
+        // Updating Overlay (Global or Local)
+        if (widget.isUpdating || _isLocalUpdating)
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.grey.withOpacity(0.4), // Grayed out effect
                   borderRadius: BorderRadius.circular(12)),
               child: const Center(
                   child: SizedBox(
@@ -475,24 +606,25 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             child: Icon(icon, color: color, size: 16)));
   }
 
-  Widget _buildStatusPicker(
-      BuildContext context, String currentStatus, Color color) {
-    final List<String> statuses = [
-      'TODO',
-      'IN_PROGRESS',
-      'REVIEW',
-      'COMPLETED',
-      'BLOCKED'
-    ];
-    return PopupMenuButton<String>(
-        onSelected: (newStatus) {
-          ref.read(taskControllerProvider.notifier).updateTaskStatus(
-              widget.task.id, newStatus, widget.task.progress ?? 0);
+  Widget _buildStatusPicker(BuildContext context, Color color) {
+    final statuses = TaskStatus.values;
+
+    return PopupMenuButton<TaskStatus>(
+        onSelected: (newStatus) async {
+          // Wrap in local update handler to show overlay
+          await _performUpdate(() async {
+            // Convert to SNAKE_CASE for API consistency
+            await ref.read(taskControllerProvider.notifier).updateTaskStatus(
+                widget.task.id,
+                _toSnake(newStatus.name),
+                widget.task.progress ?? 0);
+          });
         },
         itemBuilder: (context) => statuses
             .map((s) => PopupMenuItem(
                 value: s,
-                child: Text(s.replaceAll('_', ' '),
+                // Use existing extension toDisplayString()
+                child: Text(s.toDisplayString(),
                     style: const TextStyle(fontSize: 13))))
             .toList(),
         child: Container(
@@ -501,40 +633,21 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 color: color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(4)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(currentStatus.replaceAll('_', ' '),
+              Text(widget.task.status.toDisplayString(),
                   style: TextStyle(
                       color: color, fontSize: 11, fontWeight: FontWeight.bold)),
               const SizedBox(width: 4),
               Icon(Icons.keyboard_arrow_down, size: 14, color: color)
             ])));
   }
+}
 
-  Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'COMPLETED':
-        return AppColors.successGreen;
-      case 'IN_PROGRESS':
-        return const Color(0xFFF9A825);
-      case 'TODO':
-        return AppColors.textGrey;
-      case 'BLOCKED':
-        return AppColors.alertRed;
-      default:
-        return AppColors.primaryBlue;
-    }
-  }
+// ==========================================================================
+// UTILITIES
+// ==========================================================================
 
-  Color _getPriorityColor(String priority) {
-    switch (priority.toUpperCase()) {
-      case 'CRITICAL':
-      case 'HIGH':
-        return AppColors.alertRed;
-      case 'MEDIUM':
-        return const Color(0xFFF9A825);
-      case 'LOW':
-        return AppColors.successGreen;
-      default:
-        return AppColors.primaryBlue;
-    }
-  }
+String _toSnake(String value) {
+  return value
+      .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]}_${m[2]}')
+      .toUpperCase();
 }

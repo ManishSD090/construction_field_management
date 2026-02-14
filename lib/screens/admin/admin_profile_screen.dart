@@ -149,7 +149,7 @@ class AdminProfileScreen extends ConsumerWidget {
                     "Last Login:",
                     user.lastLogin != null
                         ? DateFormat('dd MMM yyyy · hh:mm a')
-                            .format(user.lastLogin!)
+                            .format(user.lastLogin!.toLocal())
                         : "First Session"),
               ],
             ),
