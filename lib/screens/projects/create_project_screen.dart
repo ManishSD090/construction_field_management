@@ -4,7 +4,7 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
 import 'package:construction_erp/controllers/client/client_controller.dart';
 import 'package:construction_erp/models/client.dart';
-import 'package:construction_erp/models/enums.dart'; // Ensure Priority enum is here
+import 'package:construction_erp/models/enums.dart';
 
 class CreateProjectScreen extends ConsumerStatefulWidget {
   const CreateProjectScreen({super.key});
@@ -26,7 +26,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
 
-  String? _selectedClientId;
+  // String? _selectedClientId;
   Priority _selectedPriority = Priority.medium;
 
   @override
@@ -64,7 +64,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
       'estimatedBudget': double.tryParse(_budgetController.text) ?? 0.0,
       'advanceReceived': double.tryParse(_advancedController.text) ?? 0.0,
       'contractValue': double.tryParse(_contractValueController.text),
-      'clientId': _selectedClientId,
+      // 'clientId': _selectedClientId,
       'priority': _selectedPriority.toJson(), // Uses your enum's toJson()
       'projectId':
           'PROJ-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
@@ -115,13 +115,13 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                   hint: "Project details...",
                   maxLines: 3),
               const SizedBox(height: 15),
-              _buildLabel("Client Name"),
-              clientState.when(
-                data: (state) => _buildClientDropdown(state),
-                loading: () => const LinearProgressIndicator(),
-                error: (err, _) => const Text("Error loading clients"),
-              ),
-              const SizedBox(height: 15),
+              // _buildLabel("Client Name"),
+              // clientState.when(
+              //   data: (state) => _buildClientDropdown(state),
+              //   loading: () => const LinearProgressIndicator(),
+              //   error: (err, _) => const Text("Error loading clients"),
+              // ),
+              // const SizedBox(height: 15),
               _buildLabel("Location Address"),
               _buildTextField(
                   controller: _locationController, hint: "Enter full address"),
@@ -174,6 +174,12 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                       ])),
                 ],
               ),
+              const SizedBox(height: 15),
+              _buildLabel("Contract Value"),
+              _buildTextField(
+                  controller: _contractValueController,
+                  hint: "Contract Value",
+                  keyboardType: TextInputType.number),
               const SizedBox(height: 15),
               _buildLabel("Estimated Budget"),
               _buildTextField(
@@ -231,38 +237,38 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   }
 
   // --- Paginated Client Dropdown ---
-  Widget _buildClientDropdown(ClientState state) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedClientId,
-          hint: const Text("Select Client"),
-          isExpanded: true,
-          items: [
-            ...state.clients.map((c) =>
-                DropdownMenuItem(value: c.id, child: Text(c.companyName))),
-            if (state.hasMore)
-              const DropdownMenuItem(
-                  value: 'load_more',
-                  child: Text("Load more clients...",
-                      style: TextStyle(color: AppColors.primaryBlue))),
-          ],
-          onChanged: (val) {
-            if (val == 'load_more') {
-              ref.read(clientControllerProvider.notifier).loadNextPage();
-            } else {
-              setState(() => _selectedClientId = val);
-            }
-          },
-        ),
-      ),
-    );
-  }
+  // Widget _buildClientDropdown(ClientState state) {
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(horizontal: 16),
+  //     decoration: BoxDecoration(
+  //       borderRadius: BorderRadius.circular(12),
+  //       border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5)),
+  //     ),
+  //     child: DropdownButtonHideUnderline(
+  //       child: DropdownButton<String>(
+  //         value: _selectedClientId,
+  //         hint: const Text("Select Client"),
+  //         isExpanded: true,
+  //         items: [
+  //           ...state.clients.map((c) =>
+  //               DropdownMenuItem(value: c.id, child: Text(c.companyName))),
+  //           if (state.hasMore)
+  //             const DropdownMenuItem(
+  //                 value: 'load_more',
+  //                 child: Text("Load more clients...",
+  //                     style: TextStyle(color: AppColors.primaryBlue))),
+  //         ],
+  //         onChanged: (val) {
+  //           if (val == 'load_more') {
+  //             ref.read(clientControllerProvider.notifier).loadNextPage();
+  //           } else {
+  //             setState(() => _selectedClientId = val);
+  //           }
+  //         },
+  //       ),
+  //     ),
+  //   );
+  // }
 
   // --- Helper UI Widgets ---
   Widget _buildLabel(String text) => Padding(

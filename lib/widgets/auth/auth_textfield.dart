@@ -8,10 +8,11 @@ class AuthTextField extends StatelessWidget {
   final TextStyle? hintStyle;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
-
-  // 1. Add new properties for keyboard actions
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onFieldSubmitted;
+
+  // 1. Add enabled property
+  final bool? enabled;
 
   const AuthTextField({
     super.key,
@@ -22,8 +23,9 @@ class AuthTextField extends StatelessWidget {
     this.hintStyle,
     this.keyboardType,
     this.validator,
-    this.textInputAction, // 2. Add to constructor
-    this.onFieldSubmitted, // 2. Add to constructor
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.enabled, // 2. Add to constructor
   });
 
   @override
@@ -33,10 +35,11 @@ class AuthTextField extends StatelessWidget {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-
-      // 3. Connect properties to TextFormField
       textInputAction: textInputAction,
       onFieldSubmitted: onFieldSubmitted,
+
+      // 3. Pass enabled to TextFormField
+      enabled: enabled,
 
       decoration: InputDecoration(
         hintText: hint,
@@ -65,6 +68,11 @@ class AuthTextField extends StatelessWidget {
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(32),
           borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        // Define style for disabled state
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFE8ECF4)),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:construction_erp/controllers/auth/auth_controller.dart'; // Import authStatusProvider
+import 'package:construction_erp/controllers/auth/auth_controller.dart';
+import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
 
@@ -14,13 +15,19 @@ class VerificationScreen extends ConsumerStatefulWidget {
 class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   @override
   Widget build(BuildContext context) {
-    // Watch status to dynamically update UI (e.g., if they verify email, show checkmark)
+    // Watch status to dynamically update UI
     final authStatus = ref.watch(authStatusProvider);
     final user = ref.read(authControllerProvider).value;
 
     if (authStatus == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    // Logic for button visibility and style
+    final bool isFullyVerified =
+        authStatus.emailVerified && authStatus.phoneVerified;
+    final bool canContinue =
+        authStatus.emailVerified || authStatus.phoneVerified;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -76,18 +83,47 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
               const Spacer(),
 
-              // If fully verified, show a nice message or close button
-              if (authStatus.emailVerified && authStatus.phoneVerified)
+              // --- CONTINUE BUTTON ---
+              // Shows if at least one method is verified
+              if (canContinue)
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.check),
-                    label: const Text("Everything Verified! Continue"),
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Logic: If password is needed, go there. Else, go back (to dashboard)
+                      if (authStatus.needsPassword) {
+                        Navigator.pushNamed(context, AppRoutes.setPassword);
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      // Green if fully verified, Blue if partially verified
+                      backgroundColor: isFullyVerified
+                          ? Colors.green
+                          : const Color(0xFF0D6EFD),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (isFullyVerified) ...[
+                          const Icon(Icons.check, color: Colors.white),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          isFullyVerified
+                              ? "Everything Verified! Continue"
+                              : "Continue",
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -210,6 +246,12 @@ class _OtpVerificationSheetState extends ConsumerState<OtpVerificationSheet> {
     _sendOtp();
   }
 
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
   Future<void> _sendOtp() async {
     setState(() => _isLoading = true);
     try {
@@ -217,10 +259,12 @@ class _OtpVerificationSheetState extends ConsumerState<OtpVerificationSheet> {
           .read(authControllerProvider.notifier)
           .requestVerificationOtp(method: widget.method);
 
-      setState(() {
-        _otpSent = true;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _otpSent = true;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Close sheet on fail
@@ -253,11 +297,13 @@ class _OtpVerificationSheetState extends ConsumerState<OtpVerificationSheet> {
       );
       // The parent screen updates automatically because it watches authStatusProvider
     } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Invalid OTP"), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Invalid OTP"), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

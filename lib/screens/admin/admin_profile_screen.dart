@@ -1,5 +1,7 @@
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/routes.dart';
+import 'package:construction_erp/screens/admin/approvals_screen.dart';
+import 'package:construction_erp/screens/sub_contractor/sub_contractor_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart'; // Add intl for date formatting
@@ -147,7 +149,7 @@ class AdminProfileScreen extends ConsumerWidget {
                     "Last Login:",
                     user.lastLogin != null
                         ? DateFormat('dd MMM yyyy · hh:mm a')
-                            .format(user.lastLogin!)
+                            .format(user.lastLogin!.toLocal())
                         : "First Session"),
               ],
             ),
@@ -208,6 +210,17 @@ class AdminProfileScreen extends ConsumerWidget {
                   },
                 ),
                 _buildSettingsTile(
+                  title: "Manage Sub-Contractors",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              const SubcontractorListScreen()),
+                    );
+                  },
+                ),
+                _buildSettingsTile(
                   title: "Manage Users and Roles",
                   onTap: () {
                     Navigator.push(
@@ -218,8 +231,13 @@ class AdminProfileScreen extends ConsumerWidget {
                   },
                 ),
                 _buildSettingsTile(
-                  title: "Approval History",
-                  onTap: () {},
+                  title: "Manage Approvals",
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ApprovalsScreen()));
+                  },
                 ),
               ],
             ),

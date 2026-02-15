@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/models/user.dart';
+// ✅ Import the new screen
+import 'package:construction_erp/screens/admin/approvals_screen.dart';
+import 'package:construction_erp/screens/projects/project_tab.dart';
+import 'package:construction_erp/screens/inventory/inventory_screen.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -27,8 +31,8 @@ class DashboardTab extends ConsumerWidget {
                   "Quick actions",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 18), // <--- CHANGE THIS (Was 15)
-                _buildQuickActionsGrid(),
+                const SizedBox(height: 18),
+                _buildQuickActionsGrid(context), // Pass context here
               ],
             ),
           ),
@@ -63,8 +67,6 @@ class DashboardTab extends ConsumerWidget {
     );
   }
 
-  // --- WIDGETS MOVED FROM PREVIOUS FILE ---
-
   Widget _buildHeader(BuildContext context, WidgetRef ref, User? user) {
     return Container(
       padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
@@ -96,41 +98,23 @@ class DashboardTab extends ConsumerWidget {
                   style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
-          Row(
+          Stack(
             children: [
               IconButton(
-                onPressed: () async {
-                  await ref.read(authControllerProvider.notifier).logout();
-                  if (context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRoutes.login,
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: () {},
+                icon: const Icon(Icons.notifications,
+                    color: Colors.white, size: 28),
               ),
-              const SizedBox(width: 5),
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.notifications,
-                        color: Colors.white, size: 28),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                          color: Colors.red, shape: BoxShape.circle),
-                    ),
-                  )
-                ],
-              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                      color: Colors.red, shape: BoxShape.circle),
+                ),
+              )
             ],
           ),
         ],
@@ -138,7 +122,7 @@ class DashboardTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActionsGrid() {
+  Widget _buildQuickActionsGrid(BuildContext context) {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -146,52 +130,73 @@ class DashboardTab extends ConsumerWidget {
       crossAxisCount: 2,
       crossAxisSpacing: 15,
       mainAxisSpacing: 15,
-      childAspectRatio: 1.3, // <--- CHANGE THIS (Was 1.5)
+      childAspectRatio: 1.3,
       children: [
         _buildActionCard(Icons.person_outline, Colors.blue[50]!, Colors.blue,
-            "Attendance", "45/50 present"),
+            "Attendance", "45/50 present", () {}),
         _buildActionCard(Icons.assignment_outlined, Colors.teal[50]!,
-            Colors.teal, "Expenses", "1,42,300 pending"),
+            Colors.teal, "Inventory", "1,42,300 total usage", () {
+              Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const InventoryScreen()),
+        );
+            }),
+
+        // ✅ CLICKABLE APPROVALS CARD
         _buildActionCard(Icons.description_outlined, Colors.orange[50]!,
-            Colors.orange, "Approvals", "20 pending"),
+            Colors.orange, "Approvals", "20 pending", () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ApprovalsScreen()),
+          );
+        }),
+
         _buildActionCard(Icons.inventory_2_outlined, Colors.red[50]!,
-            Colors.redAccent, "Projects", "3 active"),
+            Colors.redAccent, "Projects", "3 active", () {
+          Navigator.pushNamed(context, AppRoutes.home,
+              arguments: HomeArguments.project);
+        }),
       ],
     );
   }
 
+  // ✅ Updated to accept `onTap`
   Widget _buildActionCard(IconData icon, Color bgColor, Color iconColor,
-      String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 6,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const Spacer(),
-          Text(title,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(subtitle,
-              style: const TextStyle(color: Colors.grey, fontSize: 13)),
-        ],
+      String title, String subtitle, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const Spacer(),
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(subtitle,
+                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }

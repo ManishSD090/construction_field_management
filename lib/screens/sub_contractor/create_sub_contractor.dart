@@ -38,7 +38,7 @@ class _CreateSubContractorScreenState
 
   // Rates & Capacity
   final _maxWorkersController = TextEditingController(text: "10");
-  final _maxMachinesController = TextEditingController(text: "0");
+  final _maxMachinesController = TextEditingController(text: "10");
   final _hourlyRateController = TextEditingController();
   final _dailyRateController = TextEditingController();
 
@@ -302,7 +302,7 @@ class _CreateSubContractorScreenState
       "bankIfsc": _ifscController.text,
       "bankBranch": _branchController.text,
       "maxWorkers": int.tryParse(_maxWorkersController.text) ?? 10,
-      "maxMachines": int.tryParse(_maxMachinesController.text) ?? 0,
+      "maxMachines": int.tryParse(_maxMachinesController.text) ?? 10,
       "hourlyRate": double.tryParse(_hourlyRateController.text) ?? 0.0,
       "dailyRate": double.tryParse(_dailyRateController.text) ?? 0.0,
       "isVerified": false,

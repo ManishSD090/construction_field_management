@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:construction_erp/controllers/auth/auth_controller.dart'; // Import Controller
 import 'package:construction_erp/widgets/auth/auth_textfield.dart';
 import 'package:construction_erp/widgets/auth/primary_button.dart';
+import 'package:construction_erp/routes.dart';
 
 class SetPasswordScreen extends ConsumerStatefulWidget {
   const SetPasswordScreen({super.key});
@@ -59,7 +60,7 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
       );
 
       // 3. Close the screen (and the popup in Dashboard will close automatically due to status update)
-      Navigator.pop(context);
+      Navigator.popUntil(context, ModalRoute.withName(AppRoutes.home));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

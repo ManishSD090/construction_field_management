@@ -16,12 +16,18 @@ class Contractor {
   final String? gstNumber;
   final String? panNumber;
   final String? aadharNumber;
+  final String? bankName;
+  final String? bankAccount;
+  final String? bankBranch;
+  final String? ifscCode;
   final int maxWorkers;
   final double rating;
-  final ContractorStatus status;
+  final ContractorStatus? status;
   final bool isVerified;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  final ContractorFinancials? financialSummary;
 
   Contractor({
     required this.id,
@@ -39,12 +45,17 @@ class Contractor {
     this.gstNumber,
     this.panNumber,
     this.aadharNumber,
+    this.bankName,
+    this.bankAccount,
+    this.bankBranch,
+    this.ifscCode,
     this.maxWorkers = 10,
     this.rating = 5.0,
-    required this.status,
+    this.status,
     required this.isVerified,
     required this.createdAt,
     required this.updatedAt,
+    this.financialSummary,
   });
 
   /// Factory for creating a Contractor from a JSON map with null-safety
@@ -71,10 +82,16 @@ class Contractor {
       gstNumber: json['gstNumber']?.toString(),
       panNumber: json['panNumber']?.toString(),
       aadharNumber: json['aadharNumber']?.toString(),
+      bankName: json['bankName']?.toString(),
+      bankAccount: json['bankAccount']?.toString(),
+      bankBranch: json['bankBranch']?.toString(),
+      ifscCode: json['bankIfsc']?.toString(),
       // Handle numeric null-safety and defaults
       maxWorkers: (json['maxWorkers'] as num?)?.toInt() ?? 10,
       rating: (json['rating'] as num?)?.toDouble() ?? 5.0,
-      status: ContractorStatus.fromJson(json['status'] as String?),
+      status: json['status'] != null
+          ? ContractorStatus.fromJson(json['status'] as String?)
+          : null,
       isVerified: json['isVerified'] as bool? ?? false,
       // DateTime parsing with fallback to 'now' if invalid or null
       createdAt: json['createdAt'] != null
@@ -83,6 +100,9 @@ class Contractor {
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      financialSummary: json['financialSummary'] != null
+          ? ContractorFinancials.fromJson(json['financialSummary'])
+          : null,
     );
   }
 
@@ -104,12 +124,17 @@ class Contractor {
       'gstNumber': gstNumber,
       'panNumber': panNumber,
       'aadharNumber': aadharNumber,
+      'bankName': bankName,
+      'bankAccount': bankAccount,
+      'bankBranch': bankBranch,
+      'bankIfsc': ifscCode,
       'maxWorkers': maxWorkers,
       'rating': rating,
-      'status': status.toJson(),
+      'status': status?.toJson(),
       'isVerified': isVerified,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'financialSummary': financialSummary?.toJson(),
     };
   }
 }
@@ -465,5 +490,34 @@ class SubcontractorState {
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
+  }
+}
+
+class ContractorFinancials {
+  final double totalPaid;
+  final double pendingAmount;
+  final double totalContract;
+
+  ContractorFinancials({
+    required this.totalPaid,
+    required this.pendingAmount,
+    required this.totalContract,
+  });
+
+  factory ContractorFinancials.fromJson(Map<String, dynamic>? json) {
+    if (json == null) throw Exception("ContractorStats JSON is null");
+    return ContractorFinancials(
+      totalPaid: (json['totalPaid'] as num?)?.toDouble() ?? 0.0,
+      pendingAmount: (json['pendingAmount'] as num?)?.toDouble() ?? 0.0,
+      totalContract: (json['totalContract'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totalPaid': totalPaid,
+      'pendingAmount': pendingAmount,
+      'totalContract': totalContract,
+    };
   }
 }

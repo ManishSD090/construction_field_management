@@ -233,7 +233,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
         final user = next.value!;
 
         // 1. Check if user is Super Admin/System Admin
-        // (Adjust 'isSystemAdmin' to 'isSuperAdmin' if that is your exact field name)
         if (user.role?.isSystemAdmin == true) {
           Navigator.pushReplacementNamed(context, AppRoutes.superAdmin);
         } else {
@@ -296,13 +295,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                 AuthTextField(
                   controller: identifierCtrl,
                   keyboardType: TextInputType.text,
-                  hint: _otpSent ? "XXXXX XXXXX" : "Enter phone number",
+                  hint: _otpSent ? "XXXXX XXXXX" : "Enter Phone Number / Email",
                   hintStyle: TextStyle(
                       color: _otpSent ? Colors.black87 : faintLightBlue),
                   obscureText: !_isIdentifierVisible,
 
-                  // Disable input if loading (optional UX improvement)
-                  // enabled: !isLoading,
+                  // CHANGE: Disable input if loading OR if OTP has been sent
+                  enabled: !isLoading && !_otpSent,
 
                   textInputAction:
                       _otpSent ? TextInputAction.next : TextInputAction.done,

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+// Controllers
 import 'package:construction_erp/controllers/admin/user_controller.dart';
 import 'package:construction_erp/controllers/admin/role_controller.dart';
+// Import the Project Controller created in the previous step
+import 'package:construction_erp/controllers/project/project_controller.dart';
+
+// Models
 import 'package:construction_erp/models/user.dart';
 
 class UserInfoScreen extends ConsumerStatefulWidget {
@@ -108,6 +115,256 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
     }
   }
 
+  /// Opens bottom sheet to assign user to a project
+  void _showAssignProjectSheet(User user) {
+    // Form state for the sheet
+    String? selectedProjectId;
+    // Auto-fill role from user info
+    String? selectedRoleId = user.role?.id;
+    // Auto-fill designation from user info
+    final designationCtrl = TextEditingController(text: user.designation ?? '');
+    DateTime selectedDate = DateTime.now();
+    bool isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Consumer(
+          builder: (context, ref, child) {
+            // Fetch data reactively inside the sheet
+            final projectAsync = ref.watch(projectControllerProvider);
+            final rolesAsync = ref.watch(roleControllerProvider);
+
+            return StatefulBuilder(
+              builder: (context, setSheetState) => Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                padding: EdgeInsets.fromLTRB(
+                    24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+                child: ListView(
+                  controller: scrollController,
+                  shrinkWrap: true,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Assign to Project",
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 1. Select Project (Fetched via ProjectController)
+                    const Text("Select Project",
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    projectAsync.when(
+                      data: (state) => DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 16),
+                        ),
+                        hint: const Text("Choose a project"),
+                        value: selectedProjectId,
+                        items: state.projects
+                            .map((p) => DropdownMenuItem(
+                                  value: p.id,
+                                  child: Text(p.name,
+                                      overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (val) =>
+                            setSheetState(() => selectedProjectId = val),
+                      ),
+                      loading: () => const LinearProgressIndicator(),
+                      error: (e, _) => Text("Error loading projects: $e"),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 2. Select Role
+                    const Text("Project Role",
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    rolesAsync.when(
+                      data: (roleState) => DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 16),
+                          filled: true,
+                          fillColor: Color(0xFFF5F5F5),
+                        ),
+                        hint: const Text("Select role on project"),
+                        value: selectedRoleId,
+                        items: roleState.roles
+                            .map((r) => DropdownMenuItem(
+                                  value: r.id,
+                                  child: Text(r.name),
+                                ))
+                            .toList(),
+                        onChanged:
+                            null, // Disabled: role locked to user profile
+                      ),
+                      loading: () => const LinearProgressIndicator(),
+                      error: (e, _) => Text("Error loading roles: $e"),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 3. Designation
+                    const Text("Designation on Site",
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: designationCtrl,
+                      enabled:
+                          false, // Disabled: designation locked to user profile
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: "e.g. Site Supervisor",
+                        filled: true,
+                        fillColor: Color(0xFFF5F5F5),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 4. Start Date
+                    const Text("Start Date",
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null) {
+                          setSheetState(() => selectedDate = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(DateFormat('MMM dd, yyyy')
+                                .format(selectedDate)),
+                            const Icon(Icons.calendar_today, size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0A6ED1),
+                          disabledBackgroundColor: Colors.grey.shade300,
+                        ),
+                        onPressed: (isLoading ||
+                                selectedProjectId == null ||
+                                selectedRoleId == null)
+                            ? null
+                            : () async {
+                                setSheetState(() => isLoading = true);
+                                try {
+                                  // Construct payload based on backend requirements
+                                  final assignmentPayload = [
+                                    {
+                                      'userId': user.id,
+                                      'roleId': selectedRoleId,
+                                      'designation':
+                                          designationCtrl.text.isNotEmpty
+                                              ? designationCtrl.text
+                                              : "Team Member",
+                                      'startDate':
+                                          selectedDate.toIso8601String(),
+                                      'isPrimary': false,
+                                    }
+                                  ];
+
+                                  // Call the ProjectController
+                                  await ref
+                                      .read(projectControllerProvider.notifier)
+                                      .assignTeam(selectedProjectId!,
+                                          assignmentPayload);
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            "User assigned to project successfully"),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("Assignment failed: $e"),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  // Check if the sheet is still mounted before updating state
+                                  // Note: setSheetState is safe to call only if the StatefulBuilder is active
+                                  // But since we might pop, we catch errors or use mounted check if we converted to widget
+                                  // Here we just stop loading if still present
+                                  try {
+                                    setSheetState(() => isLoading = false);
+                                  } catch (_) {}
+                                }
+                              },
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text("Confirm Assignment",
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   /// Opens bottom sheet to reassign user role
   void _showRoleReassignSheet(User user) {
     final rolesAsync = ref.read(roleControllerProvider);
@@ -124,7 +381,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Reassign Role",
+              const Text("Reassign User Role",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text("Current: ${user.role?.name ?? 'None'}",
@@ -161,7 +418,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                                   .updateUserRole(user.id, selectedRoleId!);
                               ref.refresh(userDetailProvider(user.id));
                             },
-                  child: const Text("Update Role",
+                  child: const Text("Update User Role",
                       style: TextStyle(color: Colors.white)),
                 ),
               ),
@@ -246,37 +503,62 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
   }
 
   Widget _buildHeader(User user) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(user.name,
-                  style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87)),
-              const SizedBox(height: 4),
-              Text(user.role?.name ?? "No Role Assigned",
-                  style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF0A6ED1),
-                      fontWeight: FontWeight.w600)),
-            ],
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(user.name,
+                      style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87)),
+                  const SizedBox(height: 4),
+                  Text(user.role?.name ?? "No Role Assigned",
+                      style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF0A6ED1),
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ],
         ),
-        if (!_isEditing)
-          OutlinedButton.icon(
-            onPressed: () => _showRoleReassignSheet(user),
-            icon: const Icon(Icons.swap_horiz, size: 16),
-            label: const Text("Change Role"),
-            style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0A6ED1),
-                side: const BorderSide(color: Color(0xFF0A6ED1))),
+        if (!_isEditing) ...[
+          const SizedBox(height: 16),
+          // Actions Row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showRoleReassignSheet(user),
+                  icon: const Icon(Icons.compare_arrows_sharp, size: 16),
+                  label: const Text("Reassign Role"),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: BorderSide(color: Colors.grey.shade300)),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _showAssignProjectSheet(user),
+                  icon: const Icon(Icons.assignment_ind_outlined, size: 16),
+                  label: const Text("Assign to Project"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0A6ED1),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
           ),
+        ]
       ],
     );
   }
