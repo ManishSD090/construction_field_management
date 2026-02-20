@@ -5,6 +5,7 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
+import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
 
 // Tab and Screen Imports
 import 'package:construction_erp/screens/projects/edit_project.dart';
@@ -14,10 +15,14 @@ import 'package:construction_erp/screens/projects/project_sub_contractors_list.d
 import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 import 'package:construction_erp/screens/timeline/timeline_tab.dart';
 import 'package:construction_erp/screens/timeline/create_timeline.dart' as ct;
+import 'package:construction_erp/screens/timeline/create_timeline_version.dart';
 import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
-// Import the new DPR Tab
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
+
+// ==========================================================================
+// SCREEN
+// ==========================================================================
 
 class ProjectDetailsScreen extends ConsumerStatefulWidget {
   const ProjectDetailsScreen({super.key});
@@ -31,23 +36,158 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     with TickerProviderStateMixin {
   String _selectedTab = 'Overview';
   late Project project;
-
-  // ✅ 1. Add State Variable for Visibility
   bool _isHeaderVisible = true;
+  bool _isDeleting = false;
+  bool _isInit = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Project) {
-      project = args;
+    if (!_isInit) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Project) {
+        project = args;
+        _isInit = true;
+
+        // Trigger the fetch for this project's timeline using the global controller
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref
+              .read(timelineControllerProvider.notifier)
+              .refresh(projectId: project.id);
+        });
+      }
     }
   }
 
-  // ... (Delete Logic remains the same - hidden for brevity) ...
-  void _showDeleteActionSheet() {/* ... existing code ... */}
-  Future<void> _performDeleteProject() async {/* ... existing code ... */}
-  void _showSuccessDialog() {/* ... existing code ... */}
+  // ================== DELETE & SUCCESS LOGIC ==================
+
+  void _showDeleteActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Delete Project",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.alertRed,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Text(
+                  "Are you sure you want to delete '${project.name}'? This action cannot be undone.",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textDark),
+                ),
+                const SizedBox(height: 25),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text("Cancel"),
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          _performDeleteProject();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.alertRed,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          "Delete",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _performDeleteProject() async {
+    setState(() => _isDeleting = true);
+    try {
+      await ref
+          .read(projectControllerProvider.notifier)
+          .deleteProject(project.id);
+
+      if (mounted) {
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to delete project: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Icon(Icons.check_circle,
+              color: AppColors.successGreen, size: 50),
+          content: const Text(
+            "Project deleted successfully.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Pop back to project list screen
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text("OK", style: TextStyle(color: Colors.white)),
+            )
+          ],
+        );
+      },
+    );
+  }
 
   // ================== BUILDER ==================
 
@@ -66,56 +206,63 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
             onPressed: () => Navigator.pop(context)),
       ),
       floatingActionButton: _buildFab(),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // ✅ 2. Wrap Header in AnimatedSize (or AnimatedCrossFade)
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: _isHeaderVisible
-                  ? Container(
-                      color: AppColors.white,
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          _buildHeaderSection(),
-                          const SizedBox(height: 25),
-                          _buildMetricsRow(),
-                        ],
-                      ),
-                    )
-                  : const SizedBox
-                      .shrink(), // This hides the section completely
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: _isHeaderVisible
+                      ? Container(
+                          color: AppColors.white,
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              _buildHeaderSection(),
+                              const SizedBox(height: 25),
+                              _buildMetricsRow(),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                _buildDividerArrow(),
+                Container(
+                  color: AppColors.white,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                  child: Column(
+                    children: [
+                      _buildTabBar(),
+                      const SizedBox(height: 25),
+                      _buildTabContent(),
+                    ],
+                  ),
+                ),
+              ],
             ),
+          ),
 
-            // ✅ 3. Update the Divider Arrow
-            _buildDividerArrow(),
-
+          // Show overlay loader if deleting
+          if (_isDeleting)
             Container(
-              color: AppColors.white,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-              child: Column(
-                children: [
-                  _buildTabBar(),
-                  const SizedBox(height: 25),
-                  _buildTabContent(),
-                ],
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryBlue),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
   // ================== COMPONENTS ==================
 
-  // ✅ Updated Divider Arrow with Click Logic
   Widget _buildDividerArrow() {
     return Container(
-      height: 30, // Fixed height for the area
-      color: Colors.white, // Ensure background matches
+      height: 30,
+      color: Colors.white,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -142,7 +289,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                 ],
               ),
               child: Icon(
-                // Toggle Icon based on state
                 _isHeaderVisible
                     ? Icons.keyboard_arrow_up
                     : Icons.keyboard_arrow_down,
@@ -157,8 +303,10 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   }
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab))
+    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
+        .contains(_selectedTab)) {
       return null;
+    }
 
     return FloatingActionButton(
       onPressed: () {
@@ -174,13 +322,34 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                   builder: (context) =>
                       AddSubContractorScreen(projectId: project.id)));
         } else if (_selectedTab == 'Timeline') {
-          Navigator.push(
+          // ✅ Use ref.read to grab the latest timeline state
+          final timelineState =
+              ref.read(timelineControllerProvider).valueOrNull;
+
+          // Check if a timeline already exists
+          final existingTimelineId =
+              (timelineState != null && timelineState.timelines.isNotEmpty)
+                  ? timelineState.timelines.first.id
+                  : null;
+
+          if (existingTimelineId != null) {
+            // Timeline exists -> Open the version creation form
+            Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ct.CreateTimelineScreen(projectId: project.id)));
-        }
-        // DPR Action
-        else if (_selectedTab == 'DPR') {
+                    builder: (context) => CreateTimelineVersionScreen(
+                          timelineId: existingTimelineId,
+                        )));
+          } else {
+            // No timeline exists -> Open the master timeline creation form
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => ct.CreateTimelineScreen(
+                          projectId: project.id,
+                        )));
+          }
+        } else if (_selectedTab == 'DPR') {
           Navigator.push(context,
               MaterialPageRoute(builder: (context) => const CreateDPRScreen()));
         }
@@ -193,6 +362,14 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
 
   Widget _buildHeaderSection() {
     final int progressInt = project.progress ?? 0;
+
+    // Status color selection block
+    Color statusColor = project.status == ProjectStatus.ongoing
+        ? const Color(0xFFF9A825)
+        : (project.status == ProjectStatus.completed
+            ? AppColors.successGreen
+            : AppColors.alertRed);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -248,7 +425,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                   "Priority: ", project.priority.name.toUpperCase(), true,
                   color: AppColors.alertRed),
               const SizedBox(height: 10),
-              _buildStatusChip(project.status),
+              _buildStatusChip(project.status, statusColor),
             ],
           ),
         )
@@ -280,7 +457,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       'Overview',
       'Tasks',
       'Sub-contractor',
-      "Timeline",
+      'Timeline',
       'Attendance',
       'DPR',
       'WPR'
@@ -322,9 +499,43 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     if (_selectedTab == 'Sub-contractor') {
       return ProjectSubContractorsList(projectId: project.id);
     }
-    if (_selectedTab == 'Timeline') return const TimelineTab(timelineId: '',);
 
-    // ✅ Render the DPR Tab
+    // ✅ Handle Timeline Tab directly via the TimelineController's State
+    if (_selectedTab == 'Timeline') {
+      return Consumer(
+        builder: (context, ref, child) {
+          final timelineAsyncValue = ref.watch(timelineControllerProvider);
+
+          return timelineAsyncValue.when(
+            data: (state) {
+              if (state.timelines.isNotEmpty) {
+                return TimelineTab(timelineId: state.timelines.first.id);
+              } else {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40.0),
+                  child: Center(
+                    child: Text(
+                      "No Timeline found.\nClick '+' to create one.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textGrey, fontSize: 16),
+                    ),
+                  ),
+                );
+              }
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.all(40.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.all(40.0),
+              child: Center(child: Text("Error fetching timeline: $error")),
+            ),
+          );
+        },
+      );
+    }
+
     if (_selectedTab == 'DPR') return const ProjectDPRTab();
 
     if (_selectedTab == 'Overview') {
@@ -353,10 +564,16 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
         ],
       );
     }
-    return Center(child: Text("$_selectedTab Content"));
+
+    // Fallback for unattended tabs
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40.0),
+        child: Text("$_selectedTab Module Coming Soon!"),
+      ),
+    );
   }
 
-  // ... (Helper widgets remain the same) ...
   Widget _buildProgressCircle() {
     final progressVal = (project.progress ?? 0) / 100.0;
     return Column(
@@ -386,23 +603,46 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           ),
         ),
         const SizedBox(height: 10),
-        ElevatedButton(
-          onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const GanttChartScreen(timelineId: '',))),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              minimumSize: const Size(80, 28),
-              shape: const StadiumBorder()),
-          child: const Text("VIEW",
-              style: TextStyle(color: Colors.white, fontSize: 10)),
-        )
+
+        // Disable VIEW Gantt chart if no timeline is available by pulling state
+        Consumer(builder: (context, ref, child) {
+          final timelineAsync = ref.watch(timelineControllerProvider);
+          final state = timelineAsync.valueOrNull;
+
+          // Extract timelineId if available
+          final tId = (state != null && state.timelines.isNotEmpty)
+              ? state.timelines.first.id
+              : null;
+
+          return ElevatedButton(
+            onPressed: () {
+              if (tId != null) {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            GanttChartScreen(timelineId: tId)));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text(
+                          'Please create a timeline first to view the Gantt chart.')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    tId != null ? AppColors.primaryBlue : AppColors.lightGrey,
+                minimumSize: const Size(80, 28),
+                shape: const StadiumBorder()),
+            child: const Text("VIEW",
+                style: TextStyle(color: Colors.white, fontSize: 10)),
+          );
+        })
       ],
     );
   }
 
-  // Keep all other helpers unchanged
   Widget _buildDetailLinkRow(String l, String v) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [
@@ -465,16 +705,11 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                 fontWeight: FontWeight.w500))
       ]));
 
-  Widget _buildStatusChip(ProjectStatus s) {
-    Color b = s == ProjectStatus.ongoing
-        ? const Color(0xFFF9A825)
-        : (s == ProjectStatus.completed
-            ? AppColors.successGreen
-            : AppColors.alertRed);
+  Widget _buildStatusChip(ProjectStatus s, Color color) {
     return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration:
-            BoxDecoration(color: b, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(20)),
         child: Text(s.name.toUpperCase(),
             style: const TextStyle(
                 color: Colors.white,

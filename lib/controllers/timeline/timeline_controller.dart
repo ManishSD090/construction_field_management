@@ -374,6 +374,20 @@ class TimelineController extends AsyncNotifier<TimelineState> {
     ref.invalidate(timelineDetailsProvider(timelineId));
   }
 
+  /// POST /timelines/:id/versions/:versionNumber/approve-reject
+  Future<void> approveRejectVersion(String timelineId, int versionNumber,
+      bool isApproved, String? reason) async {
+    await _dioClient.dio.post(
+      '$_basePath/$timelineId/versions/$versionNumber/approve-reject',
+      data: {
+        'action': isApproved ? 'approve' : 'reject',
+        'rejectionReason': reason
+      },
+    );
+    ref.invalidate(timelineDetailsProvider(timelineId));
+    await refresh(); // Refresh list to update status badges
+  }
+
   /// POST /timelines/:id/versions/:version/set-baseline
   Future<void> setVersionAsBaseline(
       String timelineId, int versionNumber) async {
