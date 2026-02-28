@@ -4,6 +4,7 @@ export 'attendance_leave.dart';
 export 'audit_logs.dart';
 export 'client.dart';
 export 'communication.dart';
+export 'contractor.dart';
 export 'company.dart';
 export 'dpr.dart';
 export 'finance.dart';

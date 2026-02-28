@@ -9,6 +9,14 @@ class Material {
   final String unit;
   final double? stockQuantity;
   final double? minimumStock;
+  final double? unitPrice;
+  final String? supplier;
+  final String? supplierContact;
+  final double? pendingPOQuantity;
+  final double? onOrderQuantity;
+  final double? availableQuantity;
+  final double? committedQuantity;
+  final List<String>? preferredSuppliers;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? createdById;
@@ -22,6 +30,14 @@ class Material {
     required this.unit,
     this.stockQuantity,
     this.minimumStock,
+    this.unitPrice,
+    this.supplier,
+    this.supplierContact,
+    this.pendingPOQuantity,
+    this.onOrderQuantity,
+    this.availableQuantity,
+    this.committedQuantity,
+    this.preferredSuppliers,
     required this.createdAt,
     required this.updatedAt,
     this.createdById,
@@ -30,18 +46,46 @@ class Material {
 
   factory Material.fromJson(Map<String, dynamic> json) {
     return Material(
-      id: json['id'] as String,
-      materialCode: json['materialCode'] as String?,
-      companyId: json['companyId'] as String,
-      name: json['name'] as String,
-      unit: json['unit'] as String,
-      stockQuantity: (json['stockQuantity'] as num?)?.toDouble() ?? 0,
-      minimumStock: (json['minimumStock'] as num?)?.toDouble() ?? 10,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      createdById: json['createdById'] as String?,
-      createdBy:
-          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
+      id: json['id']?.toString() ?? '',
+      materialCode: json['materialCode']?.toString(),
+      companyId: json['companyId']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      unit: json['unit']?.toString() ?? '',
+      stockQuantity:
+          num.tryParse(json['stockQuantity']?.toString() ?? '')?.toDouble() ??
+              0.0,
+      minimumStock:
+          num.tryParse(json['minimumStock']?.toString() ?? '')?.toDouble() ??
+              10.0,
+      unitPrice: num.tryParse(json['unitPrice']?.toString() ?? '')?.toDouble(),
+      supplier: json['supplier']?.toString(),
+      supplierContact: json['supplierContact']?.toString(),
+      pendingPOQuantity:
+          num.tryParse(json['pendingPOQuantity']?.toString() ?? '')
+                  ?.toDouble() ??
+              0.0,
+      onOrderQuantity:
+          num.tryParse(json['onOrderQuantity']?.toString() ?? '')?.toDouble() ??
+              0.0,
+      availableQuantity:
+          num.tryParse(json['availableQuantity']?.toString() ?? '')
+                  ?.toDouble() ??
+              0.0,
+      committedQuantity:
+          num.tryParse(json['committedQuantity']?.toString() ?? '')
+                  ?.toDouble() ??
+              0.0,
+      preferredSuppliers: (json['preferredSuppliers'] as List?)
+          ?.map((e) => e?.toString() ?? '')
+          .toList(),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
+          DateTime.now(),
+      createdById: json['createdById']?.toString(),
+      createdBy: json['createdBy'] is Map<String, dynamic>
+          ? User.fromJson(json['createdBy'])
+          : null,
     );
   }
 
@@ -54,6 +98,14 @@ class Material {
       'unit': unit,
       'stockQuantity': stockQuantity,
       'minimumStock': minimumStock,
+      'unitPrice': unitPrice,
+      'supplier': supplier,
+      'supplierContact': supplierContact,
+      'pendingPOQuantity': pendingPOQuantity,
+      'onOrderQuantity': onOrderQuantity,
+      'availableQuantity': availableQuantity,
+      'committedQuantity': committedQuantity,
+      'preferredSuppliers': preferredSuppliers,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdById': createdById,
@@ -88,6 +140,15 @@ class MaterialRequest {
   final DateTime? actualDelivery;
   final MaterialStatus status;
   final String? rejectionReason;
+
+  // PO & Budget related new fields
+  final String? purchaseOrderId;
+  final String? poItemId;
+  final bool committedToBudget;
+  final double? estimatedCost;
+  final bool poCreated;
+  final String? poNumber;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -114,47 +175,68 @@ class MaterialRequest {
     this.actualDelivery,
     required this.status,
     this.rejectionReason,
+    this.purchaseOrderId,
+    this.poItemId,
+    this.committedToBudget = false,
+    this.estimatedCost,
+    this.poCreated = false,
+    this.poNumber,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory MaterialRequest.fromJson(Map<String, dynamic> json) {
     return MaterialRequest(
-      id: json['id'] as String,
-      requestNo: json['requestNo'] as String,
-      projectId: json['projectId'] as String,
-      materialId: json['materialId'] as String?,
-      materialName: json['materialName'] as String,
-      quantity: (json['quantity'] as num).toDouble(),
-      unit: json['unit'] as String,
-      purpose: json['purpose'] as String,
-      urgency: Priority.fromJson(json['urgency'] as String? ?? 'MEDIUM'),
-      requestedById: json['requestedById'] as String,
-      requestedBy: json['requestedBy'] != null
+      id: json['id']?.toString() ?? '',
+      requestNo: json['requestNo']?.toString() ?? '',
+      projectId: json['projectId']?.toString() ?? '',
+      materialId: json['materialId']?.toString(),
+      materialName: json['materialName']?.toString() ?? '',
+      quantity:
+          num.tryParse(json['quantity']?.toString() ?? '')?.toDouble() ?? 0.0,
+      unit: json['unit']?.toString() ?? '',
+      purpose: json['purpose']?.toString() ?? '',
+      urgency: Priority.fromJson(json['urgency']?.toString()),
+      requestedById: json['requestedById']?.toString() ?? '',
+      requestedBy: json['requestedBy'] is Map<String, dynamic>
           ? User.fromJson(json['requestedBy'])
           : null,
-      approvedById: json['approvedById'] as String?,
-      approvedBy:
-          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
-      approvedAt: json['approvedAt'] != null
-          ? DateTime.parse(json['approvedAt'])
+      approvedById: json['approvedById']?.toString(),
+      approvedBy: json['approvedBy'] is Map<String, dynamic>
+          ? User.fromJson(json['approvedBy'])
           : null,
-      orderedById: json['orderedById'] as String?,
-      orderedBy:
-          json['orderedBy'] != null ? User.fromJson(json['orderedBy']) : null,
-      orderedAt:
-          json['orderedAt'] != null ? DateTime.parse(json['orderedAt']) : null,
-      supplier: json['supplier'] as String?,
+      approvedAt: json['approvedAt'] != null
+          ? DateTime.tryParse(json['approvedAt'].toString())
+          : null,
+      orderedById: json['orderedById']?.toString(),
+      orderedBy: json['orderedBy'] is Map<String, dynamic>
+          ? User.fromJson(json['orderedBy'])
+          : null,
+      orderedAt: json['orderedAt'] != null
+          ? DateTime.tryParse(json['orderedAt'].toString())
+          : null,
+      supplier: json['supplier']?.toString(),
       expectedDelivery: json['expectedDelivery'] != null
-          ? DateTime.parse(json['expectedDelivery'])
+          ? DateTime.tryParse(json['expectedDelivery'].toString())
           : null,
       actualDelivery: json['actualDelivery'] != null
-          ? DateTime.parse(json['actualDelivery'])
+          ? DateTime.tryParse(json['actualDelivery'].toString())
           : null,
-      status: MaterialStatus.fromJson(json['status'] as String? ?? 'REQUESTED'),
-      rejectionReason: json['rejectionReason'] as String?,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      status: MaterialStatus.fromJson(json['status']?.toString()),
+      rejectionReason: json['rejectionReason']?.toString(),
+      purchaseOrderId: json['purchaseOrderId']?.toString(),
+      poItemId: json['poItemId']?.toString(),
+      committedToBudget: json['committedToBudget'] == true ||
+          json['committedToBudget']?.toString().toLowerCase() == 'true',
+      estimatedCost:
+          num.tryParse(json['estimatedCost']?.toString() ?? '')?.toDouble(),
+      poCreated: json['poCreated'] == true ||
+          json['poCreated']?.toString().toLowerCase() == 'true',
+      poNumber: json['poNumber']?.toString(),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -182,6 +264,12 @@ class MaterialRequest {
       'actualDelivery': actualDelivery?.toIso8601String(),
       'status': status.toJson(),
       'rejectionReason': rejectionReason,
+      'purchaseOrderId': purchaseOrderId,
+      'poItemId': poItemId,
+      'committedToBudget': committedToBudget,
+      'estimatedCost': estimatedCost,
+      'poCreated': poCreated,
+      'poNumber': poNumber,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -199,6 +287,7 @@ class StockTransaction {
   final String? referenceId;
   final String? referenceType;
   final String? notes;
+  final String? goodsReceiptItemId;
   final String? createdById;
   final User? createdBy;
   final DateTime createdAt;
@@ -214,6 +303,7 @@ class StockTransaction {
     this.referenceId,
     this.referenceType,
     this.notes,
+    this.goodsReceiptItemId,
     this.createdById,
     this.createdBy,
     required this.createdAt,
@@ -221,20 +311,27 @@ class StockTransaction {
 
   factory StockTransaction.fromJson(Map<String, dynamic> json) {
     return StockTransaction(
-      id: json['id'] as String,
-      materialId: json['materialId'] as String,
-      transactionType: json['transactionType'] as String,
-      quantity: (json['quantity'] as num).toDouble(),
-      previousStock: (json['previousStock'] as num).toDouble(),
-      newStock: (json['newStock'] as num).toDouble(),
-      projectId: json['projectId'] as String?,
-      referenceId: json['referenceId'] as String?,
-      referenceType: json['referenceType'] as String?,
-      notes: json['notes'] as String?,
-      createdById: json['createdById'] as String?,
-      createdBy:
-          json['createdBy'] != null ? User.fromJson(json['createdBy']) : null,
-      createdAt: DateTime.parse(json['createdAt']),
+      id: json['id']?.toString() ?? '',
+      materialId: json['materialId']?.toString() ?? '',
+      transactionType: json['transactionType']?.toString() ?? '',
+      quantity:
+          num.tryParse(json['quantity']?.toString() ?? '')?.toDouble() ?? 0.0,
+      previousStock:
+          num.tryParse(json['previousStock']?.toString() ?? '')?.toDouble() ??
+              0.0,
+      newStock:
+          num.tryParse(json['newStock']?.toString() ?? '')?.toDouble() ?? 0.0,
+      projectId: json['projectId']?.toString(),
+      referenceId: json['referenceId']?.toString(),
+      referenceType: json['referenceType']?.toString(),
+      notes: json['notes']?.toString(),
+      goodsReceiptItemId: json['goodsReceiptItemId']?.toString(),
+      createdById: json['createdById']?.toString(),
+      createdBy: json['createdBy'] is Map<String, dynamic>
+          ? User.fromJson(json['createdBy'])
+          : null,
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -250,6 +347,7 @@ class StockTransaction {
       'referenceId': referenceId,
       'referenceType': referenceType,
       'notes': notes,
+      'goodsReceiptItemId': goodsReceiptItemId,
       'createdById': createdById,
       'createdBy': createdBy?.toJson(),
       'createdAt': createdAt.toIso8601String(),
@@ -268,6 +366,7 @@ class StockAlert {
   final bool isNotified;
   final DateTime createdAt;
   final DateTime? resolvedAt;
+  final String? resolvedById;
 
   StockAlert({
     required this.id,
@@ -280,22 +379,30 @@ class StockAlert {
     required this.isNotified,
     required this.createdAt,
     this.resolvedAt,
+    this.resolvedById,
   });
 
   factory StockAlert.fromJson(Map<String, dynamic> json) {
     return StockAlert(
-      id: json['id'] as String,
-      materialId: json['materialId'] as String,
-      alertType: json['alertType'] as String,
-      currentStock: (json['currentStock'] as num).toDouble(),
-      threshold: (json['threshold'] as num).toDouble(),
-      message: json['message'] as String,
-      isResolved: json['isResolved'] as bool? ?? false,
-      isNotified: json['isNotified'] as bool? ?? false,
-      createdAt: DateTime.parse(json['createdAt']),
+      id: json['id']?.toString() ?? '',
+      materialId: json['materialId']?.toString() ?? '',
+      alertType: json['alertType']?.toString() ?? '',
+      currentStock:
+          num.tryParse(json['currentStock']?.toString() ?? '')?.toDouble() ??
+              0.0,
+      threshold:
+          num.tryParse(json['threshold']?.toString() ?? '')?.toDouble() ?? 0.0,
+      message: json['message']?.toString() ?? '',
+      isResolved: json['isResolved'] == true ||
+          json['isResolved']?.toString().toLowerCase() == 'true',
+      isNotified: json['isNotified'] == true ||
+          json['isNotified']?.toString().toLowerCase() == 'true',
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
       resolvedAt: json['resolvedAt'] != null
-          ? DateTime.parse(json['resolvedAt'])
+          ? DateTime.tryParse(json['resolvedAt'].toString())
           : null,
+      resolvedById: json['resolvedById']?.toString(),
     );
   }
 
@@ -311,6 +418,7 @@ class StockAlert {
       'isNotified': isNotified,
       'createdAt': createdAt.toIso8601String(),
       'resolvedAt': resolvedAt?.toIso8601String(),
+      'resolvedById': resolvedById,
     };
   }
 }

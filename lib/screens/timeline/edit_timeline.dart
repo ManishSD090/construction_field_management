@@ -481,7 +481,7 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color, width: 0.5)),
-      child: Text(status.name.toUpperCase(),
+      child: Text(status.toDisplayString(),
           style: TextStyle(
               color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
