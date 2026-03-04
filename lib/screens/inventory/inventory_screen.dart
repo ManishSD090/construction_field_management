@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:construction_erp/routes.dart'; // Make sure this is imported for routing
-import 'package:construction_erp/screens/inventory/inventory_history_screen.dart'; // Adjust path if needed
-import 'package:construction_erp/screens/inventory/item_details_screen.dart';
+import 'package:construction_erp/routes.dart'; // Ensure this exists
+import 'package:construction_erp/screens/inventory/inventory_history_screen.dart'; // Adjust path
+import 'package:construction_erp/screens/inventory/item_details_screen.dart'; // Adjust path
+
+// Import your Create Screens (I've provided the code for these below)
+import 'package:construction_erp/screens/inventory/create_material_screen.dart';
+import 'package:construction_erp/screens/inventory/create_equipment_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -18,7 +22,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D6EFD), // Matched to your dashboard blue
+        backgroundColor: const Color(0xFF0D6EFD), // Dashboard Blue
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text("Inventory", style: TextStyle(color: Colors.white)),
@@ -166,34 +170,43 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         ],
       ),
+      
+      // 👇 UPDATED FAB LOGIC 👇
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          if (isMaterialSelected) {
+            // Navigate to Create Material Screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CreateMaterialScreen()),
+            );
+          } else {
+            // Navigate to Create Equipment Screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CreateEquipmentScreen()),
+            );
+          }
+        },
         backgroundColor: const Color(0xFF0D6EFD),
         child: const Icon(Icons.add, color: Colors.white),
       ),
       
-      // 👇 HERE IS THE FOOTER WITH YOUR ROUTING 👇
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0, // 0 because user opened this from Dashboard
+        currentIndex: 0,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF0D6EFD), // Blue for active
+        selectedItemColor: const Color(0xFF0D6EFD),
         unselectedItemColor: Colors.grey,
         onTap: (index) {
           if (index == 0) {
-            // Drop back to the main Dashboard screen
             Navigator.popUntil(context, (route) => route.isFirst);
           } else if (index == 1) {
-            // Navigate to Projects 
-            Navigator.pushNamedAndRemoveUntil(
+             Navigator.pushNamedAndRemoveUntil(
               context, 
               AppRoutes.home, 
               (route) => false, 
               arguments: HomeArguments.project,
             );
-          } else if (index == 2) {
-            // Navigate to Report (Add routing logic when ready)
-          } else if (index == 3) {
-            // Navigate to Profile (Add routing logic when ready)
           }
         },
         items: const [
@@ -243,65 +256,64 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
       },
       child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Cement", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                if (showAlert) const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+              ],
+            ),
+            const Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const Spacer(),
+            const Text("Total: 120", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD))),
+            const Text("Used: 40", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD))),
+            const Text("Remaining: 80", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD))),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Cement", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              if (showAlert) const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
-            ],
-          ),
-          const Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
-          const Spacer(),
-          const Text("Total: 120", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD))),
-          const Text("Used: 40", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD))),
-          const Text("Remaining: 80", style: TextStyle(fontSize: 12, color: Color(0xFF0D6EFD))),
-        ],
-      ),
-    ),
     );
   }
 
   Widget _buildEquipmentCard() {
-    return InkWell( // <--- Added InkWell
+    return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => const ItemDetailsScreen(
-              isMaterial: false, // Set to false for Equipment
+              isMaterial: false,
               itemName: "Equipment Name",
             ),
           ),
         );
       },
       child: Container(
-    
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Equipment Name", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
-          Spacer(),
-          Text("Available: 120", style: TextStyle(fontSize: 11, color: Color(0xFF0D6EFD))),
-          Text("In use: 40", style: TextStyle(fontSize: 11, color: Color(0xFF0D6EFD))),
-          Text("Damaged: 80", style: TextStyle(fontSize: 11, color: Color(0xFF0D6EFD))),
-        ],
-      ),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Equipment Name", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text("Quantity", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Spacer(),
+            Text("Available: 120", style: TextStyle(fontSize: 11, color: Color(0xFF0D6EFD))),
+            Text("In use: 40", style: TextStyle(fontSize: 11, color: Color(0xFF0D6EFD))),
+            Text("Damaged: 80", style: TextStyle(fontSize: 11, color: Color(0xFF0D6EFD))),
+          ],
+        ),
       ),
     );
   }

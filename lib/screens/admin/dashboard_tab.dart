@@ -6,7 +6,7 @@ import 'package:construction_erp/models/user.dart';
 // ✅ Import the new screen
 import 'package:construction_erp/screens/admin/approvals_screen.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart';
-import 'package:construction_erp/screens/inventory/inventory_screen.dart';
+import 'package:construction_erp/screens/inventory/inventory_dashboard_screen.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -138,7 +138,7 @@ class DashboardTab extends ConsumerWidget {
             Colors.teal, "Inventory", "1,42,300 total usage", () {
               Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const InventoryScreen()),
+          MaterialPageRoute(builder: (context) => const InventoryDashboardScreen()),
         );
             }),
 

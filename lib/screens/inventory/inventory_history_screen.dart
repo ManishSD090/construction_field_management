@@ -20,10 +20,7 @@ class _InventoryHistoryScreenState extends State<InventoryHistoryScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text("Inventory History", style: TextStyle(color: Colors.white)),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.access_time, color: Colors.white),
-          )
+          
         ],
       ),
       body: Column(
@@ -35,7 +32,7 @@ class _InventoryHistoryScreenState extends State<InventoryHistoryScreen> {
               decoration: InputDecoration(
                 hintText: "Search Name",
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: const Icon(Icons.mic),
+               
                 filled: true,
                 fillColor: Colors.grey[100],
                 border: OutlineInputBorder(
@@ -124,11 +121,7 @@ class _InventoryHistoryScreenState extends State<InventoryHistoryScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: const Color(0xFF0066D6),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         type: BottomNavigationBarType.fixed,
