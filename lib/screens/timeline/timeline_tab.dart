@@ -70,11 +70,17 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
   }
 
   void _fetchCalendarData() {
+    // Add a guard to ensure we have a valid version if required by API
+    if (_versions.isEmpty && _selectedVersionId == null) {
+      debugPrint("No versions found yet, skipping calendar fetch");
+      return;
+    }
     setState(() {
       _calendarFuture = ref
           .read(timelineControllerProvider.notifier)
           .getTimelineCalendar(widget.timelineId, _selectedYear, _selectedMonth,
-              versionId: _selectedVersionId);
+              versionId: _selectedVersionId // Ensure this isn't null
+              );
     });
   }
 
@@ -300,11 +306,17 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
 
               if (snapshot.hasError) {
                 return Center(
-                    child: Padding(
-                        padding: const EdgeInsets.all(40.0),
-                        child: Text("Error: ${snapshot.error}",
-                            style: const TextStyle(color: Colors.red),
-                            textAlign: TextAlign.center)));
+                  child: Column(
+                    children: [
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 40),
+                      const Text(
+                          "Unable to load timeline. Please check your connection or server status."),
+                      ElevatedButton(
+                          onPressed: _fetchVersions, child: const Text("Retry"))
+                    ],
+                  ),
+                );
               }
 
               final data = snapshot.data;
