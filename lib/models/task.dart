@@ -1,3 +1,4 @@
+import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/enums.dart';
 
@@ -26,6 +27,9 @@ class Task {
   final List<TaskComment>? comments;
   final List<TaskAttachment>? attachments;
 
+  final Project? project;
+  final Map<String, int>? counts;
+
   Task({
     required this.id,
     required this.title,
@@ -48,6 +52,8 @@ class Task {
     this.subtasks,
     this.comments,
     this.attachments,
+    this.project,
+    this.counts,
   });
 
   Task copyWith({
@@ -72,6 +78,8 @@ class Task {
     List<Subtask>? subtasks,
     List<TaskComment>? comments,
     List<TaskAttachment>? attachments,
+    Project? project,
+    Map<String, int>? counts,
   }) {
     return Task(
       id: id ?? this.id,
@@ -95,6 +103,8 @@ class Task {
       subtasks: subtasks ?? this.subtasks,
       comments: comments ?? this.comments,
       attachments: attachments ?? this.attachments,
+      project: project ?? this.project,
+      counts: counts ?? this.counts,
     );
   }
 
@@ -140,6 +150,10 @@ class Task {
       attachments: (json['attachments'] as List?)
           ?.map((a) => TaskAttachment.fromJson(a))
           .toList(),
+      project:
+          json['project'] != null ? Project.fromJson(json['project']) : null,
+      counts:
+          json['counts'] != null ? json['counts'] as Map<String, int> : null,
     );
   }
 

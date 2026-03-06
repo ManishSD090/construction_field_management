@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/dio_client.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
@@ -28,6 +29,7 @@ final taskCommentsProvider =
 class TaskController extends AsyncNotifier<TaskState> {
   DioClient get _dioClient => ref.read(dioClientProvider);
   static const String _basePath = '/tasks';
+  static const String _attachmentsBasePath = '/task-attachments';
 
   String _currentSearch = '';
   String? _currentStatus;
@@ -127,6 +129,43 @@ class TaskController extends AsyncNotifier<TaskState> {
 
   // --- OPTIMIZED MUTATIONS (No full refresh) ---
 
+  /// Updates general task details (assignee, dates, priority, etc.)
+  Future<void> updateTask(String taskId, Map<String, dynamic> updates) async {
+    try {
+      // 1. Perform API Call
+      final response = await _dioClient.dio.put(
+        '$_basePath/$taskId',
+        data: updates,
+      );
+
+      // 2. Parse the updated task data
+      final updatedTaskData = Task.fromJson(response.data['data']);
+
+      // 3. Update locally instantly.
+      // Note: Since the backend update response doesn't `include` the nested
+      // relations (like subtasks, comments), we merge the new data with the old relations.
+      _updateLocalTask(taskId, (oldTask) {
+        return updatedTaskData.copyWith(
+          subtasks: oldTask.subtasks,
+          comments: oldTask.comments,
+          attachments: oldTask.attachments,
+          creator: oldTask.creator,
+          // If the update doesn't return the full assignedTo User object, preserve the old one
+          // temporarily until the invalidate below triggers a fresh fetch.
+          assignedTo: updatedTaskData.assignedTo ?? oldTask.assignedTo,
+        );
+      });
+
+      // 4. Invalidate the task details provider.
+      // Because the backend didn't return the populated `assignedTo` User object,
+      // invalidating this provider forces the screen to cleanly fetch the updated full task.
+      ref.invalidate(taskDetailsProvider(taskId));
+    } catch (e) {
+      // Re-throw the error so the UI can catch it and show a SnackBar
+      rethrow;
+    }
+  }
+
   Future<void> bulkUpdateSubtasks(
       String taskId, List<Map<String, dynamic>> updates) async {
     // 1. Perform API Call
@@ -202,6 +241,19 @@ class TaskController extends AsyncNotifier<TaskState> {
     ref.invalidate(taskDetailsProvider(taskId));
   }
 
+  Future<void> deleteSubtask(String subtaskId, String taskId) async {
+    await _dioClient.dio.delete('$_basePath/subtasks/$subtaskId');
+
+    // Remove locally for instant UI update
+    _updateLocalTask(taskId, (task) {
+      final updatedSubtasks =
+          task.subtasks?.where((s) => s.id != subtaskId).toList();
+      return task.copyWith(subtasks: updatedSubtasks);
+    });
+
+    ref.invalidate(taskDetailsProvider(taskId));
+  }
+
   Future<Task> getTaskById(String id) async {
     final response = await _dioClient.dio.get('$_basePath/$id');
     return Task.fromJson(response.data['data']);
@@ -211,5 +263,180 @@ class TaskController extends AsyncNotifier<TaskState> {
     final response = await _dioClient.dio.get('$_basePath/$taskId/comments');
     final List<dynamic> list = response.data['data'];
     return list.map((e) => TaskComment.fromJson(e)).toList();
+  }
+
+  // --- ATTACHMENT MUTATIONS & QUERIES ---
+
+  /// Uploads a file/photo to a task
+  /// [filePath] is the local path of the file on the device
+  Future<void> uploadTaskAttachment(String taskId, String filePath) async {
+    // 1. Create FormData for multipart/form-data upload
+    final formData = FormData.fromMap({
+      'taskId': taskId,
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
+    });
+
+    // 2. Perform API Call
+    final response = await _dioClient.dio.post(
+      '$_attachmentsBasePath/upload',
+      data: formData,
+    );
+
+    // 3. Parse the new attachment
+    final newAttachment = TaskAttachment.fromJson(response.data['data']);
+
+    // 4. Update local state instantly (append the new attachment to the task)
+    _updateLocalTask(taskId, (task) {
+      final updatedAttachments = [...?task.attachments, newAttachment];
+      return task.copyWith(attachments: updatedAttachments);
+    });
+
+    ref.invalidate(taskDetailsProvider(taskId));
+  }
+
+  /// Deletes an attachment by ID
+  Future<void> deleteTaskAttachment(String attachmentId, String taskId) async {
+    // 1. Perform API Call
+    await _dioClient.dio.delete('$_attachmentsBasePath/$attachmentId');
+
+    // 2. Remove locally for instant UI update
+    _updateLocalTask(taskId, (task) {
+      final updatedAttachments =
+          task.attachments?.where((a) => a.id != attachmentId).toList();
+      return task.copyWith(attachments: updatedAttachments);
+    });
+
+    ref.invalidate(taskDetailsProvider(taskId));
+  }
+
+  /// Fetches attachment statistics for a specific task
+  Future<Map<String, dynamic>> getAttachmentStatistics(String taskId) async {
+    final response = await _dioClient.dio
+        .get('$_attachmentsBasePath/statistics/task/$taskId');
+    return response.data['data'];
+  }
+
+  /// Fetches paginated attachments for a task (if you need a separate gallery view)
+  /// Note: The task object already includes attachments, but this is useful if there are many.
+  Future<Map<String, dynamic>> getPaginatedTaskAttachments(String taskId,
+      {int page = 1, int limit = 20}) async {
+    final response = await _dioClient.dio.get(
+      '$_attachmentsBasePath/task/$taskId',
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+      },
+    );
+    return response
+        .data; // Contains { data: { attachments, categorized }, pagination }
+  }
+
+  /// Downloads an attachment to a local path
+  /// You will typically use the 'path_provider' package to get the save directory
+  Future<void> downloadTaskAttachment(
+      String attachmentId, String savePath) async {
+    await _dioClient.dio.download(
+      '$_attachmentsBasePath/$attachmentId/download',
+      savePath,
+      onReceiveProgress: (received, total) {
+        if (total != -1) {
+          // You can log or update a state with download progress here
+          // final progress = (received / total * 100).toStringAsFixed(0);
+          // print('Downloading: $progress%');
+        }
+      },
+    );
+  }
+
+  // ==========================================================================
+  // WORKER & SUBTASK ASSIGNMENT METHODS
+  // ==========================================================================
+
+  /// Fetches all site staff (workers).
+  /// TODO: In the future, change this endpoint or add query parameters to fetch ONLY
+  /// workers assigned to the current project (`/worker/site-staff?projectId=...`).
+  Future<List<dynamic>> getAllSiteStaff() async {
+    final response = await _dioClient.dio.get('/workers/site-staff');
+    // Based on your backend, the data is inside response.data['data']
+    return response.data['data'];
+  }
+
+  /// Assigns a specific worker to a subtask.
+  Future<void> assignSubtaskToWorker({
+    required String workerId,
+    required String subtaskId,
+    required String taskId,
+    required String projectId,
+    String workerType = 'SITE_STAFF', // Can also be 'SUBCONTRACTOR'
+  }) async {
+    // TODO: When project assignment is implemented, ensure the worker is assigned
+    // to the project before making this API call.
+    await _dioClient.dio.post('/workers/subtask-assignments', data: {
+      'workerId': workerId,
+      'workerType': workerType,
+      'subtaskId': subtaskId,
+      'taskId': taskId,
+      'projectId': projectId,
+    });
+
+    // Invalidate the task details provider so the UI refreshes to show the newly assigned worker
+    ref.invalidate(taskDetailsProvider(taskId));
+  }
+
+  /// Removes a worker's assignment from a subtask
+  Future<void> removeSubtaskAssignment(
+      String assignmentId, String taskId) async {
+    await _dioClient.dio.delete('/worker/subtask-assignments/$assignmentId');
+
+    // Refresh the task details to reflect the removed assignment
+    ref.invalidate(taskDetailsProvider(taskId));
+  }
+
+  /// Helper method to change a worker (Deletes old assignment, creates new one)
+  Future<void> reassignSubtaskWorker({
+    required String oldAssignmentId,
+    required String newWorkerId,
+    required String subtaskId,
+    required String taskId,
+    required String projectId,
+    String workerType = 'SITE_STAFF',
+  }) async {
+    try {
+      // 1. Remove the old assignment first (if it exists)
+      if (oldAssignmentId.isNotEmpty) {
+        await _dioClient.dio
+            .delete('/worker/subtask-assignments/$oldAssignmentId');
+      }
+
+      // 2. Assign the new worker
+      await _dioClient.dio.post('/worker/subtask-assignments', data: {
+        'workerId': newWorkerId,
+        'workerType': workerType,
+        'subtaskId': subtaskId,
+        'taskId': taskId,
+        'projectId': projectId,
+      });
+
+      // 3. Refresh UI
+      ref.invalidate(taskDetailsProvider(taskId));
+    } catch (e) {
+      // Handle error (e.g., if assignment fails, you might want to alert the user)
+      rethrow;
+    }
+  }
+
+  /// Fetches Subcontractor Workers (useful for assigning them to subtasks)
+  Future<List<dynamic>> getSubcontractorWorkers(String projectId) async {
+    // We can use your existing for-attendance endpoint which also filters by projectId
+    // and returns the subcontractor worker details we need.
+    final response = await _dioClient.dio
+        .get('/subcontractors/workers/for-attendance', queryParameters: {
+      'projectId': projectId,
+    });
+
+    return response.data['data'];
   }
 }

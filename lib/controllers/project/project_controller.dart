@@ -138,6 +138,20 @@ class ProjectController extends AsyncNotifier<ProjectState> {
     });
   }
 
+  /// Fetches the list of users assigned to a specific project (Project Team)
+  Future<List<dynamic>> getProjectTeam(String projectId) async {
+    try {
+      // Note: Assuming your base path for projects is '/projects'
+      final response = await _dioClient.dio.get('$_basePath/$projectId/team');
+
+      // Returns a list of ProjectAssignment objects, which include the nested 'user' data
+      return response.data['data'] as List<dynamic>;
+    } catch (e) {
+      // console.error('Failed to fetch project team: $e');
+      rethrow;
+    }
+  }
+
   /// Get project settings (Geofencing, Attendance Windows, etc.)
   Future<Map<String, dynamic>> getSettings(String projectId) async {
     final response = await _dioClient.dio.get('$_basePath/$projectId/settings');

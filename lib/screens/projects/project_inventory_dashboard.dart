@@ -101,13 +101,17 @@ class _ProjectInventoryDashboardScreenState
       // 2. Process Low Stock Alerts (Pin them to 'now' so they show at the top)
       for (var item in lowStockItems) {
         // Fallback for the generic currentStock vs currentGlobalStock depending on if backend is fully updated
-        final currentStock =
-            item['currentStock'] ?? item['currentGlobalStock'] ?? 0;
+        // final currentStock =
+        //     item['currentStock'] ?? item['currentGlobalStock'] ?? 0;
 
         combined.add(ActivityData(
-          title: "Low Stock: ${item['name']}",
+          title:
+              "${item['status'].toString().replaceAll('_', ' ').split(' ').map((word) {
+            if (word.isEmpty) return '';
+            return word[0].toUpperCase() + word.substring(1).toLowerCase();
+          }).join(' ')}: ${item['name']}",
           subtitle:
-              "Available: $currentStock ${item['unit']} (Min: ${item['minimumStock']})",
+              "Available: ${item['currentStock']} ${item['unit']} (Min: ${item['minimumStock']})",
           date: DateTime.now(), // Display as "Just now" to keep attention on it
           icon: Icons.warning_amber_rounded,
           color: Colors.orange,

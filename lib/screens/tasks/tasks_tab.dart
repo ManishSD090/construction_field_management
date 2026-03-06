@@ -1,132 +1,114 @@
 import 'package:flutter/material.dart';
-import 'package:construction_erp/core/services/app_colors.dart';
-import 'package:construction_erp/screens/tasks/edit_task.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
-class ProjectTasksTab extends StatefulWidget {
+import 'package:construction_erp/screens/tasks/task_details.dart'; // Adjust if needed
+import 'package:construction_erp/core/services/app_colors.dart';
+import 'package:construction_erp/models/task.dart';
+import 'package:construction_erp/models/enums.dart';
+
+// IMPORTANT: Adjust this import to point to where your TaskController is defined!
+import 'package:construction_erp/controllers/task/task_controller.dart';
+
+class ProjectTasksTab extends ConsumerStatefulWidget {
   final bool showAppBar;
+  final String?
+      projectId; // Helpful if we want to fetch tasks for a specific project
 
   const ProjectTasksTab({
     super.key,
     this.showAppBar = false,
+    this.projectId,
   });
 
   @override
-  State<ProjectTasksTab> createState() => _ProjectTasksTabState();
+  ConsumerState<ProjectTasksTab> createState() => _ProjectTasksTabState();
 }
 
-class _ProjectTasksTabState extends State<ProjectTasksTab> {
-  // State variables
-  bool _isDeleteMode = false;
-  bool _isEditMode = false; // ✅ Added Edit Mode State
-  final Set<int> _selectedTaskIndices = {};
-
-  final List<Map<String, dynamic>> _tasks = [
-    {
-      "title": "Excavation for Block A",
-      "assignee": "Worker 1",
-      "dueDate": "28 Sep 2025",
-      "priority": "High",
-      "status": "In progress",
-      "statusColor": const Color(0xFFF9A825),
-    },
-    {
-      "title": "Column Reinforcement - Phase 1",
-      "assignee": "Worker 1",
-      "dueDate": "28 Sep 2025",
-      "priority": "High",
-      "status": "Completed",
-      "statusColor": AppColors.successGreen,
-    },
-    {
-      "title": "Excavation for Block B",
-      "assignee": "Worker 1",
-      "dueDate": "28 Sep 2025",
-      "priority": "High",
-      "status": "Pending",
-      "statusColor": AppColors.alertRed,
-    },
-  ];
-
-  // Toggle Delete Mode (Turns off Edit mode if active)
-  void _toggleDeleteMode() {
-    setState(() {
-      _isDeleteMode = !_isDeleteMode;
-      _isEditMode = false; // Disable edit mode
-      _selectedTaskIndices.clear();
+class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch the initial data when the tab is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(taskControllerProvider.notifier).refresh(
+            projectId: widget.projectId,
+          );
     });
   }
 
-  // ✅ Toggle Edit Mode (Turns off Delete mode if active)
-  void _toggleEditMode() {
-    setState(() {
-      _isEditMode = !_isEditMode;
-      _isDeleteMode = false; // Disable delete mode
-      _selectedTaskIndices.clear();
-    });
+  // Helper to format the task dates safely
+  String _formatDuration(DateTime? start, DateTime? end) {
+    if (start == null && end == null) return "Not set";
+    if (start != null && end == null) {
+      return "${DateFormat('dd MMM yyyy').format(start)} - TBD";
+    }
+    if (start == null && end != null) {
+      return "Due ${DateFormat('dd MMM yyyy').format(end)}";
+    }
+    return "${DateFormat('dd MMM').format(start!)} - ${DateFormat('dd MMM yyyy').format(end!)}";
   }
 
-  void _onTaskSelected(bool? selected, int index) {
-    setState(() {
-      if (selected == true) {
-        _selectedTaskIndices.add(index);
-      } else {
-        _selectedTaskIndices.remove(index);
-      }
-    });
-  }
-
-  void _deleteSelectedTasks() {
-    setState(() {
-      final List<int> indicesToRemove = _selectedTaskIndices.toList()
-        ..sort((a, b) => b.compareTo(a));
-
-      for (int index in indicesToRemove) {
-        _tasks.removeAt(index);
-      }
-      _isDeleteMode = false;
-      _selectedTaskIndices.clear();
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Selected tasks deleted")),
-    );
-  }
-
-  // ✅ Helper to Navigate to Edit Screen
-  void _navigateToEdit(Map<String, dynamic> task) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditTaskScreen(task: task),
-      ),
-    );
+  // Helper to get nice UI colors based on the backend TaskStatus enum
+  Color _getStatusColor(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.todo:
+        return AppColors.lightGrey; // Or a neutral blue
+      case TaskStatus.inProgress:
+        return AppColors.warningYellow;
+      case TaskStatus.review:
+        return AppColors.primaryBlue;
+      case TaskStatus.completed:
+        return AppColors.successGreen;
+      case TaskStatus.blocked:
+        return AppColors.alertRed;
+      default:
+        return AppColors.textGrey;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watch the AsyncValue from Riverpod
+    final taskStateAsync = ref.watch(taskControllerProvider);
+    final taskState = taskStateAsync.value;
+    final tasks = taskState?.tasks ?? [];
+    final isLoadingInitial = taskStateAsync.isLoading && tasks.isEmpty;
+
     Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hide Search Bar if in Delete OR Edit Mode
-        if (!_isDeleteMode && !_isEditMode) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: AppColors.lightGrey),
-            ),
-            child: const TextField(
-              decoration: InputDecoration(
-                icon: Icon(Icons.search, color: AppColors.textGrey),
-                hintText: "Search Tasks",
-                hintStyle: TextStyle(color: AppColors.textGrey),
-                border: InputBorder.none,
-                suffixIcon: Icon(Icons.mic, color: AppColors.textGrey),
-              ),
+        // --- SEARCH BAR ---
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: AppColors.lightGrey.withOpacity(0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: TextField(
+            onChanged: (value) {
+              ref.read(taskControllerProvider.notifier).refresh(search: value);
+            },
+            decoration: const InputDecoration(
+              icon: Icon(Icons.search, color: AppColors.textGrey, size: 26),
+              hintText: "Search Tasks",
+              hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 16),
+              border: InputBorder.none,
+              suffixIcon:
+                  Icon(Icons.mic_none, color: AppColors.textGrey, size: 26),
             ),
           ),
-          const SizedBox(height: 25),
-        ],
+        ),
+
+        const SizedBox(height: 25),
 
         // --- HEADER ROW ---
         Row(
@@ -135,173 +117,169 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
             const Text(
               "Tasks list",
               style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textDark,
+              ),
             ),
+            Row(
+              children: [
+                // Manual Refresh Button for embedded view
+                if (!widget.showAppBar)
+                  IconButton(
+                    onPressed: () {
+                      ref
+                          .read(taskControllerProvider.notifier)
+                          .refresh(projectId: widget.projectId);
+                    },
+                    icon:
+                        const Icon(Icons.refresh, color: AppColors.primaryBlue),
+                    tooltip: "Refresh Tasks",
+                  ),
 
-            // Logic for Buttons
-            if (_isDeleteMode)
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: _toggleDeleteMode,
-                    child: const Text("Cancel",
-                        style: TextStyle(
-                            color: AppColors.textGrey,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: _selectedTaskIndices.isNotEmpty
-                        ? _deleteSelectedTasks
-                        : null,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.alertRed),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                    ),
-                    child: const Text("Delete selected",
-                        style:
-                            TextStyle(color: AppColors.alertRed, fontSize: 12)),
-                  ),
-                ],
-              )
-            else if (_isEditMode)
-              // ✅ Show Cancel button for Edit Mode
-              Row(
-                children: [
-                  const Text("Select to Edit",
-                      style:
-                          TextStyle(color: AppColors.textGrey, fontSize: 12)),
-                  const SizedBox(width: 10),
-                  TextButton(
-                    onPressed: _toggleEditMode,
-                    child: const Text("Done",
-                        style: TextStyle(
-                            color: AppColors.primaryBlue,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              )
-            else
-              // Normal Mode Icons
-              Row(
-                children: [
-                  // ✅ EDIT BUTTON NOW WORKS
-                  _buildSmallIcon(
-                      Icons.edit, AppColors.lightGrey, _toggleEditMode),
-                  const SizedBox(width: 8),
-                  _buildSmallIcon(
-                      Icons.delete, AppColors.alertRed, _toggleDeleteMode),
-                  const SizedBox(width: 8),
-                  Container(
+                // Filter Button
+                InkWell(
+                  onTap: () {
+                    // Open a filter bottom sheet to filter by Status, Priority, etc.
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.primaryBlue),
+                      border: Border.all(
+                          color: AppColors.primaryBlue.withOpacity(0.6)),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Text("Filter",
-                            style: TextStyle(
-                                color: AppColors.primaryBlue,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12)),
-                        SizedBox(width: 4),
-                        Icon(Icons.tune, size: 14, color: AppColors.primaryBlue)
+                        const Text(
+                          "Filter",
+                          style: TextStyle(
+                            color: AppColors.textDark,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.tune,
+                          size: 16,
+                          color: AppColors.primaryBlue.withOpacity(0.8),
+                        )
                       ],
                     ),
-                  )
-                ],
-              )
+                  ),
+                ),
+              ],
+            )
           ],
         ),
         const SizedBox(height: 15),
 
-        // --- LIST VIEW ---
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _tasks.length,
-          itemBuilder: (context, index) {
-            final task = _tasks[index];
-            final isChecked = _selectedTaskIndices.contains(index);
+        // --- LIST VIEW (Riverpod State) ---
+        if (isLoadingInitial)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+                child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+          )
+        else if (taskStateAsync.hasError)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Text("Error loading tasks\n${taskStateAsync.error}",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.alertRed)),
+            ),
+          )
+        else if (tasks.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 60),
+            child: Center(
+              child: Text("No tasks found.",
+                  style: TextStyle(color: AppColors.textGrey, fontSize: 16)),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics:
+                const NeverScrollableScrollPhysics(), // Important: Prevents scroll hijacking
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              final Task task = tasks[index];
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
-                children: [
-                  // 1. DELETE MODE: Checkbox
-                  if (_isDeleteMode)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12.0),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: isChecked,
-                          activeColor: AppColors.alertRed,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4)),
-                          side: const BorderSide(
-                              color: AppColors.textGrey, width: 1.5),
-                          onChanged: (val) => _onTaskSelected(val, index),
-                        ),
-                      ),
-                    ),
+              // Map Backend Task fields to UI fields
+              final isAssigned =
+                  task.assignedToId != null && task.assignedToId!.isNotEmpty;
+              final assignedStatusText = isAssigned
+                  ? (task.assignedTo?.name ?? "Assigned")
+                  : "Unassigned";
 
-                  // 2. EDIT MODE: Pencil Icon
-                  if (_isEditMode)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12.0),
-                      child: InkWell(
-                        onTap: () => _navigateToEdit(task),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                              color: AppColors.lightGrey.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4)),
-                          child: const Icon(Icons.edit,
-                              size: 18, color: AppColors.textDark),
-                        ),
-                      ),
-                    ),
+              // Calculate Subtasks correctly
+              final totalSubtasks =
+                  task.subtasks?.length ?? task.counts?['subtasks'] ?? 0;
+              final completedSubtasks =
+                  task.subtasks?.where((s) => s.isCompleted).length ?? 0;
 
-                  // 3. TASK CARD
-                  Expanded(
-                    child: InkWell(
-                      // Allow tapping the card to edit in Edit Mode
-                      onTap: () {
-                        if (_isEditMode) {
-                          _navigateToEdit(task);
-                        }
-                      },
-                      child: TaskCard(
-                        title: task['title'],
-                        assignee: task['assignee'],
-                        dueDate: task['dueDate'],
-                        priority: task['priority'],
-                        status: task['status'],
-                        statusColor: task['statusColor'],
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: InkWell(
+                  onTap: () {
+                    // Navigate to Task Details Screen and pass the specific task ID
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            TaskDetailsScreen(taskId: task.id),
                       ),
-                    ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: TaskCard(
+                    title: task.title,
+                    assignedStatus: assignedStatusText,
+                    duration: _formatDuration(task.startDate, task.dueDate),
+                    subtasksCompleted: completedSubtasks,
+                    subtasksTotal: totalSubtasks,
+                    status: task.status.toDisplayString(),
+                    statusColor: _getStatusColor(task.status),
                   ),
-                ],
+                ),
+              );
+            },
+          ),
+
+        // Load More Button
+        if (taskState?.hasMore == true && !isLoadingInitial)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 20),
+              child: TextButton(
+                onPressed: () {
+                  ref.read(taskControllerProvider.notifier).loadNextPage();
+                },
+                child: taskState!.isLoadingMore
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text("Load More Tasks",
+                        style: TextStyle(color: AppColors.primaryBlue)),
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 80),
+            ),
+          ),
+
+        // Add padding ONLY if it's the standalone screen (not embedded in tabs)
+        if (widget.showAppBar) const SizedBox(height: 80),
       ],
     );
 
+    // If viewing as a standalone screen, apply the layout with App Bar & Pull-To-Refresh
     if (widget.showAppBar) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.bgGrey,
         appBar: AppBar(
           backgroundColor: AppColors.primaryBlue,
           elevation: 0,
@@ -312,63 +290,47 @@ class _ProjectTasksTabState extends State<ProjectTasksTab> {
           ),
           automaticallyImplyLeading: false,
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: content,
+        body: RefreshIndicator(
+          color: AppColors.primaryBlue,
+          onRefresh: () => ref
+              .read(taskControllerProvider.notifier)
+              .refresh(projectId: widget.projectId),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding:
+                const EdgeInsets.all(20), // Standalone screen needs padding
+            child: content,
+          ),
         ),
-        // floatingActionButton: FloatingActionButton(
-        //   onPressed: () {
-        //     Navigator.push(
-        //       context,
-        //       MaterialPageRoute(builder: (context) => const CreateTaskScreen()),
-        //     );
-        //   },
-        //   backgroundColor: AppColors.primaryBlue,
-        //   shape: const CircleBorder(),
-        //   child: const Icon(Icons.add, color: Colors.white),
-        // ),
       );
     } else {
+      // EMBEDDED MODE (Inside ProjectDetailsScreen)
+      // Return ONLY the column. No nested SingleChildScrollView, no padding, no RefreshIndicator.
+      // The parent ProjectDetailsScreen provides the scrolling context and the 20px padding.
       return content;
     }
   }
-
-  Widget _buildSmallIcon(IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6)),
-        child: Icon(icon, color: color, size: 16),
-      ),
-    );
-  }
 }
-
-// ... (TaskCard and CreateTaskScreen remain unchanged below) ...
-// Ensure you include the TaskCard and CreateTaskScreen classes in your file
-// exactly as they were in the previous version.
-// I have omitted them here to save space but they are required.
 
 class TaskCard extends StatelessWidget {
   final String title;
-  final String assignee;
-  final String dueDate;
-  final String priority;
+  final String assignedStatus;
+  final String duration;
+  final int subtasksCompleted;
+  final int subtasksTotal;
   final String status;
   final Color statusColor;
 
-  const TaskCard(
-      {super.key,
-      required this.title,
-      required this.assignee,
-      required this.dueDate,
-      required this.priority,
-      required this.status,
-      required this.statusColor});
+  const TaskCard({
+    super.key,
+    required this.title,
+    required this.assignedStatus,
+    required this.duration,
+    required this.subtasksCompleted,
+    required this.subtasksTotal,
+    required this.status,
+    required this.statusColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -379,72 +341,105 @@ class TaskCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2))
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          )
         ],
         border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Row 1: Title and Status Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                  child: Text(title,
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textDark))),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                    color: statusColor == AppColors.alertRed
-                        ? AppColors.alertRed
-                        : statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4)),
-                child: Text(status,
-                    style: TextStyle(
-                        color: statusColor == AppColors.alertRed
-                            ? Colors.white
-                            : statusColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold)),
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  status,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          RichText(
-              text: TextSpan(
+
+          const SizedBox(height: 10),
+
+          // Row 2: Assigned Status
+          Text(
+            assignedStatus,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: assignedStatus.toLowerCase() == 'unassigned'
+                  ? AppColors.alertRed
+                  : AppColors.primaryBlue,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Row 3: Duration and Subtasks
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              RichText(
+                text: TextSpan(
                   style:
                       const TextStyle(fontSize: 12, color: AppColors.textGrey),
                   children: [
-                const TextSpan(text: "Assigned to: "),
-                TextSpan(
-                    text: assignee,
-                    style: const TextStyle(color: AppColors.primaryBlue))
-              ])),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("Due Date: $dueDate",
-                style:
-                    const TextStyle(fontSize: 12, color: AppColors.textGrey)),
-            RichText(
-                text: TextSpan(
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textGrey),
-                    children: [
-                  const TextSpan(text: "Priority: "),
-                  TextSpan(
-                      text: priority,
+                    const TextSpan(text: "Duration: "),
+                    TextSpan(
+                      text: duration,
                       style: const TextStyle(
-                          color: AppColors.alertRed,
-                          fontWeight: FontWeight.bold))
-                ])),
-          ])
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              RichText(
+                text: TextSpan(
+                  style:
+                      const TextStyle(fontSize: 12, color: AppColors.textGrey),
+                  children: [
+                    const TextSpan(text: "Subtasks: "),
+                    TextSpan(
+                      text: "$subtasksCompleted/$subtasksTotal",
+                      style: const TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
         ],
       ),
     );
