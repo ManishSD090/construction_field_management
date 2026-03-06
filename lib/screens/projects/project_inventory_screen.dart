@@ -5,19 +5,26 @@ import 'package:intl/intl.dart';
 import 'package:construction_erp/routes.dart'; // Ensure this exists
 import 'package:construction_erp/screens/inventory/inventory_history_screen.dart'; // Adjust path
 import 'package:construction_erp/screens/inventory/item_details_screen.dart'; // Adjust path
-import 'package:construction_erp/screens/inventory/create_material_screen.dart';
-import 'package:construction_erp/screens/inventory/create_equipment_screen.dart';
+import 'package:construction_erp/screens/projects/add_material_to_project.dart';
+import 'package:construction_erp/screens/projects/assign_equipment_to_project.dart';
 
 import 'package:construction_erp/controllers/inventory/inventory_controller.dart'; // Adjust path as needed
 
-class InventoryScreen extends ConsumerStatefulWidget {
-  const InventoryScreen({super.key});
+class ProjectInventoryScreen extends ConsumerStatefulWidget {
+  final String projectId;
+
+  const ProjectInventoryScreen({
+    super.key,
+    required this.projectId,
+  });
 
   @override
-  ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
+  ConsumerState<ProjectInventoryScreen> createState() =>
+      _ProjectInventoryScreenState();
 }
 
-class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+class _ProjectInventoryScreenState
+    extends ConsumerState<ProjectInventoryScreen> {
   bool isMaterialSelected = true;
   final TextEditingController _searchController = TextEditingController();
   final currencyFormat =
@@ -27,7 +34,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(inventoryControllerProvider.notifier).switchToGlobalView();
+      ref
+          .read(inventoryControllerProvider.notifier)
+          .switchToProjectView(widget.projectId);
     });
   }
 
@@ -44,10 +53,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D6EFD), // Dashboard Blue
+        backgroundColor: const Color(0xFF0D6EFD),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text("Global Inventory",
+        title: const Text("Project Inventory",
             style: TextStyle(color: Colors.white)),
         actions: [
           PopupMenuButton<String>(
@@ -177,13 +186,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "${isMaterialSelected ? materialsCount : equipmentCount} Total ${isMaterialSelected ? 'Materials' : 'Equipments'}",
+                          "${isMaterialSelected ? materialsCount : equipmentCount} Total On-Site",
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF0D6EFD)),
                         ),
                         Text(
-                          "${currencyFormat.format(isMaterialSelected ? materialsValue : equipmentValue)} Total Value",
+                          "${currencyFormat.format(isMaterialSelected ? materialsValue : equipmentValue)} Site Value",
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -201,8 +210,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     children: [
                       Text(
                         isMaterialSelected
-                            ? "Materials List"
-                            : "Equipments List",
+                            ? "Project Materials"
+                            : "Project Equipments",
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
@@ -233,27 +242,29 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           );
         },
       ),
-      // FAB LOGIC
+      // FAB LOGIC UPDATED FOR PROJECT CONTEXT
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (isMaterialSelected) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const CreateMaterialScreen()),
+                  builder: (context) =>
+                      AddMaterialToProjectScreen(projectId: widget.projectId)),
             );
           } else {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const CreateEquipmentScreen()),
+                  builder: (context) => AssignEquipmentToProjectScreen(
+                      projectId: widget.projectId)),
             );
           }
         },
         backgroundColor: const Color(0xFF0D6EFD),
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
-          isMaterialSelected ? "Create Material" : "Create Equipment",
+          isMaterialSelected ? "Add Material" : "Assign Equipment",
           style:
               const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
@@ -286,15 +297,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   Widget _buildMaterialsGrid(List inventoryItems) {
     if (inventoryItems.isEmpty) {
-      return const Center(child: Text("No materials found."));
+      return const Center(child: Text("No materials on site."));
     }
     return GridView.builder(
-      // Added bottom padding (88.0) to ensure the FAB does not cover the last row of items
+      // Added padding below to ensure FAB doesn't block the last elements
       padding: const EdgeInsets.only(
           left: 16.0, right: 16.0, top: 16.0, bottom: 88.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.95, // Shorter card to fit content better
+        childAspectRatio:
+            0.95, // Increased from 0.85 to make the card shorter and fit the content better
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -314,7 +326,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               MaterialPageRoute(
                 builder: (context) => ItemDetailsScreen(
                   isMaterial: true,
-                  isGlobalContext: true,
+                  isGlobalContext: false,
+                  projectId: widget.projectId,
                   itemId: item.material?.id ?? "",
                   itemName: materialName,
                   totalQty: item.quantityTotal,
@@ -369,9 +382,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 10),
-                _buildQuantityRow("Total:", "${item.quantityTotal} $unit"),
+                _buildQuantityRow("Received:", "${item.quantityTotal} $unit"),
                 const SizedBox(height: 4),
-                _buildQuantityRow("Used:", "${item.quantityUsed} $unit"),
+                _buildQuantityRow("Consumed:", "${item.quantityUsed} $unit"),
                 const SizedBox(height: 4),
                 _buildQuantityRow(
                     "Available:", "${item.quantityAvailable} $unit"),
@@ -401,10 +414,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   Widget _buildEquipmentGrid(List equipmentList) {
     if (equipmentList.isEmpty) {
-      return const Center(child: Text("No equipment found."));
+      return const Center(child: Text("No equipment on site."));
     }
     return GridView.builder(
-      // Added bottom padding (88.0) to ensure the FAB does not cover the last row of items
+      // Added padding below to ensure FAB doesn't block the last elements
       padding: const EdgeInsets.only(
           left: 16.0, right: 16.0, top: 16.0, bottom: 88.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -450,8 +463,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => ItemDetailsScreen(
-                  isGlobalContext: true,
                   isMaterial: false,
+                  isGlobalContext: false,
                   itemId: equip.id ?? "",
                   itemName: equip.name,
                 ),

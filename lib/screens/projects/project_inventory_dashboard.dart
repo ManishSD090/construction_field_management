@@ -1,3 +1,4 @@
+import 'package:construction_erp/screens/projects/project_inventory_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -24,16 +25,21 @@ class ActivityData {
   });
 }
 
-class InventoryDashboardScreen extends ConsumerStatefulWidget {
-  const InventoryDashboardScreen({super.key});
+class ProjectInventoryDashboardScreen extends ConsumerStatefulWidget {
+  final String projectId;
+
+  const ProjectInventoryDashboardScreen({
+    super.key,
+    required this.projectId,
+  });
 
   @override
-  ConsumerState<InventoryDashboardScreen> createState() =>
-      _InventoryDashboardScreenState();
+  ConsumerState<ProjectInventoryDashboardScreen> createState() =>
+      _ProjectInventoryDashboardScreenState();
 }
 
-class _InventoryDashboardScreenState
-    extends ConsumerState<InventoryDashboardScreen> {
+class _ProjectInventoryDashboardScreenState
+    extends ConsumerState<ProjectInventoryDashboardScreen> {
   // Brand Colors based on UI
   final Color primaryBlue = const Color(0xFF0D6EFD);
   final Color tealColor = const Color(0xFF00C4B4);
@@ -49,9 +55,11 @@ class _InventoryDashboardScreenState
   @override
   void initState() {
     super.initState();
-    // Fetch the correct Inventory when this component mounts
+    // Fetch the correct Project Inventory when this component mounts
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(inventoryControllerProvider.notifier).switchToGlobalView();
+      ref
+          .read(inventoryControllerProvider.notifier)
+          .switchToProjectView(widget.projectId);
       _fetchRecentActivities();
     });
   }
@@ -64,10 +72,10 @@ class _InventoryDashboardScreenState
     try {
       final controller = ref.read(inventoryControllerProvider.notifier);
 
-      // Fetch movements and low stock items in parallel
+      // Fetch movements and low stock items in parallel for THIS specific project
       final results = await Future.wait([
-        controller.getMovementReport(),
-        controller.getLowStockReport(),
+        controller.getMovementReport(projectId: widget.projectId),
+        controller.getLowStockReport(projectId: widget.projectId),
       ]);
 
       final movements = results[0] as List<dynamic>;
@@ -92,10 +100,14 @@ class _InventoryDashboardScreenState
 
       // 2. Process Low Stock Alerts (Pin them to 'now' so they show at the top)
       for (var item in lowStockItems) {
+        // Fallback for the generic currentStock vs currentGlobalStock depending on if backend is fully updated
+        final currentStock =
+            item['currentStock'] ?? item['currentGlobalStock'] ?? 0;
+
         combined.add(ActivityData(
           title: "Low Stock: ${item['name']}",
           subtitle:
-              "Available: ${item['currentGlobalStock']} ${item['unit']} (Min: ${item['minimumStock']})",
+              "Available: $currentStock ${item['unit']} (Min: ${item['minimumStock']})",
           date: DateTime.now(), // Display as "Just now" to keep attention on it
           icon: Icons.warning_amber_rounded,
           color: Colors.orange,
@@ -190,39 +202,23 @@ class _InventoryDashboardScreenState
     // Watch the inventory state
     final inventoryStateAsync = ref.watch(inventoryControllerProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: primaryBlue,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Global Inventory",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Refresh action
-              ref.read(inventoryControllerProvider.notifier).refresh();
-              _fetchRecentActivities();
-            },
-            icon: const Icon(Icons.refresh, color: Colors.white),
-          )
-        ],
+    // Removed Material, RefreshIndicator, and SingleChildScrollView.
+    // Since ProjectDetailsScreen already handles the scrolling, returning a Column
+    // fixes the nested scroll bug and allows dragging anywhere on the screen!
+    return inventoryStateAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40.0),
+        child: Center(child: CircularProgressIndicator()),
       ),
-      body: inventoryStateAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
+      error: (error, stack) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40.0),
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 16),
-              Text("Failed to load inventory:\n$error",
+              Text("Failed to load project inventory:\n$error",
                   textAlign: TextAlign.center),
               TextButton(
                 onPressed: () {
@@ -234,75 +230,66 @@ class _InventoryDashboardScreenState
             ],
           ),
         ),
-        data: (state) {
-          // Extract dynamic summary values from the controller state
-          final summary = state.summary;
-          final double equipValue =
-              (summary['totalEquipmentValue'] ?? 0).toDouble();
-          final double matValue =
-              (summary['totalMaterialValue'] ?? 0).toDouble();
-          final double totalValue = (summary['totalValue'] ?? 0).toDouble();
+      ),
+      data: (state) {
+        // Extract dynamic summary values from the controller state
+        final summary = state.summary;
+        final double equipValue =
+            (summary['totalEquipmentValue'] ?? 0).toDouble();
+        final double matValue = (summary['totalMaterialValue'] ?? 0).toDouble();
+        final double totalValue = (summary['totalValue'] ?? 0).toDouble();
 
-          return RefreshIndicator(
-            color: primaryBlue,
-            onRefresh: () async {
-              await ref.read(inventoryControllerProvider.notifier).refresh();
-              await _fetchRecentActivities();
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Dynamic Inventory Summary Card
-                    _buildInventorySummaryCard(
-                        equipValue, matValue, totalValue),
+        // Removed the Padding widget because the parent ProjectDetailsScreen
+        // already applies 20px padding around the tab content.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Dynamic Inventory Summary Card
+            _buildInventorySummaryCard(equipValue, matValue, totalValue),
 
-                    const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-                    // 2. Recent Activity Section (Dynamic)
-                    _buildRecentActivitySection(),
+            // 2. Budget Section (Included in Project Dashboard)
+            _buildBudgetSection(),
 
-                    const SizedBox(height: 30),
+            const SizedBox(height: 24),
 
-                    // 3. Primary Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const PurchaseOrderListScreen()),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryBlue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: const Text(
-                          "Make a Purchase Order",
-                          style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+            // 3. Recent Activity Section
+            _buildRecentActivitySection(),
+
+            const SizedBox(height: 30),
+
+            // 4. Primary Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const PurchaseOrderListScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBlue,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text(
+                  "Make a Purchase Order",
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ),
-          );
-        },
-      ),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
     );
   }
 
@@ -341,6 +328,8 @@ class _InventoryDashboardScreenState
             width: 120,
             child: PieChart(
               PieChartData(
+                // Disabled pieTouchData so the chart doesn't swallow vertical scroll gestures
+                pieTouchData: PieTouchData(enabled: false),
                 sectionsSpace: 0,
                 centerSpaceRadius: 40,
                 startDegreeOffset: -90,
@@ -392,7 +381,9 @@ class _InventoryDashboardScreenState
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const InventoryScreen()),
+                            builder: (context) => ProjectInventoryScreen(
+                                  projectId: widget.projectId,
+                                )),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -422,6 +413,71 @@ class _InventoryDashboardScreenState
           TextSpan(
             text: value,
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBudgetSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Project Budget Summary",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const Divider(height: 24),
+
+          // Custom Progress Bar
+          Container(
+            height: 35,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCDE1FF), // Light blue background
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                // Used Portion
+                Expanded(
+                  flex: 60, // 60% Used
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: primaryBlue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                // Remaining Portion
+                const Expanded(
+                  flex: 40,
+                  child: SizedBox(), // Transparent/Light blue background shows
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "Total Contract: ₹20,00,000",
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Used: ₹12,00,000",
+                  style: TextStyle(fontSize: 13, color: Colors.black87)),
+              Text("Remaining: ₹8,00,000",
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+            ],
           ),
         ],
       ),

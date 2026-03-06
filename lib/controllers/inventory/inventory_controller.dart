@@ -442,8 +442,13 @@ class InventoryController extends AsyncNotifier<InventoryState> {
     return response.data;
   }
 
-  Future<List<Map<String, dynamic>>> getLowStockReport() async {
-    final response = await _dioClient.dio.get('$_basePath/reports/low-stock');
+  // Update this method in your inventory_controller.dart
+  Future<List<Map<String, dynamic>>> getLowStockReport(
+      {String? projectId}) async {
+    final response = await _dioClient.dio
+        .get('$_basePath/reports/low-stock', queryParameters: {
+      if (projectId != null) 'projectId': projectId,
+    });
     return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
   }
 

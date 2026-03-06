@@ -1,5 +1,22 @@
+import 'package:construction_erp/models/equipment.dart';
+import 'package:construction_erp/models/material.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/enums.dart';
+
+// Helper class to handle nested project names from the API response
+class ProjectRef {
+  final String? name;
+
+  ProjectRef({this.name});
+
+  factory ProjectRef.fromJson(Map<String, dynamic> json) {
+    return ProjectRef(name: json['name']?.toString());
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'name': name};
+  }
+}
 
 class Inventory {
   final String id;
@@ -13,6 +30,8 @@ class Inventory {
   final double averageRate;
   final double totalValue;
   final DateTime lastUpdated;
+  final Material? material;
+  final Equipment? equipment;
 
   Inventory({
     required this.id,
@@ -26,6 +45,8 @@ class Inventory {
     required this.averageRate,
     required this.totalValue,
     required this.lastUpdated,
+    this.material,
+    this.equipment,
   });
 
   factory Inventory.fromJson(Map<String, dynamic> json) {
@@ -52,6 +73,11 @@ class Inventory {
           num.tryParse(json['totalValue']?.toString() ?? '')?.toDouble() ?? 0.0,
       lastUpdated: DateTime.tryParse(json['lastUpdated']?.toString() ?? '') ??
           DateTime.now(),
+      material:
+          json['material'] != null ? Material.fromJson(json['material']) : null,
+      equipment: json['equipment'] != null
+          ? Equipment.fromJson(json['equipment'])
+          : null,
     );
   }
 
@@ -78,8 +104,10 @@ class InventoryTransfer {
   final String companyId;
   final InventoryLocation fromLocation;
   final String? fromProjectId;
+  final ProjectRef? fromProject; // Added to map the relation from API
   final InventoryLocation toLocation;
   final String? toProjectId;
+  final ProjectRef? toProject; // Added to map the relation from API
   final DateTime transferDate;
   final TransferStatus status;
   final String? description;
@@ -100,8 +128,10 @@ class InventoryTransfer {
     required this.companyId,
     required this.fromLocation,
     this.fromProjectId,
+    this.fromProject,
     required this.toLocation,
     this.toProjectId,
+    this.toProject,
     required this.transferDate,
     required this.status,
     this.description,
@@ -125,8 +155,14 @@ class InventoryTransfer {
       fromLocation:
           InventoryLocation.fromJson(json['fromLocation']?.toString()),
       fromProjectId: json['fromProjectId']?.toString(),
+      fromProject: json['fromProject'] != null
+          ? ProjectRef.fromJson(json['fromProject'])
+          : null,
       toLocation: InventoryLocation.fromJson(json['toLocation']?.toString()),
       toProjectId: json['toProjectId']?.toString(),
+      toProject: json['toProject'] != null
+          ? ProjectRef.fromJson(json['toProject'])
+          : null,
       transferDate: DateTime.tryParse(json['transferDate']?.toString() ?? '') ??
           DateTime.now(),
       status: TransferStatus.fromJson(json['status']?.toString()),
@@ -164,8 +200,10 @@ class InventoryTransfer {
       'companyId': companyId,
       'fromLocation': fromLocation.toJson(),
       'fromProjectId': fromProjectId,
+      'fromProject': fromProject?.toJson(),
       'toLocation': toLocation.toJson(),
       'toProjectId': toProjectId,
+      'toProject': toProject?.toJson(),
       'transferDate': transferDate.toIso8601String(),
       'status': status.toJson(),
       'description': description,
@@ -196,6 +234,10 @@ class InventoryTransferItem {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // Added nested models from the API include relation
+  final Material? material;
+  final Equipment? equipment;
+
   InventoryTransferItem({
     required this.id,
     required this.transferId,
@@ -208,6 +250,8 @@ class InventoryTransferItem {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.material,
+    this.equipment,
   });
 
   factory InventoryTransferItem.fromJson(Map<String, dynamic> json) {
@@ -227,6 +271,11 @@ class InventoryTransferItem {
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
           DateTime.now(),
+      material:
+          json['material'] != null ? Material.fromJson(json['material']) : null,
+      equipment: json['equipment'] != null
+          ? Equipment.fromJson(json['equipment'])
+          : null,
     );
   }
 
@@ -243,6 +292,8 @@ class InventoryTransferItem {
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'material': material?.toJson(),
+      'equipment': equipment?.toJson(),
     };
   }
 }

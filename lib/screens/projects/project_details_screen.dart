@@ -1,3 +1,5 @@
+import 'package:construction_erp/screens/inventory/inventory_dashboard_screen.dart';
+import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -458,6 +460,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       'Tasks',
       'Sub-contractor',
       'Timeline',
+      'Inventory',
       'Attendance',
       'DPR',
       'WPR'
@@ -534,6 +537,10 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           );
         },
       );
+    }
+
+    if (_selectedTab == 'Inventory') {
+      return ProjectInventoryDashboardScreen(projectId: project.id);
     }
 
     if (_selectedTab == 'DPR') return const ProjectDPRTab();
