@@ -2,7 +2,6 @@ import 'package:construction_erp/screens/projects/edit_sub_contractor_project.da
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Added Riverpod
 import 'package:construction_erp/controllers/subcontractor/subcontractor_controller.dart'; // ✅ Import your controller
-import 'package:construction_erp/screens/sub_contractor/edit_sub_contractor.dart';
 import 'package:intl/intl.dart'; // ✅ For date formatting
 
 class ProjectSubContractorDetailsScreen extends ConsumerWidget {

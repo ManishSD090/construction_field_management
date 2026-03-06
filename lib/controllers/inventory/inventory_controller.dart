@@ -163,7 +163,9 @@ class InventoryController extends AsyncNotifier<InventoryState> {
     final currentState = state.value;
     if (currentState == null ||
         !currentState.hasMore ||
-        currentState.isLoadingMore) return;
+        currentState.isLoadingMore) {
+      return;
+    }
 
     state = AsyncValue.data(currentState.copyWith(isLoadingMore: true));
     state = await AsyncValue.guard(() => _fetchPage(

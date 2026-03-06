@@ -17,8 +17,8 @@ class SystemAlertCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // --- 1. Header with Warning Icon ---
-        Row(
-          children: const [
+        const Row(
+          children: [
             Text(
               "System alerts",
               style: TextStyle(

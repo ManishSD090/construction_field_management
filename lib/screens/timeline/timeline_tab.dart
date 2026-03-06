@@ -669,7 +669,7 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ],
             ),

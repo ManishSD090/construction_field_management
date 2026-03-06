@@ -39,6 +39,7 @@ class ProjectDetailsScreen extends ConsumerStatefulWidget {
 class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     with TickerProviderStateMixin {
   String _selectedTab = 'Overview';
+  int _selectedReportType = 0;
   late Project project;
   bool _isHeaderVisible = true;
   bool _isDeleting = false;
@@ -704,10 +705,14 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                         ? CreateTimelineVersionScreen(timelineId: tId)
                         : ct.CreateTimelineScreen(projectId: project.id)));
           } else if (_selectedTab == 'DPR')
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const CreateDPRScreen()));
+           Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreateDPRScreen(
+                scrollController: ScrollController(),
+              ),
+            ),
+          );
         },
         backgroundColor: AppColors.primaryBlue,
         shape: const CircleBorder(),

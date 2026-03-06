@@ -260,7 +260,7 @@ class _CompanyDetailsScreenState extends ConsumerState<CompanyDetailsScreen> {
       title: Text(title, style: const TextStyle(fontSize: 14)),
       value: val,
       onChanged: (v) {},
-      activeColor: AppColors.primaryBlue,
+      activeThumbColor: AppColors.primaryBlue,
       contentPadding: EdgeInsets.zero,
     );
   }

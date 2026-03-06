@@ -304,7 +304,7 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
 
   Widget _buildRoleDropdown(List<Role> roles) {
     return DropdownButtonFormField<String>(
-      value: _selectedRoleId,
+      initialValue: _selectedRoleId,
       items: roles
           .map((role) =>
               DropdownMenuItem(value: role.id, child: Text(role.name)))
@@ -317,7 +317,7 @@ class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
 
   Widget _buildSalaryTypeDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedSalaryType,
+      initialValue: _selectedSalaryType,
       items: ['MONTHLY', 'WEEKLY', 'DAILY', 'HOURLY']
           .map((t) => DropdownMenuItem(value: t, child: Text(t)))
           .toList(),

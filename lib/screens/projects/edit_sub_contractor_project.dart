@@ -223,10 +223,11 @@ class _EditContractorProjectScreenState
             if (date != null) {
               setState(() {
                 controller.text = DateFormat('yyyy-MM-dd').format(date);
-                if (isStart)
+                if (isStart) {
                   _rawStartDate = date;
-                else
+                } else {
                   _rawEndDate = date;
+                }
               });
             }
           },
@@ -242,7 +243,7 @@ class _EditContractorProjectScreenState
 
   Widget _buildWorkTypeDropdown() {
     return DropdownButtonFormField<WorkType>(
-      value: _selectedWorkType,
+      initialValue: _selectedWorkType,
       items: WorkType.values
           .map((t) =>
               DropdownMenuItem(value: t, child: Text(t.name.toUpperCase())))

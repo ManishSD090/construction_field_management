@@ -204,7 +204,7 @@ class _CreateSubContractorScreenState
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<ContractorType>(
-        value: _selectedType,
+        initialValue: _selectedType,
         decoration: InputDecoration(
           labelText: "Contractor Type",
           border: OutlineInputBorder(

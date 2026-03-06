@@ -320,7 +320,7 @@ class _AddSubContractorScreenState
 
   Widget _buildWorkTypeDropdown(List<WorkType> options) {
     return DropdownButtonFormField<WorkType>(
-      value: _selectedWorkType,
+      initialValue: _selectedWorkType,
       items: options
           .map((t) => DropdownMenuItem(
                 value: t,

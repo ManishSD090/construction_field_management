@@ -1,4 +1,3 @@
-import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/screens/sub_contractor/create_sub_contractor.dart';
 import 'package:construction_erp/screens/sub_contractor/sub_contractor_details.dart';
 import 'package:flutter/material.dart';

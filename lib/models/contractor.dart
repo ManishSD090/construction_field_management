@@ -178,8 +178,9 @@ class ContractorWorker {
 
   /// Factory for creating a ContractorWorker from a JSON map with null-safety
   factory ContractorWorker.fromJson(Map<String, dynamic>? json) {
-    if (json == null)
+    if (json == null) {
       throw Exception("Cannot parse null JSON as ContractorWorker");
+    }
 
     return ContractorWorker(
       id: json['id']?.toString() ?? '',

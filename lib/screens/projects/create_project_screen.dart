@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
 import 'package:construction_erp/controllers/client/client_controller.dart';
-import 'package:construction_erp/models/client.dart';
 import 'package:construction_erp/models/enums.dart';
 
 class CreateProjectScreen extends ConsumerStatefulWidget {

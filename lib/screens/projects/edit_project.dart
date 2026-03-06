@@ -209,7 +209,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
             ),
             _buildLabel("Priority"),
             DropdownButtonFormField<Priority>(
-              value: _selectedPriority,
+              initialValue: _selectedPriority,
               decoration: _inputDecor("Select Priority"),
               items: Priority.values
                   .map((p) => DropdownMenuItem(
@@ -236,9 +236,10 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
                               initialDate: DateTime.now(),
                               firstDate: DateTime(2000),
                               lastDate: DateTime(2100));
-                          if (picked != null)
+                          if (picked != null) {
                             setState(() => _startDateController.text =
                                 DateFormat('yyyy-MM-dd').format(picked));
+                          }
                         },
                       ),
                     ],
@@ -262,9 +263,10 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
                               initialDate: DateTime.now(),
                               firstDate: DateTime(2000),
                               lastDate: DateTime(2100));
-                          if (picked != null)
+                          if (picked != null) {
                             setState(() => _endDateController.text =
                                 DateFormat('yyyy-MM-dd').format(picked));
+                          }
                         },
                       ),
                     ],

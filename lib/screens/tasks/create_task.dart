@@ -37,9 +37,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         initialDate: DateTime.now(),
         firstDate: DateTime(2000),
         lastDate: DateTime(2100));
-    if (picked != null)
+    if (picked != null) {
       setState(() => controller.text =
           "${picked.day} ${_getMonth(picked.month)} ${picked.year}");
+    }
   }
 
   String _getMonth(int month) => [
@@ -112,7 +113,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                 decoration: _inputDecor("Enter description")),
             _buildLabel("Assigned to"),
             DropdownButtonFormField<String>(
-                value: _selectedAssignee,
+                initialValue: _selectedAssignee,
                 decoration: _inputDecor("Select assignee"),
                 icon: const Icon(Icons.keyboard_arrow_down,
                     color: AppColors.primaryBlue),

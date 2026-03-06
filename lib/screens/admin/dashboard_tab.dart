@@ -137,7 +137,7 @@ class DashboardTab extends ConsumerWidget {
             "Transactions", "12 Requests", () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => TransactionScreen()),
+            MaterialPageRoute(builder: (context) => const TransactionScreen()),
           );
         }),
         _buildActionCard(Icons.assignment_outlined, Colors.teal[50]!,

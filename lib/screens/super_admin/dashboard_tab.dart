@@ -198,7 +198,7 @@ class DashboardTab extends ConsumerWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                CircularProgressIndicator(
+                const CircularProgressIndicator(
                     value: 1.0, color: AppColors.primaryBlue, strokeWidth: 10),
                 CircularProgressIndicator(
                   value: percentSuspended,

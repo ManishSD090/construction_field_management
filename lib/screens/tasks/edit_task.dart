@@ -161,7 +161,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
             _buildLabel("Assigned to"),
             DropdownButtonFormField<String>(
-              value: _selectedAssignee,
+              initialValue: _selectedAssignee,
               decoration: _inputDecor("Select assignee"),
               icon: const Icon(Icons.keyboard_arrow_down,
                   color: AppColors.primaryBlue),

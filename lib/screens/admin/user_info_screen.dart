@@ -179,7 +179,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                               horizontal: 12, vertical: 16),
                         ),
                         hint: const Text("Choose a project"),
-                        value: selectedProjectId,
+                        initialValue: selectedProjectId,
                         items: state.projects
                             .map((p) => DropdownMenuItem(
                                   value: p.id,
@@ -210,7 +210,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                           fillColor: Color(0xFFF5F5F5),
                         ),
                         hint: const Text("Select role on project"),
-                        value: selectedRoleId,
+                        initialValue: selectedRoleId,
                         items: roleState.roles
                             .map((r) => DropdownMenuItem(
                                   value: r.id,
@@ -389,7 +389,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
               const SizedBox(height: 20),
               rolesAsync.when(
                 data: (roleState) => DropdownButtonFormField<String>(
-                  value: selectedRoleId,
+                  initialValue: selectedRoleId,
                   items: roleState.roles
                       .map((r) =>
                           DropdownMenuItem(value: r.id, child: Text(r.name)))

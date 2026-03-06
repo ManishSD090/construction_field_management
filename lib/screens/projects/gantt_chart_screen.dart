@@ -106,10 +106,12 @@ class _GanttChartScreenState extends ConsumerState<GanttChartScreen> {
                   // Week index (0-4)
                   int wIdx = taskWeek - 1;
 
-                  if (!tasksByMonthAndWeek.containsKey(mIdx))
+                  if (!tasksByMonthAndWeek.containsKey(mIdx)) {
                     tasksByMonthAndWeek[mIdx] = {};
-                  if (!tasksByMonthAndWeek[mIdx]!.containsKey(wIdx))
+                  }
+                  if (!tasksByMonthAndWeek[mIdx]!.containsKey(wIdx)) {
                     tasksByMonthAndWeek[mIdx]![wIdx] = [];
+                  }
                   tasksByMonthAndWeek[mIdx]![wIdx]!.add(task);
                 }
 
@@ -150,9 +152,10 @@ class _GanttChartScreenState extends ConsumerState<GanttChartScreen> {
                                               [];
                                       double h = _baseRowHeight;
                                       // Stack height for multiple tasks starting same week
-                                      if (weekTasks.length > 1)
+                                      if (weekTasks.length > 1) {
                                         h = _baseRowHeight +
                                             ((weekTasks.length - 1) * 40);
+                                      }
 
                                       return _buildFixedWeekLabel(
                                           wIdx + 1, h, mIdx, wIdx);
@@ -520,10 +523,12 @@ class _GanttChartScreenState extends ConsumerState<GanttChartScreen> {
             if (barWidth < weekWidth) barWidth = weekWidth;
 
             Color barColor = AppColors.primaryBlue;
-            if (priority == 'critical' || priority == 'high')
+            if (priority == 'critical' || priority == 'high') {
               barColor = Colors.red;
-            if (status == 'completed' || status == 'done')
+            }
+            if (status == 'completed' || status == 'done') {
               barColor = AppColors.successGreen;
+            }
 
             return Positioned(
               left: leftPosition,
@@ -572,7 +577,7 @@ class _GanttChartScreenState extends ConsumerState<GanttChartScreen> {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

@@ -287,8 +287,9 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
       final monthName =
           DateFormat('MMMM yyyy').format(DateTime(task.year, task.month));
       if (!grouped.containsKey(monthName)) grouped[monthName] = {};
-      if (!grouped[monthName]!.containsKey(task.week))
+      if (!grouped[monthName]!.containsKey(task.week)) {
         grouped[monthName]![task.week] = [];
+      }
       grouped[monthName]![task.week]!.add(task);
     }
     return grouped;
@@ -577,7 +578,7 @@ class _EditTimelineScreenState extends ConsumerState<EditTimelineScreen> {
                         fontSize: 16, fontWeight: FontWeight.bold))),
             ...weeklyGroups.entries
                 .map((entry) => _buildWeeklyTaskItem(entry.key, entry.value))
-                .toList(),
+                ,
           ],
         );
       },
@@ -888,8 +889,9 @@ class _HeaderFormSheetState extends ConsumerState<_HeaderFormSheet> {
   }
 
   Future<void> _save() async {
-    if (_nameCtrl.text.trim().isEmpty || _startDate == null || _endDate == null)
+    if (_nameCtrl.text.trim().isEmpty || _startDate == null || _endDate == null) {
       return;
+    }
     setState(() => _isSaving = true);
     final payload = {
       "name": _nameCtrl.text.trim(),
@@ -1115,10 +1117,12 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
     int endY = widget.timeline.endDate.year;
     int startM = widget.timeline.startDate.month;
     int endM = widget.timeline.endDate.month;
-    if (startY == endY)
+    if (startY == endY) {
       return List.generate(endM - startM + 1, (i) => startM + i);
-    if (_selectedYear == startY)
+    }
+    if (_selectedYear == startY) {
       return List.generate(12 - startM + 1, (i) => startM + i);
+    }
     if (_selectedYear == endY) return List.generate(endM, (i) => i + 1);
     return List.generate(12, (i) => i + 1);
   }
@@ -1193,10 +1197,12 @@ class _TaskFormScreenState extends ConsumerState<_TaskFormScreen> {
       if (versionId != null) payload["timelineVersionId"] = versionId;
 
       // Only add dates if they are NOT null.
-      if (_pStart != null)
+      if (_pStart != null) {
         payload["plannedStartDate"] = DateFormat('yyyy-MM-dd').format(_pStart!);
-      if (_pEnd != null)
+      }
+      if (_pEnd != null) {
         payload["plannedEndDate"] = DateFormat('yyyy-MM-dd').format(_pEnd!);
+      }
 
       // Only include estimatedHours if parsed successfully
       if (hoursValue != null) payload["estimatedHours"] = hoursValue;

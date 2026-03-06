@@ -93,8 +93,9 @@ class _CreateTimelineScreenState extends ConsumerState<CreateTimelineScreen> {
   }
 
   List<int> _getAvailableMonths(int? selectedYear) {
-    if (_startDate == null || _endDate == null || selectedYear == null)
+    if (_startDate == null || _endDate == null || selectedYear == null) {
       return [];
+    }
     int startY = _startDate!.year;
     int endY = _endDate!.year;
     int startM = _startDate!.month;
