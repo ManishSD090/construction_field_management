@@ -1,3 +1,4 @@
+import 'package:construction_erp/screens/inventory/material_request_history.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -56,11 +57,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             onSelected: (value) {
-              if (value == 'transfer' || value == 'request') {
+              if (value == 'transfer') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const InventoryHistoryScreen(),
+                  ),
+                );
+              } else if (value == 'request') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MaterialRequestHistoryScreen(),
                   ),
                 );
               }
