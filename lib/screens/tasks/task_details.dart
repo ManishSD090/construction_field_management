@@ -1,7 +1,11 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+
 import 'package:construction_erp/screens/tasks/edit_task.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/task.dart';
@@ -20,6 +24,10 @@ class TaskDetailsScreen extends ConsumerStatefulWidget {
 class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
   // Track which subtasks are currently updating to show a loading state
   final Set<String> _updatingSubtasks = {};
+
+  // Image Picker state
+  bool _isUploadingPhoto = false;
+  final ImagePicker _picker = ImagePicker();
 
   // Helper to format dates for UI
   String _formatDate(DateTime? date) {
@@ -53,10 +61,98 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
     }
   }
 
+  // ===========================================================================
+  // PHOTO UPLOAD LOGIC
+  // ===========================================================================
+
+  void _showImageSourceActionSheet(String taskId) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                "Upload Photo",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark),
+              ),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.camera_alt, color: AppColors.primaryBlue),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage(taskId, ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_library, color: AppColors.primaryBlue),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage(taskId, ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(String taskId, ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        imageQuality: 70, // Compress slightly for faster uploads
+      );
+
+      if (image != null) {
+        setState(() => _isUploadingPhoto = true);
+
+        // Call the controller method you already created
+        await ref
+            .read(taskControllerProvider.notifier)
+            .uploadTaskAttachment(taskId, image.path);
+
+        // Refresh the attachments specifically
+        ref.invalidate(taskAttachmentsProvider(taskId));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Photo uploaded successfully!"),
+                backgroundColor: AppColors.successGreen),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Failed to upload photo: $e"),
+              backgroundColor: AppColors.alertRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Watch the specific task details using the family provider
+    // Watch both providers
     final taskAsync = ref.watch(taskDetailsProvider(widget.taskId));
+    final attachmentsAsync = ref.watch(taskAttachmentsProvider(widget.taskId));
 
     return Scaffold(
       backgroundColor: AppColors.bgGrey,
@@ -77,8 +173,10 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
             child: CircularProgressIndicator(color: AppColors.primaryBlue)),
         error: (err, stack) => Center(child: Text("Error: $err")),
         data: (task) => RefreshIndicator(
-          onRefresh: () =>
-              ref.refresh(taskDetailsProvider(widget.taskId).future),
+          onRefresh: () async {
+            ref.invalidate(taskDetailsProvider(widget.taskId));
+            ref.invalidate(taskAttachmentsProvider(widget.taskId));
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
@@ -320,25 +418,77 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                       const SizedBox(height: 10),
                       Divider(color: Colors.grey.shade200, thickness: 1),
                       const SizedBox(height: 10),
-                      if (task.attachments == null || task.attachments!.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 10),
-                          child: Text("No photos uploaded",
-                              style: TextStyle(
-                                  color: AppColors.textGrey, fontSize: 13)),
-                        )
-                      else
-                        SizedBox(
-                          height: 80,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: task.attachments!.length,
-                            separatorBuilder: (context, i) =>
-                                const SizedBox(width: 12),
-                            itemBuilder: (context, i) =>
-                                _buildPhotoThumbnail(task.attachments![i]),
-                          ),
+                      attachmentsAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: Center(
+                              child: CircularProgressIndicator(
+                                  color: AppColors.primaryBlue)),
                         ),
+                        error: (err, stack) => Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Center(
+                              child: Text("Error loading photos",
+                                  style: TextStyle(color: AppColors.alertRed))),
+                        ),
+                        data: (attachments) {
+                          // Filter to ensure we only show images in this gallery row
+                          final photos = attachments.where((a) {
+                            final url = a.fileUrl.toLowerCase();
+                            return url.contains('.jpg') ||
+                                url.contains('.jpeg') ||
+                                url.contains('.png') ||
+                                url.contains('.webp');
+                          }).toList();
+
+                          return SizedBox(
+                            height: 90,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              // Add 1 to the count for the "Add Photo" button at the end
+                              itemCount: photos.length + 1,
+                              separatorBuilder: (context, i) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (context, i) {
+                                // If it's the last item, show the "Add Photo" dashed box
+                                if (i == photos.length) {
+                                  return GestureDetector(
+                                    onTap: _isUploadingPhoto
+                                        ? null
+                                        : () => _showImageSourceActionSheet(
+                                            task.id),
+                                    child: CustomPaint(
+                                      painter: DashedRectPainter(
+                                          color: AppColors.primaryBlue),
+                                      child: Container(
+                                        width: 90,
+                                        height: 90,
+                                        alignment: Alignment.center,
+                                        child: _isUploadingPhoto
+                                            ? const SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: AppColors
+                                                            .primaryBlue))
+                                            : const Icon(
+                                                Icons.add_circle_outline,
+                                                color: AppColors.primaryBlue,
+                                                size: 30),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // Otherwise, render the existing photo
+                                return _buildPhotoThumbnail(photos[i]);
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -442,7 +592,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Failed to update subtask: $e")),
+                    SnackBar(
+                        content: Text("Failed to update subtask: $e"),
+                        backgroundColor: AppColors.alertRed),
                   );
                 }
               } finally {
@@ -516,19 +668,128 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
   }
 
   Widget _buildPhotoThumbnail(TaskAttachment attachment) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.lightGrey,
+    // FIX: Android emulator needs 10.0.2.2 instead of localhost
+    // This is safely wrapped to only execute during local development on Android.
+    String imageUrl = attachment.fileUrl;
+    if (kDebugMode &&
+        !kIsWeb &&
+        Platform.isAndroid &&
+        imageUrl.contains('localhost')) {
+      imageUrl = imageUrl.replaceAll('localhost', '10.0.2.2');
+    }
+
+    return GestureDetector(
+      onTap: () {
+        // Open a full-screen interactive viewer when tapped
+        showDialog(
+          context: context,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(10),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: IconButton(
+                    icon:
+                        const Icon(Icons.close, color: Colors.white, size: 30),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          image: DecorationImage(
-            image: NetworkImage(attachment.fileUrl),
-            fit: BoxFit.cover,
-            onError: (err, stack) {},
+          child: Container(
+            color: AppColors.lightGrey,
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              cacheWidth:
+                  250, // Resizes the image in memory to act as a thumbnail
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryBlue,
+                    strokeWidth: 2,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            (loadingProgress.expectedTotalBytes ?? 1)
+                        : null,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(Icons.broken_image, color: Colors.grey),
+                );
+              },
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+// Custom Painter to draw a dashed rectangle border
+class DashedRectPainter extends CustomPainter {
+  final Color color;
+  DashedRectPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    double dashWidth = 6, dashSpace = 4;
+    double startX = 0, startY = 0;
+
+    // Top edge
+    while (startX < size.width) {
+      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
+      startX += dashWidth + dashSpace;
+    }
+    // Right edge
+    while (startY < size.height) {
+      canvas.drawLine(Offset(size.width, startY),
+          Offset(size.width, startY + dashWidth), paint);
+      startY += dashWidth + dashSpace;
+    }
+    // Bottom edge
+    startX = size.width;
+    while (startX > 0) {
+      canvas.drawLine(Offset(startX, size.height),
+          Offset(startX - dashWidth, size.height), paint);
+      startX -= dashWidth + dashSpace;
+    }
+    // Left edge
+    startY = size.height;
+    while (startY > 0) {
+      canvas.drawLine(Offset(0, startY), Offset(0, startY - dashWidth), paint);
+      startY -= dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

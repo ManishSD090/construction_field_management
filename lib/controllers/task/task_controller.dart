@@ -26,6 +26,27 @@ final taskCommentsProvider =
   return controller.getTaskComments(taskId);
 });
 
+// Fetches attachments specifically for a given task (useful for dedicated galleries)
+final taskAttachmentsProvider =
+    FutureProvider.family<List<TaskAttachment>, String>((ref, taskId) async {
+  final controller = ref.read(taskControllerProvider.notifier);
+  final response =
+      await controller.getPaginatedTaskAttachments(taskId, limit: 50);
+
+  // Safely extract the list depending on whether the backend returns a flat array or nested pagination object
+  List<dynamic> rawList = [];
+  if (response['data'] is List) {
+    rawList = response['data'];
+  } else if (response['data'] is Map &&
+      response['data']['attachments'] is List) {
+    rawList = response['data']['attachments'];
+  } else if (response['data'] is Map && response['data']['data'] is List) {
+    rawList = response['data']['data'];
+  }
+
+  return rawList.map((e) => TaskAttachment.fromJson(e)).toList();
+});
+
 class TaskController extends AsyncNotifier<TaskState> {
   DioClient get _dioClient => ref.read(dioClientProvider);
   static const String _basePath = '/tasks';
@@ -40,7 +61,8 @@ class TaskController extends AsyncNotifier<TaskState> {
   Future<TaskState> build() async {
     return _fetchPage(page: 1, isRefresh: true);
   }
-// --- PRIVATE UTILITIES ---
+
+  // --- PRIVATE UTILITIES ---
 
   /// Helper to update a single task in the current list without a full refresh
   /// Optimized helper to update a single task while preserving existing relations
@@ -294,7 +316,9 @@ class TaskController extends AsyncNotifier<TaskState> {
       return task.copyWith(attachments: updatedAttachments);
     });
 
+    // 5. Invalidate both details and attachments providers
     ref.invalidate(taskDetailsProvider(taskId));
+    ref.invalidate(taskAttachmentsProvider(taskId));
   }
 
   /// Deletes an attachment by ID
@@ -309,7 +333,9 @@ class TaskController extends AsyncNotifier<TaskState> {
       return task.copyWith(attachments: updatedAttachments);
     });
 
+    // 3. Invalidate both details and attachments providers
     ref.invalidate(taskDetailsProvider(taskId));
+    ref.invalidate(taskAttachmentsProvider(taskId));
   }
 
   /// Fetches attachment statistics for a specific task
