@@ -23,7 +23,7 @@ import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
 import 'package:construction_erp/screens/budget/create_request_screen.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
-
+import 'package:construction_erp/screens/budget/budget_version_screen.dart'; 
 // ✅ Attendance Imports from your working version
 import 'package:construction_erp/screens/attendance/payroll_details_screen.dart';
 import 'package:construction_erp/screens/attendance/mark_attendance_screen.dart';
@@ -255,6 +255,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   }
 
   // ✅ GitHub Transactions Tab integrated here
+  // ✅ GitHub Transactions Tab integrated here
   Widget _buildTransactionsTab() {
     return Column(children: [
       Container(
@@ -263,16 +264,30 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(8)),
-          child: const Row(
+          child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Total Approved Budget: ₹1,80,00,000",
+                const Text("Total Approved Budget: ₹1,80,00,000",
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                Text("View Version",
-                    style: TextStyle(
-                        color: AppColors.primaryBlue,
-                        decoration: TextDecoration.underline,
-                        fontSize: 12))
+                
+                // --- UPDATED CODE START ---
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BudgetVersionScreen(project: project),
+                      ),
+                    );
+                  },
+                  child: const Text("View Version",
+                      style: TextStyle(
+                          color: AppColors.primaryBlue,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12)),
+                )
+                // --- UPDATED CODE END ---
               ])),
       const SizedBox(height: 20),
       Row(children: [
@@ -543,7 +558,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
               onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const PayrollDetailsScreen())),
+                      builder: (context) => PayrollDetailsScreen())),
               child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
