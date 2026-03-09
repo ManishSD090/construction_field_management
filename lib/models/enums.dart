@@ -884,6 +884,68 @@ enum BudgetPeriodType {
   String toJson() => _toSnake(name);
 }
 
+/* ======================= TRANSACTIONS ======================= */
+
+enum TransactionType {
+  income,
+  expense,
+  pettyCashIssue,
+  pettyCashSettlement,
+  pettyCashReplenishment;
+
+  static TransactionType fromJson(String? value) {
+    if (value == null || value.isEmpty) return TransactionType.expense;
+    final camel = _toCamel(value);
+    return TransactionType.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => TransactionType.expense,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
+enum TransactionStatus {
+  pendingApproval,
+  approved,
+  rejected,
+  voided;
+
+  static TransactionStatus fromJson(String? value) {
+    if (value == null || value.isEmpty)
+      return TransactionStatus.pendingApproval;
+    final camel = _toCamel(value);
+    return TransactionStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => TransactionStatus.pendingApproval,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
+enum TransactionSourceType {
+  direct,
+  invoice,
+  payment,
+  budget,
+  purchaseOrder,
+  contractorPayment,
+  payroll,
+  pettyCash;
+
+  static TransactionSourceType fromJson(String? value) {
+    if (value == null || value.isEmpty) return TransactionSourceType.direct;
+    final camel = _toCamel(value);
+    return TransactionSourceType.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => TransactionSourceType.direct,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
 /* ======================= PURCHASE ORDER & SUPPLIER ======================= */
 
 enum PurchaseOrderStatus {
