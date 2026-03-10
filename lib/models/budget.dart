@@ -474,8 +474,9 @@ class BudgetRevision {
   final bool isApplied;
   final DateTime? appliedAt;
   final String createdById;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final BudgetRevisionStatus? status;
 
   BudgetRevision({
     required this.id,
@@ -502,8 +503,9 @@ class BudgetRevision {
     this.isApplied = false,
     this.appliedAt,
     required this.createdById,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
+    this.status,
   });
 
   factory BudgetRevision.fromJson(Map<String, dynamic> json) {
@@ -550,6 +552,7 @@ class BudgetRevision {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'].toString())
           : DateTime.now(),
+      status: BudgetRevisionStatus.fromJson(json['status'] as String?),
     );
   }
 
@@ -577,8 +580,8 @@ class BudgetRevision {
       'isApplied': isApplied,
       'appliedAt': appliedAt?.toIso8601String(),
       'createdById': createdById,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

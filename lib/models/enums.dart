@@ -801,6 +801,25 @@ enum BudgetRevisionType {
   String toJson() => _toSnake(name);
 }
 
+enum BudgetRevisionStatus {
+  draft,
+  pendingApproval,
+  approved,
+  rejected,
+  applied;
+
+  static BudgetRevisionStatus fromJson(String? value) {
+    if (value == null || value.isEmpty) return BudgetRevisionStatus.draft;
+    final camel = _toCamel(value);
+    return BudgetRevisionStatus.values.firstWhere(
+      (e) => e.name == camel,
+      orElse: () => BudgetRevisionStatus.draft,
+    );
+  }
+
+  String toJson() => _toSnake(name);
+}
+
 enum BudgetAlertType {
   thresholdWarning,
   criticalWarning,

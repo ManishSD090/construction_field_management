@@ -1,3 +1,4 @@
+import 'package:construction_erp/screens/budget/finance_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -23,7 +24,7 @@ import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
 import 'package:construction_erp/screens/budget/create_request_screen.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
-import 'package:construction_erp/screens/budget/budget_version_screen.dart'; 
+import 'package:construction_erp/screens/budget/budget_screen.dart';
 // ✅ Attendance Imports from your working version
 import 'package:construction_erp/screens/attendance/payroll_details_screen.dart';
 import 'package:construction_erp/screens/attendance/mark_attendance_screen.dart';
@@ -217,7 +218,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       case 'Attendance':
         return _buildAttendanceTabUI();
       case 'Transactions':
-        return _buildTransactionsTab();
+        return ProjectFinancialsTab(project: project);
       case 'Inventory':
         return ProjectInventoryDashboardScreen(projectId: project.id);
       case 'Tasks':
@@ -251,106 +252,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]),
       const SizedBox(height: 25),
       _buildPayrollSummaryCard(),
-    ]);
-  }
-
-  // ✅ GitHub Transactions Tab integrated here
-  // ✅ GitHub Transactions Tab integrated here
-  Widget _buildTransactionsTab() {
-    return Column(children: [
-      Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8)),
-          child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Total Approved Budget: ₹1,80,00,000",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                
-                // --- UPDATED CODE START ---
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => BudgetVersionScreen(project: project),
-                      ),
-                    );
-                  },
-                  child: const Text("View Version",
-                      style: TextStyle(
-                          color: AppColors.primaryBlue,
-                          decoration: TextDecoration.underline,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12)),
-                )
-                // --- UPDATED CODE END ---
-              ])),
-      const SizedBox(height: 20),
-      Row(children: [
-        Expanded(
-            flex: 5,
-            child: Column(children: [
-              _buildBudgetCard(
-                  "Total Expenses", "₹28,40,000", AppColors.alertRed),
-              const SizedBox(height: 12),
-              _buildBudgetCard(
-                  "Available Balance", "₹46,60,000", AppColors.primaryBlue)
-            ])),
-        Expanded(
-            flex: 6,
-            child: SizedBox(
-                height: 160,
-                child: PieChart(PieChartData(sections: [
-                  PieChartSectionData(
-                      color: AppColors.primaryBlue,
-                      value: 65,
-                      radius: 10,
-                      showTitle: false),
-                  PieChartSectionData(
-                      color: AppColors.alertRed,
-                      value: 15,
-                      radius: 10,
-                      showTitle: false),
-                  PieChartSectionData(
-                      color: const Color(0xFF00C4B4),
-                      value: 20,
-                      radius: 10,
-                      showTitle: false)
-                ]))))
-      ]),
-      const SizedBox(height: 16),
-      InkWell(
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const TransactionHistoryScreen())),
-          child: const Text("View Transactions",
-              style: TextStyle(
-                  color: AppColors.primaryBlue,
-                  decoration: TextDecoration.underline))),
-      if (!_isHeaderVisible)
-        Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const CreateRequestScreen())),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                        padding: const EdgeInsets.symmetric(vertical: 16)),
-                    child: const Text("Create Request",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)))))
     ]);
   }
 

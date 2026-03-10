@@ -74,21 +74,24 @@ final financialControllerProvider =
   return FinancialController();
 });
 
-// Fetches full details for a single budget
 final budgetDetailsProvider =
     FutureProvider.family<Budget, String>((ref, id) async {
   final controller = ref.read(financialControllerProvider.notifier);
   return controller.getBudgetById(id);
 });
 
-// Fetches the active budget for a specific project
 final activeProjectBudgetProvider =
     FutureProvider.family<Budget?, String>((ref, projectId) async {
   final controller = ref.read(financialControllerProvider.notifier);
   return controller.getActiveBudget(projectId);
 });
 
-// Fetches the cashbox details for a specific project
+final projectBudgetsProvider =
+    FutureProvider.family<List<Budget>, String>((ref, projectId) async {
+  final controller = ref.read(financialControllerProvider.notifier);
+  return controller.getProjectBudgets(projectId);
+});
+
 final projectCashboxProvider =
     FutureProvider.family<ProjectCashbox, String>((ref, projectId) async {
   final controller = ref.read(financialControllerProvider.notifier);
@@ -104,14 +107,13 @@ class FinancialController extends AsyncNotifier<FinancialState> {
   static const String _budgetsPath = '/budgets';
   static const String _transactionsPath = '/transactions';
 
-  // Current filters
+  // Current filters for the primary state lists
   String? _currentProjectId;
   BudgetStatus? _currentBudgetStatus;
   TransactionType? _currentTransactionType;
 
   @override
   Future<FinancialState> build() async {
-    // Initially fetch the first page of both budgets and transactions
     await Future.wait([
       _fetchBudgetsPage(page: 1, isRefresh: true),
       _fetchTransactionsPage(page: 1, isRefresh: true),
@@ -119,40 +121,18 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     return state.value ?? FinancialState();
   }
 
-  // --- PRIVATE UTILITIES (Local Updates) ---
+  // --- PRIVATE UTILITIES ---
 
   void _updateLocalBudget(String budgetId, Budget Function(Budget) updateFn) {
     final currentState = state.value;
     if (currentState == null) return;
-
-    final updatedBudgets = currentState.budgets.map((b) {
-      if (b.id == budgetId) return updateFn(b);
-      return b;
-    }).toList();
-
-    state = AsyncValue.data(currentState.copyWith(
-      budgets: updatedBudgets,
-      isRefreshing: false,
-    ));
+    final updatedBudgets = currentState.budgets
+        .map((b) => b.id == budgetId ? updateFn(b) : b)
+        .toList();
+    state = AsyncValue.data(currentState.copyWith(budgets: updatedBudgets));
   }
 
-  void _updateLocalTransaction(
-      String txId, Transaction Function(Transaction) updateFn) {
-    final currentState = state.value;
-    if (currentState == null) return;
-
-    final updatedTxs = currentState.transactions.map((t) {
-      if (t.id == txId) return updateFn(t);
-      return t;
-    }).toList();
-
-    state = AsyncValue.data(currentState.copyWith(
-      transactions: updatedTxs,
-      isRefreshing: false,
-    ));
-  }
-
-  // --- PAGINATION & FETCHING ---
+  // --- PAGINATION & REFRESH ---
 
   Future<void> _fetchBudgetsPage(
       {required int page, required bool isRefresh}) async {
@@ -160,13 +140,11 @@ class FinancialController extends AsyncNotifier<FinancialState> {
       'page': page,
       'limit': 15,
       if (_currentProjectId != null) 'projectId': _currentProjectId,
-      if (_currentBudgetStatus != null) 'status': _currentBudgetStatus!.name,
+      if (_currentBudgetStatus != null)
+        'status': _currentBudgetStatus!.toJson(),
     });
-
-    final data = response.data;
-    final List<dynamic> listJson = data['data'];
-    final pagination = data['pagination'];
-
+    final List<dynamic> listJson = response.data['data'];
+    final pagination = response.data['pagination'];
     final newItems = listJson.map((json) => Budget.fromJson(json)).toList();
     final bool hasMore = page < (pagination['pages'] ?? 1);
 
@@ -188,13 +166,10 @@ class FinancialController extends AsyncNotifier<FinancialState> {
       'limit': 15,
       if (_currentProjectId != null) 'projectId': _currentProjectId,
       if (_currentTransactionType != null)
-        'type': _currentTransactionType!.name,
+        'type': _currentTransactionType!.toJson(),
     });
-
-    final data = response.data;
-    final List<dynamic> listJson = data['data'];
-    final pagination = data['pagination'];
-
+    final List<dynamic> listJson = response.data['data'];
+    final pagination = response.data['pagination'];
     final newItems =
         listJson.map((json) => Transaction.fromJson(json)).toList();
     final bool hasMore = page < (pagination['pages'] ?? 1);
@@ -210,29 +185,6 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     ));
   }
 
-  Future<void> loadNextBudgetPage() async {
-    final currentState = state.value;
-    if (currentState == null ||
-        !currentState.hasMoreBudgets ||
-        currentState.isLoadingMoreBudgets) return;
-
-    state = AsyncValue.data(currentState.copyWith(isLoadingMoreBudgets: true));
-    await AsyncValue.guard(() =>
-        _fetchBudgetsPage(page: currentState.budgetPage + 1, isRefresh: false));
-  }
-
-  Future<void> loadNextTransactionPage() async {
-    final currentState = state.value;
-    if (currentState == null ||
-        !currentState.hasMoreTransactions ||
-        currentState.isLoadingMoreTransactions) return;
-
-    state =
-        AsyncValue.data(currentState.copyWith(isLoadingMoreTransactions: true));
-    await AsyncValue.guard(() => _fetchTransactionsPage(
-        page: currentState.transactionPage + 1, isRefresh: false));
-  }
-
   Future<void> refresh(
       {String? projectId,
       BudgetStatus? budgetStatus,
@@ -240,12 +192,7 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     if (projectId != null) _currentProjectId = projectId;
     if (budgetStatus != null) _currentBudgetStatus = budgetStatus;
     if (txType != null) _currentTransactionType = txType;
-
-    final currentState = state.value;
-    state = currentState != null
-        ? AsyncValue.data(currentState.copyWith(isRefreshing: true))
-        : const AsyncValue.loading();
-
+    state = AsyncValue.data(state.value!.copyWith(isRefreshing: true));
     await Future.wait([
       _fetchBudgetsPage(page: 1, isRefresh: true),
       _fetchTransactionsPage(page: 1, isRefresh: true),
@@ -253,12 +200,77 @@ class FinancialController extends AsyncNotifier<FinancialState> {
   }
 
   // ==========================================================================
-  // PHASE 1: PLANNING (BUDGET CREATION & APPROVAL)
+  // MODULE 1: BUDGET CORE (CRUD & PROJECT SPECIFIC)
   // ==========================================================================
+
+  Future<void> createBudget(Map<String, dynamic> budgetData) async {
+    final response = await _dioClient.dio.post(_budgetsPath, data: budgetData);
+    if (budgetData['projectId'] != null) {
+      ref.invalidate(projectBudgetsProvider(budgetData['projectId']));
+    }
+    await refresh();
+  }
+
+  Future<List<Budget>> getAllBudgets({Map<String, dynamic>? filters}) async {
+    final response =
+        await _dioClient.dio.get(_budgetsPath, queryParameters: filters);
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => Budget.fromJson(json)).toList();
+  }
 
   Future<Budget> getBudgetById(String id) async {
     final response = await _dioClient.dio.get('$_budgetsPath/$id');
     return Budget.fromJson(response.data['data']);
+  }
+
+  Future<void> updateBudget(
+      String budgetId, Map<String, dynamic> updates, String projectId) async {
+    final response =
+        await _dioClient.dio.put('$_budgetsPath/$budgetId', data: updates);
+    final updated = Budget.fromJson(response.data['data']);
+    _updateLocalBudget(budgetId, (_) => updated);
+    ref.invalidate(budgetDetailsProvider(budgetId));
+    ref.invalidate(projectBudgetsProvider(projectId));
+  }
+
+  Future<void> deleteBudget(String budgetId, String projectId) async {
+    await _dioClient.dio.delete('$_budgetsPath/$budgetId');
+    final currentState = state.value;
+    if (currentState != null) {
+      state = AsyncValue.data(currentState.copyWith(
+        budgets: currentState.budgets.where((b) => b.id != budgetId).toList(),
+      ));
+    }
+    ref.invalidate(projectBudgetsProvider(projectId));
+  }
+
+  Future<void> updateBudgetStatus({
+    required String budgetId,
+    required String projectId,
+    required BudgetStatus status,
+    String? approvalNotes,
+    String? rejectionReason,
+  }) async {
+    final response =
+        await _dioClient.dio.patch('$_budgetsPath/$budgetId/status', data: {
+      'status': status.toJson(),
+      if (approvalNotes != null) 'approvalNotes': approvalNotes,
+      if (rejectionReason != null) 'rejectionReason': rejectionReason,
+    });
+    final updated = Budget.fromJson(response.data['data']);
+    _updateLocalBudget(budgetId, (_) => updated);
+    ref.invalidate(budgetDetailsProvider(budgetId));
+    ref.invalidate(projectBudgetsProvider(projectId));
+    if (status == BudgetStatus.active) {
+      ref.invalidate(activeProjectBudgetProvider(projectId));
+    }
+  }
+
+  Future<List<Budget>> getProjectBudgets(String projectId) async {
+    final response =
+        await _dioClient.dio.get('$_budgetsPath/projects/$projectId/budgets');
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => Budget.fromJson(json)).toList();
   }
 
   Future<Budget?> getActiveBudget(String projectId) async {
@@ -268,108 +280,338 @@ class FinancialController extends AsyncNotifier<FinancialState> {
       if (response.data['data'] == null) return null;
       return Budget.fromJson(response.data['data']);
     } catch (e) {
-      return null; // Return null if 404 or no active budget
+      return null;
     }
   }
 
-  Future<void> createBudget(Map<String, dynamic> budgetData) async {
-    await _dioClient.dio.post(_budgetsPath, data: budgetData);
-    // Refresh budgets list to show the new DRAFT
-    await _fetchBudgetsPage(page: 1, isRefresh: true);
+  Future<List<Budget>> searchBudgets(String query,
+      {BudgetStatus? status, String? projectId}) async {
+    final response =
+        await _dioClient.dio.get('$_budgetsPath/search', queryParameters: {
+      'q': query,
+      if (status != null) 'status': status.toJson(),
+      if (projectId != null) 'projectId': projectId,
+    });
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => Budget.fromJson(json)).toList();
   }
 
-  Future<void> approveBudget(String budgetId, {String? approvalNotes}) async {
-    final response = await _dioClient.dio.post(
-      '$_budgetsPath/approvals/$budgetId/approve',
-      data: {'approvalNotes': approvalNotes},
-    );
+  // ==========================================================================
+  // MODULE 2: BUDGET CATEGORIES
+  // ==========================================================================
 
-    final updatedBudget = Budget.fromJson(response.data['data']);
-    _updateLocalBudget(budgetId, (_) => updatedBudget);
+  Future<List<BudgetCategoryAllocation>> getBudgetCategories(
+      String budgetId) async {
+    final response =
+        await _dioClient.dio.get('$_budgetsPath/$budgetId/categories');
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetCategoryAllocation.fromJson(json)).toList();
+  }
+
+  Future<BudgetCategoryAllocation> getBudgetCategoryById(
+      String budgetId, String categoryId) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/$budgetId/categories/$categoryId');
+    return BudgetCategoryAllocation.fromJson(response.data['data']);
+  }
+
+  Future<void> addBudgetCategory(
+      String budgetId, Map<String, dynamic> categoryData) async {
+    await _dioClient.dio
+        .post('$_budgetsPath/$budgetId/categories', data: categoryData);
     ref.invalidate(budgetDetailsProvider(budgetId));
+  }
 
-    // Also invalidate active budget for the project since this is now active
-    if (updatedBudget.projectId.isNotEmpty) {
-      ref.invalidate(activeProjectBudgetProvider(updatedBudget.projectId));
-    }
+  Future<void> updateBudgetCategory(
+      String budgetId, String categoryId, Map<String, dynamic> updates) async {
+    await _dioClient.dio
+        .put('$_budgetsPath/$budgetId/categories/$categoryId', data: updates);
+    ref.invalidate(budgetDetailsProvider(budgetId));
+  }
+
+  Future<void> deleteBudgetCategory(String budgetId, String categoryId) async {
+    await _dioClient.dio
+        .delete('$_budgetsPath/$budgetId/categories/$categoryId');
+    ref.invalidate(budgetDetailsProvider(budgetId));
+  }
+
+  Future<void> transferBudgetAmount(String budgetId, String categoryId,
+      Map<String, dynamic> transferData) async {
+    await _dioClient.dio.post(
+        '$_budgetsPath/$budgetId/categories/$categoryId/transfer',
+        data: transferData);
+    ref.invalidate(budgetDetailsProvider(budgetId));
   }
 
   // ==========================================================================
-  // PHASE 2: PROCUREMENT & COMMITMENTS
+  // MODULE 3: BUDGET TRANSACTIONS
   // ==========================================================================
 
-  /// Checks if there's enough budget available for a material request BEFORE creating it
-  Future<Map<String, dynamic>> checkBudgetAvailability({
-    required String projectId,
-    required String category,
-    required double estimatedCost,
-  }) async {
+  Future<List<BudgetTransaction>> getBudgetTransactions(String budgetId,
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/$budgetId/transactions', queryParameters: params);
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetTransaction.fromJson(json)).toList();
+  }
+
+  Future<List<BudgetTransaction>> getBudgetCommitments(String budgetId) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/$budgetId/transactions/commitments');
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetTransaction.fromJson(json)).toList();
+  }
+
+  Future<List<BudgetTransaction>> getBudgetExpenses(String budgetId) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/$budgetId/transactions/expenses');
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetTransaction.fromJson(json)).toList();
+  }
+
+  Future<void> createCommitment(Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_budgetsPath/transactions/commit', data: data);
+    if (data['budgetId'] != null)
+      ref.invalidate(budgetDetailsProvider(data['budgetId']));
+  }
+
+  Future<void> createExpenseTransaction(Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_budgetsPath/transactions/expense', data: data);
+    if (data['budgetId'] != null)
+      ref.invalidate(budgetDetailsProvider(data['budgetId']));
+  }
+
+  Future<void> transferBetweenCategories(Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .post('$_budgetsPath/transactions/transfer', data: data);
+    if (data['budgetId'] != null)
+      ref.invalidate(budgetDetailsProvider(data['budgetId']));
+  }
+
+  Future<void> updateTransactionStatus(
+      String transactionId, BudgetTransactionStatus status,
+      {String? notes}) async {
+    await _dioClient.dio
+        .patch('$_budgetsPath/transactions/$transactionId/status', data: {
+      'status': status.toJson(),
+      'notes': notes,
+    });
+  }
+
+  Future<void> convertCommitmentToExpense(
+      String transactionId, Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .patch('$_budgetsPath/transactions/$transactionId/convert', data: data);
+  }
+
+  // ==========================================================================
+  // MODULE 4: BUDGET REVISIONS
+  // ==========================================================================
+
+  Future<List<BudgetRevision>> getBudgetRevisions(String budgetId,
+      {BudgetRevisionStatus? status}) async {
     final response = await _dioClient.dio.get(
-      '$_budgetsPath/material-requests/budget-check',
+      '$_budgetsPath/$budgetId/revisions',
       queryParameters: {
-        'projectId': projectId,
-        'category': category,
-        'estimatedCost': estimatedCost,
+        if (status != null)
+          'status': status.toJson(), // Sends the status to the backend query
       },
     );
-    return response
-        .data['data']; // Returns { isAvailable, remainingAmount, etc. }
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetRevision.fromJson(json)).toList();
   }
 
-  /// Commits the budget to a specific material request, reserving the funds
+  Future<void> createBudgetRevision(
+      String budgetId, Map<String, dynamic> revisionData) async {
+    await _dioClient.dio
+        .post('$_budgetsPath/$budgetId/revisions', data: revisionData);
+    ref.invalidate(budgetDetailsProvider(budgetId));
+  }
+
+  Future<void> submitRevisionForApproval(
+      String revisionId, Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .post('$_budgetsPath/revisions/$revisionId/submit', data: data);
+  }
+
+  Future<void> approveRejectRevision(
+      String revisionId, Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .post('$_budgetsPath/revisions/$revisionId/approve-reject', data: data);
+  }
+
+  Future<void> applyRevision(String budgetId, String revisionId) async {
+    await _dioClient.dio.post('$_budgetsPath/revisions/$revisionId/apply');
+    ref.invalidate(budgetDetailsProvider(budgetId));
+  }
+
+  // ==========================================================================
+  // MODULE 5: BUDGET ALERTS & FORECASTS
+  // ==========================================================================
+
+  Future<List<BudgetAlert>> getBudgetAlerts(String budgetId,
+      {bool? resolved}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/$budgetId/alerts', queryParameters: {
+      if (resolved != null) 'resolved': resolved,
+    });
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetAlert.fromJson(json)).toList();
+  }
+
+  Future<void> resolveAlert(String alertId, Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .post('$_budgetsPath/alerts/$alertId/resolve', data: data);
+  }
+
+  Future<List<BudgetForecast>> getBudgetForecasts(String budgetId) async {
+    final response =
+        await _dioClient.dio.get('$_budgetsPath/$budgetId/forecasts');
+    final List<dynamic> data = response.data['data'];
+    return data.map((json) => BudgetForecast.fromJson(json)).toList();
+  }
+
+  Future<void> createForecast(
+      String budgetId, Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_budgetsPath/$budgetId/forecasts', data: data);
+  }
+
+  Future<Map<String, dynamic>> getVarianceAnalysis(String budgetId,
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/$budgetId/variance', queryParameters: params);
+    return response.data['data'];
+  }
+
+  // ==========================================================================
+  // MODULE 6: DASHBOARD & REPORTS
+  // ==========================================================================
+
+  Future<Map<String, dynamic>> getBudgetSummary(
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/dashboard/summary', queryParameters: params);
+    return response.data['data'];
+  }
+
+  Future<Map<String, dynamic>> getProjectBudgetStatus(String projectId,
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio.get(
+        '$_budgetsPath/dashboard/project/$projectId/status',
+        queryParameters: params);
+    return response.data['data'];
+  }
+
+  Future<List<dynamic>> getBudgetUtilizationReport(
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/reports/utilization', queryParameters: params);
+    return response.data['data'];
+  }
+
+  Future<List<dynamic>> getBudgetVarianceReport(
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/reports/variance', queryParameters: params);
+    return response.data['data'];
+  }
+
+  Future<Map<String, dynamic>> getCategorySpendingReport(
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio.get(
+        '$_budgetsPath/reports/category-spending',
+        queryParameters: params);
+    return response.data['data'];
+  }
+
+  Future<Map<String, dynamic>> getCommitmentTrackingReport(
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio.get(
+        '$_budgetsPath/reports/commitment-tracking',
+        queryParameters: params);
+    return response.data['data'];
+  }
+
+  // ==========================================================================
+  // MODULE 7: MATERIAL REQUEST INTEGRATION
+  // ==========================================================================
+
+  Future<Map<String, dynamic>> checkBudgetAvailability({
+    required String projectId,
+    required BudgetCategory category,
+    required double estimatedCost,
+  }) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/material-requests/budget-check', queryParameters: {
+      'projectId': projectId,
+      'category': category.toJson(),
+      'estimatedCost': estimatedCost,
+    });
+    return response.data['data'];
+  }
+
   Future<void> commitBudgetToRequest({
     required String requestId,
     required String budgetId,
     required String categoryId,
-    required double estimatedCost,
+    double? estimatedCost,
   }) async {
     await _dioClient.dio.post(
-      '$_budgetsPath/material-requests/$requestId/commit-budget',
-      data: {
-        'budgetId': budgetId,
-        'categoryId': categoryId,
-        'estimatedCost': estimatedCost,
-      },
-    );
-    // Refresh budget details to reflect new commitment
-    ref.invalidate(budgetDetailsProvider(budgetId));
+        '$_budgetsPath/material-requests/$requestId/commit-budget',
+        data: {
+          'budgetId': budgetId,
+          'categoryId': categoryId,
+          if (estimatedCost != null) 'estimatedCost': estimatedCost,
+        });
   }
 
-  /// Generates a Purchase Order directly from a requested/committed material request
+  Future<Map<String, dynamic>> getBudgetStatusForRequest(
+      String requestId) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/material-requests/$requestId/budget-status');
+    return response.data['data'];
+  }
+
   Future<void> createPOFromRequest(
       String requestId, Map<String, dynamic> poData) async {
     await _dioClient.dio.post(
-      '$_budgetsPath/material-requests/$requestId/create-po',
-      data: {'poData': poData},
-    );
-    // Might need to invalidate PO list provider if one exists in the future
+        '$_budgetsPath/material-requests/$requestId/create-po',
+        data: {'poData': poData});
   }
 
   // ==========================================================================
-  // PHASE 3: EXECUTION & EXPENSES
+  // MODULE 8: APPROVALS & AUDIT
   // ==========================================================================
 
-  /// Converts a locked commitment into an actual budget expense (e.g. after Goods Receipt)
-  Future<void> convertCommitmentToExpense({
-    required String transactionId, // The budgetTransactionId of the commitment
-    required String budgetId,
-    required double actualAmount,
-    double? taxAmount,
-    String? expenseId,
-  }) async {
-    await _dioClient.dio.patch(
-      '$_budgetsPath/transactions/$transactionId/convert',
-      data: {
-        'actualAmount': actualAmount,
-        'taxAmount': taxAmount,
-        'expenseId': expenseId,
-      },
-    );
-    ref.invalidate(budgetDetailsProvider(budgetId));
+  Future<Map<String, dynamic>> getPendingBudgetApprovals(
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/approvals/pending', queryParameters: params);
+    return response.data['data'];
+  }
+
+  Future<void> approveBudget(String budgetId, {String? approvalNotes}) async {
+    await _dioClient.dio.post('$_budgetsPath/approvals/$budgetId/approve',
+        data: {'approvalNotes': approvalNotes});
+    await refresh();
+  }
+
+  Future<void> rejectBudget(String budgetId,
+      {required String rejectionReason}) async {
+    await _dioClient.dio.post('$_budgetsPath/approvals/$budgetId/reject',
+        data: {'rejectionReason': rejectionReason});
+    await refresh();
+  }
+
+  Future<List<dynamic>> getBudgetAuditTrail(String budgetId,
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio
+        .get('$_budgetsPath/audit/$budgetId', queryParameters: params);
+    return response.data['data'];
   }
 
   // ==========================================================================
-  // PHASE 4: CASH MOVEMENT (LEDGER TRANSACTIONS)
+  // MODULE 9: LEDGER TRANSACTIONS (PHASE 4)
   // ==========================================================================
 
   Future<void> createLedgerTransaction(
@@ -377,8 +619,6 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     final response =
         await _dioClient.dio.post(_transactionsPath, data: transactionData);
     final newTransaction = Transaction.fromJson(response.data['data']);
-
-    // Add to top of transactions list
     final currentState = state.value;
     if (currentState != null) {
       state = AsyncValue.data(currentState.copyWith(
@@ -390,58 +630,27 @@ class FinancialController extends AsyncNotifier<FinancialState> {
   Future<void> approveLedgerTransaction(String transactionId,
       {String? approvalNotes}) async {
     final response = await _dioClient.dio.patch(
-      '$_transactionsPath/$transactionId/approve',
-      data: {'approvalNotes': approvalNotes},
-    );
-
+        '$_transactionsPath/$transactionId/approve',
+        data: {'approvalNotes': approvalNotes});
     final updatedTx = Transaction.fromJson(response.data['data']);
     _updateLocalTransaction(transactionId, (_) => updatedTx);
-
-    // Invalidate project cashbox since balance likely changed
-    if (updatedTx.projectId.isNotEmpty) {
+    if (updatedTx.projectId.isNotEmpty)
       ref.invalidate(projectCashboxProvider(updatedTx.projectId));
-    }
+  }
+
+  void _updateLocalTransaction(
+      String txId, Transaction Function(Transaction) updateFn) {
+    final currentState = state.value;
+    if (currentState == null) return;
+    final updatedTxs = currentState.transactions
+        .map((t) => t.id == txId ? updateFn(t) : t)
+        .toList();
+    state = AsyncValue.data(currentState.copyWith(transactions: updatedTxs));
   }
 
   Future<ProjectCashbox> getProjectCashbox(String projectId) async {
     final response = await _dioClient.dio
         .get('$_transactionsPath/cashbox/project/$projectId');
     return ProjectCashbox.fromJson(response.data['data']);
-  }
-
-  // ==========================================================================
-  // PHASE 5: ADJUSTMENTS & TRANSFERS
-  // ==========================================================================
-
-  Future<void> transferBetweenCategories({
-    required String budgetId,
-    required String fromCategoryId,
-    required String toCategoryId,
-    required double amount,
-    String? description,
-  }) async {
-    await _dioClient.dio.post(
-      '$_budgetsPath/transactions/transfer',
-      data: {
-        'budgetId': budgetId,
-        'fromCategoryId': fromCategoryId,
-        'toCategoryId': toCategoryId,
-        'amount': amount,
-        'description': description,
-      },
-    );
-    ref.invalidate(budgetDetailsProvider(budgetId));
-  }
-
-  Future<void> createBudgetRevision(
-      String budgetId, Map<String, dynamic> revisionData) async {
-    await _dioClient.dio
-        .post('$_budgetsPath/$budgetId/revisions', data: revisionData);
-    ref.invalidate(budgetDetailsProvider(budgetId));
-  }
-
-  Future<void> applyRevision(String budgetId, String revisionId) async {
-    await _dioClient.dio.post('$_budgetsPath/revisions/$revisionId/apply');
-    ref.invalidate(budgetDetailsProvider(budgetId));
   }
 }
