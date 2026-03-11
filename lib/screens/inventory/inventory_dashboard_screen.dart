@@ -474,7 +474,7 @@ class _InventoryDashboardScreenState
               time: _timeAgo(activity.date),
               iconColor: activity.color,
             );
-          }).toList(),
+          }),
       ],
     );
   }
@@ -544,11 +544,13 @@ class _InventoryDashboardScreenState
   // --- Helper Methods for Formatting Activity Data ---
 
   IconData _getIconForTransaction(String type) {
-    if (type.contains('INIT') || type.contains('OPENING'))
+    if (type.contains('INIT') || type.contains('OPENING')) {
       return Icons.inventory_2_outlined;
+    }
     if (type.contains('TRANSFER')) return Icons.compare_arrows;
-    if (type.contains('CONSUMPTION') || type.contains('USED'))
+    if (type.contains('CONSUMPTION') || type.contains('USED')) {
       return Icons.trending_down;
+    }
     return Icons.assignment_outlined;
   }
 

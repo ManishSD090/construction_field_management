@@ -33,7 +33,7 @@ class DioClient {
     if (Platform.isIOS) {
       return "http://172.16.9.110:5001/api/v1";
     }
-    return "http://localhost:5000/api/v1";
+    return "http://localhost:5001/api/v1";
   }
 
   // 2. Configuration

@@ -28,3 +28,20 @@ final connectivityStreamProvider =
     StreamProvider<List<ConnectivityResult>>((ref) {
   return Connectivity().onConnectivityChanged;
 });
+
+// Fetch Projects
+final projectsProvider = FutureProvider<List<dynamic>>((ref) async {
+  final dioClient = ref.watch(dioClientProvider);
+  // Using your existing Dio instance from core_providers
+  final response = await dioClient.dio.get('/projects');
+  
+  // Based on your backend structure: { success: true, data: [...] }
+  return response.data['data'] as List<dynamic>;
+});
+
+// Fetch Materials (for the dynamic materials rows)
+final materialsProvider = FutureProvider<List<dynamic>>((ref) async {
+  final dioClient = ref.watch(dioClientProvider);
+  final response = await dioClient.dio.get('/inventory'); // or your material endpoint
+  return response.data['data'] as List<dynamic>;
+});

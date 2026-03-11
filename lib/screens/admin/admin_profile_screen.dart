@@ -4,7 +4,7 @@ import 'package:construction_erp/screens/admin/approvals_screen.dart';
 import 'package:construction_erp/screens/sub_contractor/sub_contractor_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart'; // Add intl for date formatting
+import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 
 // Controllers & Models
@@ -22,7 +22,6 @@ class AdminProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Watch the Auth State
     final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
@@ -35,20 +34,16 @@ class AdminProfileScreen extends ConsumerWidget {
           padding: EdgeInsets.only(left: 10),
           child: Text(
             "Profile",
-            style:
-                TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
+            style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
           ),
         ),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
         ),
       ),
-      // 2. Handle Loading/Error/Data states
       body: authState.when(
         data: (user) {
-          if (user == null) {
-            return const Center(child: Text("No session found"));
-          }
+          if (user == null) return const Center(child: Text("No session found"));
           return _buildProfileBody(context, ref, user);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -58,225 +53,203 @@ class AdminProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildProfileBody(BuildContext context, WidgetRef ref, User user) {
-    // Helper for formatting dates
     String formatDate(DateTime? date) =>
         date != null ? DateFormat('dd MMM yyyy').format(date) : "N/A";
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // --- 1. Header Section ---
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- Header Section ---
+                _buildHeader(user),
+                const SizedBox(height: 24),
+
+                // --- Account Info Card ---
+                _buildAccountInfoCard(user, formatDate),
+                const SizedBox(height: 24),
+
+                // --- Account Settings List ---
+                _buildSettingsList(context, user),
+                const SizedBox(height: 24),
+
+                // --- Floating Style Check-in Button ---
+                _buildCheckInButton(context),
+                const SizedBox(height: 16),
+
+                // --- Log Out Button ---
+                Center(
+                  child: TextButton(
+                    onPressed: () => _handleLogout(context, ref),
+                    child: const Text(
+                      "Log Out",
+                      style: TextStyle(
+                        color: Color(0xFFFF3B30),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- UI Components ---
+
+  Widget _buildHeader(User user) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.name, // Integrated
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user.company?.name ?? "No Company Assigned", // Integrated
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user.role?.name ??
-                        user.userType.name.toUpperCase(), // Integrated
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF0A6ED1),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
               Text(
-                "ID: ${user.employeeId == null ? user.id.substring(0, 8) : user.employeeId ?? 'N/A'}", // Integrated
+                user.name,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              Text(user.company?.name ?? "ABC Infrastructure Pvt Ltd",
+                  style: const TextStyle(fontSize: 14, color: Colors.black87)),
+              Text(
+                user.role?.name ?? "Site Engineer",
                 style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black54,
+                  fontSize: 14,
+                  color: AppColors.primaryBlue,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
+        ),
+        Text(
+          "User ID: ${user.employeeId ?? 'SYS-ADM-001'}",
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+      ],
+    );
+  }
 
-          const SizedBox(height: 24),
-
-          // --- 2. Account Info Card ---
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Account Info",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Divider(height: 24, thickness: 1),
-                _buildInfoRow("User type:", user.userType.toDisplayString()),
-                const SizedBox(height: 12),
-                _buildInfoRow("Account created:", formatDate(user.createdAt)),
-                const SizedBox(height: 12),
-                _buildInfoRow(
-                    "Last Login:",
-                    user.lastLogin != null
-                        ? DateFormat('dd MMM yyyy · hh:mm a')
-                            .format(user.lastLogin!.toLocal())
-                        : "First Session"),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // --- 3. Account Settings List ---
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text(
-                    "Account Settings",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const Divider(),
-                _buildSettingsTile(
-                  title: "Personal Info",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const PersonalInfoScreen()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  title: "Company Details",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CompanyDetailsScreen(
-                          company: user.company ?? Company(name: "N/A"),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  title: "Manage Sub-Contractors",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                              const SubcontractorListScreen()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  title: "Manage Users and Roles",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const ManageUsersMenuScreen()),
-                    );
-                  },
-                ),
-                _buildSettingsTile(
-                  title: "Manage Approvals",
-                  onTap: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const ApprovalsScreen()));
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 40),
-
-          // --- 4. Log Out Button ---
-          Center(
-            child: SizedBox(
-              width: 150,
-              height: 45,
-              child: ElevatedButton(
-                onPressed: () => _handleLogout(context, ref), // Integrated
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF3B30),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  "Log Out",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
+  Widget _buildAccountInfoCard(User user, Function formatDate) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Account Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Divider(height: 24),
+          _buildInfoRow("User type:", user.userType.toDisplayString()),
+          const SizedBox(height: 12),
+          _buildInfoRow("Account created:", formatDate(user.createdAt)),
+          const SizedBox(height: 12),
+          _buildInfoRow("Last Login:", user.lastLogin != null 
+              ? DateFormat('dd MMM yyyy · hh:mm a').format(user.lastLogin!.toLocal()) 
+              : "14 Aug 2025 · 09:12 AM"),
         ],
       ),
     );
   }
 
-  // Logout Logic with Confirmation
+  Widget _buildSettingsList(BuildContext context, User user) {
+    return Container(
+      width: double.infinity,
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text("Account Settings", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+          const Divider(),
+          _buildSettingsTile(
+            icon: Icons.person_outline,
+            title: "Personal Info",
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PersonalInfoScreen())),
+          ),
+          _buildSettingsTile(
+            icon: Icons.business_outlined,
+            title: "Company Details",
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CompanyDetailsScreen(company: user.company ?? Company(name: "N/A")))),
+          ),
+          _buildSettingsTile(
+            icon: Icons.group_outlined,
+            title: "Manage Users and Roles",
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageUsersMenuScreen())),
+          ),
+          _buildSettingsTile(
+            icon: Icons.history_outlined,
+            title: "Approval History",
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ApprovalsScreen())),
+          ),
+          _buildSettingsTile(
+            icon: Icons.book_outlined,
+            title: "Libraries",
+            onTap: () {}, // Add Library Route here
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCheckInButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          // Logic for check-in
+        },
+        icon: const Icon(Icons.history_toggle_off, color: Colors.white),
+        label: const Text("Check-in", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          elevation: 0,
+        ),
+      ),
+    );
+  }
+
+  // --- Helpers ---
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+    );
+  }
+
+  Widget _buildSettingsTile({required IconData icon, required String title, required VoidCallback onTap}) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.black87, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      children: [
+        Text("$label ", style: const TextStyle(color: Color(0xFF666666), fontSize: 14)),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      ],
+    );
+  }
+
   void _handleLogout(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -284,62 +257,17 @@ class AdminProfileScreen extends ConsumerWidget {
         title: const Text("Logout"),
         content: const Text("Are you sure you want to log out?"),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(authControllerProvider.notifier).logout();
-              Navigator.pushNamedAndRemoveUntil(
-                  context, AppRoutes.login, (ctx) => false);
+              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (ctx) => false);
             },
             child: const Text("Logout", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
-    );
-  }
-
-  // --- Helper Widgets ---
-
-  Widget _buildInfoRow(String label, String value) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(fontSize: 14, color: Colors.black87),
-        children: [
-          TextSpan(
-            text: "$label ",
-            style: const TextStyle(color: Color(0xFF666666)),
-          ),
-          TextSpan(
-            text: value,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsTile(
-      {required String title, required VoidCallback onTap}) {
-    return ListTile(
-      onTap: onTap,
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Colors.black87,
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 16,
-        color: Colors.grey,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
     );
   }
 }

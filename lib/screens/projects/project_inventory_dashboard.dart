@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
-import 'package:construction_erp/screens/inventory/inventory_screen.dart';
 import 'package:construction_erp/screens/inventory/purchase_order_list_screen.dart';
 import 'package:construction_erp/controllers/inventory/inventory_controller.dart'; // Adjust import path as needed
 
@@ -530,7 +529,7 @@ class _ProjectInventoryDashboardScreenState
               time: _timeAgo(activity.date),
               iconColor: activity.color,
             );
-          }).toList(),
+          }),
       ],
     );
   }
@@ -600,11 +599,13 @@ class _ProjectInventoryDashboardScreenState
   // --- Helper Methods for Formatting Activity Data ---
 
   IconData _getIconForTransaction(String type) {
-    if (type.contains('INIT') || type.contains('OPENING'))
+    if (type.contains('INIT') || type.contains('OPENING')) {
       return Icons.inventory_2_outlined;
+    }
     if (type.contains('TRANSFER')) return Icons.compare_arrows;
-    if (type.contains('CONSUMPTION') || type.contains('USED'))
+    if (type.contains('CONSUMPTION') || type.contains('USED')) {
       return Icons.trending_down;
+    }
     return Icons.assignment_outlined;
   }
 

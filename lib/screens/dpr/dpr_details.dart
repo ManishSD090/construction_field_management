@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
@@ -20,7 +21,11 @@ class DPRDetailsScreen extends StatelessWidget {
         elevation: 0,
         title: const Text(
           "DPR Details",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -29,472 +34,335 @@ class DPRDetailsScreen extends StatelessWidget {
       ),
       bottomNavigationBar: _bottomApproveBar(context),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _topHeaderCard(),
-            const SizedBox(height: 12),
+            _headerSection(),
+            const SizedBox(height: 20),
+            
+            _sectionTitle("Description"),
+            _descriptionBox(),
+            const SizedBox(height: 24),
 
-            _sectionTitle("Tasks completed"),
-            _tasksCompletedCard(),
-            const SizedBox(height: 12),
+            _tasksSection(),
+            const SizedBox(height: 24),
 
-            _sectionTitle("Attendance"),
-            _attendanceCard(),
-            const SizedBox(height: 12),
+            _attendanceSection(),
+            const SizedBox(height: 24),
 
-            _sectionTitle("Materials"),
-            _materialsCard(),
-            const SizedBox(height: 12),
+            _materialsSection(),
+            const SizedBox(height: 24),
 
-            _sectionTitle("Equipments"),
-            _equipmentsCard(),
-            const SizedBox(height: 12),
+            _equipmentsSection(),
+            const SizedBox(height: 24),
 
             _sectionTitle("Photos"),
-            _photosCard(),
-            const SizedBox(height: 12),
+            _photosSection(),
+            const SizedBox(height: 24),
 
-            _sectionTitle("Documents"),
-            _documentsCard(),
+            const Divider(color: Colors.grey, thickness: 0.5),
             const SizedBox(height: 12),
+            
+            _sectionTitle("Issues / Challenges"),
+            _textSection(dpr.challenges ?? dpr.issuesFound),
+            const SizedBox(height: 24),
 
-            _sectionTitle("Issues"),
-            _issuesCard(),
-            const SizedBox(height: 12),
-
-            _sectionTitle("Next Day Plan"),
-            _nextDayPlanCard(),
-            const SizedBox(height: 12),
-
-            _sectionTitle("Notes"),
-            _notesCard(),
+            _sectionTitle("Next Day Planning"),
+            _textSection(dpr.nextDayTaskName ?? dpr.notes ?? "No plans provided for the next day."),
+            const SizedBox(height: 40), 
           ],
         ),
       ),
     );
   }
 
-  // -------------------- UI blocks --------------------
+  // -------------------- UI Sections --------------------
 
-  Widget _topHeaderCard() {
+  Widget _headerSection() {
     final dateLabel = DateFormat("dd MMM yyyy").format(dpr.date).toUpperCase();
-    final weather = dpr.weather ?? "-";
-
-    return _card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                dateLabel,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-              ),
-              const Spacer(),
-              _chip(weather, icon: _weatherIcon(weather)),
-              const SizedBox(width: 8),
-              _statusPill(dpr.status.name),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          _kvRow("Report No", dpr.reportNo),
-          _kvRow("Project", dpr.projectName ?? dpr.projectId),
-          _kvRow("Site Visitor", dpr.siteVisitor ?? "-"),
-          _kvRow("Prepared By", dpr.preparedBy?.name ?? dpr.preparedById),
-          const SizedBox(height: 10),
-
-          const Text(
-            "Description",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textGrey,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.lightGrey),
-            ),
-            child: Text(
-              dpr.workDescription.trim().isEmpty ? "-" : dpr.workDescription,
-              style: const TextStyle(fontSize: 13, color: AppColors.textDark),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tasksCompletedCard() {
-    final tasks = dpr.tasksCompleted ?? const [];
-
-    if (tasks.isNotEmpty) {
-      return _card(
-        child: Column(
-          children: tasks.map((t) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          t.name,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      Text(
-                        t.percent == null ? "-" : "${t.percent}%",
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                      ),
-                    ],
-                  ),
-                  if ((t.subtasks ?? const []).isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    ...t.subtasks!.map((s) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.circle, size: 6, color: AppColors.textGrey),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(s.name, style: const TextStyle(fontSize: 13)),
-                              ),
-                            ],
-                          ),
-                        )),
-                  ],
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      );
+    final weather = dpr.weather ?? "Sunny";
+    
+    // Parse Visitors safely
+    String visitors = "No Visitors";
+    if (dpr.siteVisitors.isNotEmpty) {
+      try {
+        final firstVisitor = dpr.siteVisitors.first;
+        visitors = firstVisitor['name'] ?? "Site Visitor";
+            } catch (_) {}
     }
 
-    final fallback = dpr.completedWork?.trim();
-    return _card(
-      child: (fallback == null || fallback.isEmpty)
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Text(fallback, style: const TextStyle(fontSize: 13)),
-    );
-  }
-
-  Widget _attendanceCard() {
-    final wp = dpr.workersPresent;
-    final wt = dpr.workersTotal;
-    final sp = dpr.staffPresent;
-    final st = dpr.staffTotal;
-
-    return _card(
-      child: Column(
-        children: [
-          _kvRow("Workers", (wp != null && wt != null) ? "$wp / $wt" : "-"),
-          _kvRow("Staff", (sp != null && st != null) ? "$sp / $st" : "-"),
-          const Divider(height: 18),
-          _kvRow(
-            "Total Workers",
-            "${dpr.totalWorkers ?? 0}",
-            bold: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _materialsCard() {
-    final items = dpr.materials ?? const [];
-    if (items.isNotEmpty) {
-      return _card(
-        child: Column(
-          children: items
-              .map((m) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(m.name, style: const TextStyle(fontSize: 13))),
-                        Text("${m.qtyUsed}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-                      ],
-                    ),
-                  ))
-              .toList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(dateLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+            const Icon(Icons.edit_square, color: Colors.grey, size: 20),
+          ],
         ),
-      );
-    }
-
-    final txt = dpr.materialsUsed?.trim();
-    return _card(
-      child: (txt == null || txt.isEmpty)
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Text(txt, style: const TextStyle(fontSize: 13)),
-    );
-  }
-
-  Widget _equipmentsCard() {
-    final items = dpr.equipments ?? const [];
-    if (items.isNotEmpty) {
-      return _card(
-        child: Column(
-          children: items
-              .map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(e.name, style: const TextStyle(fontSize: 13))),
-                        Text("x${e.qty}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-                        const SizedBox(width: 10),
-                        Text("${e.hoursUsed}h", style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
-                      ],
-                    ),
-                  ))
-              .toList(),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(dpr.projectName ?? "Project Selected", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryBlue)),
+          ],
         ),
-      );
-    }
-
-    final txt = dpr.equipmentUsed?.trim();
-    return _card(
-      child: (txt == null || txt.isEmpty)
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Text(txt, style: const TextStyle(fontSize: 13)),
-    );
-  }
-
-  Widget _photosCard() {
-    final photos = dpr.photos ?? const [];
-
-    return _card(
-      child: photos.isEmpty
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: photos.take(9).map((p) => _photoBox(p.imageUrl)).toList(),
-            ),
-    );
-  }
-
-  Widget _documentsCard() {
-    final docs = dpr.documents ?? const [];
-
-    return _card(
-      child: docs.isEmpty
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Column(
-              children: docs
-                  .map((d) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.insert_drive_file_outlined, color: AppColors.textGrey),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(d.fileName ?? "Document", style: const TextStyle(fontSize: 13)),
-                            ),
-                          ],
-                        ),
-                      ))
-                  .toList(),
-            ),
-    );
-  }
-
-  Widget _issuesCard() {
-    final issues = dpr.issuesFound?.trim();
-
-    return _card(
-      child: (issues == null || issues.isEmpty)
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Text(issues, style: const TextStyle(fontSize: 13)),
-    );
-  }
-
-  Widget _nextDayPlanCard() {
-    final task = dpr.nextDayTaskName?.trim() ?? "";
-    final notes = dpr.nextDayNotes?.trim() ?? "";
-
-    final combined = [task, notes].where((x) => x.isNotEmpty).join("\n");
-
-    return _card(
-      child: combined.isEmpty
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Text(combined, style: const TextStyle(fontSize: 13)),
-    );
-  }
-
-  Widget _notesCard() {
-    final notes = dpr.notes?.trim() ?? dpr.challenges?.trim();
-
-    return _card(
-      child: (notes == null || notes.isEmpty)
-          ? const Text("-", style: TextStyle(color: AppColors.textGrey))
-          : Text(notes, style: const TextStyle(fontSize: 13)),
-    );
-  }
-
-  // -------------------- helpers --------------------
-
-  Widget _bottomApproveBar(BuildContext context) {
-    final isApproved = dpr.status.name.toLowerCase() == "approved";
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          )
-        ],
-      ),
-      child: SizedBox(
-        height: 46,
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: isApproved ? null : () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF17A589),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-            elevation: 0,
-          ),
-          child: Text(
-            isApproved ? "Sent for Approval" : "Send for Approval",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-          ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(visitors, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+            _weatherChip(weather),
+          ],
         ),
-      ),
+      ],
     );
   }
 
-  Widget _card({required Widget child}) {
+  Widget _descriptionBox() {
+    final desc = (dpr.workDescription.trim().isEmpty) 
+        ? "No description provided." 
+        : dpr.workDescription;
+        
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.lightGrey.withOpacity(0.8)),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      child: child,
+      child: Text(
+        desc,
+        style: const TextStyle(fontSize: 13, color: AppColors.textDark, height: 1.4),
+      ),
     );
   }
 
-  Widget _sectionTitle(String t) => Padding(
-        padding: const EdgeInsets.only(left: 2, bottom: 8),
-        child: Text(
-          t,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-        ),
-      );
+  Widget _tasksSection() {
+    final completed = dpr.completedWork ?? "N/A";
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle("Tasks Completed", padBottom: 0),
+        const SizedBox(height: 12),
+        const Divider(height: 1, thickness: 1),
+        const SizedBox(height: 12),
+        
+        // Removed hardcoded mock tasks. Now only shows what was actually submitted.
+        _taskRow(completed, "Completed", const Color(0xFF2ECC71)),
+      ],
+    );
+  }
 
-  Widget _kvRow(String k, String v, {bool bold = false}) {
+  Widget _taskRow(String name, String status, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              k,
-              style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-            ),
-          ),
-          Text(
-            v,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-              color: bold ? AppColors.textDark : AppColors.textGrey,
-            ),
+          Expanded(child: Text("Task: $name", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey))),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+            child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _chip(String text, {IconData? icon}) {
+  Widget _attendanceSection() {
+    final total = dpr.totalWorkers ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle("Attendance", padBottom: 0),
+        const SizedBox(height: 12),
+        const Divider(height: 1, thickness: 1),
+        const SizedBox(height: 12),
+        
+        // Using real total workers sent from backend
+        _listRow("Total Workers & Staff", "$total Present", isValueBlue: true),
+      ],
+    );
+  }
+
+  Widget _materialsSection() {
+    // Decoding stringified JSON if it comes as a string from the backend
+    List<dynamic> matList = [];
+    if (dpr.materialsUsed != null && dpr.materialsUsed!.startsWith('[')) {
+      try { matList = jsonDecode(dpr.materialsUsed!); } catch (_) {}
+    } else    matList = dpr.materials!;
+  
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle("Materials Used"),
+        const Divider(height: 1, thickness: 1),
+        const SizedBox(height: 12),
+        if (matList.isEmpty)
+          const Text("No materials recorded.", style: TextStyle(color: Colors.grey))
+        else
+          ...matList.map((m) {
+            String name = "Material";
+            String qty = "0";
+            if (m is Map) {
+              name = m['name'] ?? m['materialId']?.toString() ?? "Material";
+              qty = m['quantity']?.toString() ?? m['qtyUsed']?.toString() ?? "0";
+            }
+            return _listRow("Name: $name", "Qty: $qty", isValueBlue: true);
+          }),
+      ],
+    );
+  }
+
+  Widget _equipmentsSection() {
+    // Decoding stringified JSON if it comes as a string from the backend
+    List<dynamic> eqList = [];
+    if (dpr.equipmentUsed != null && dpr.equipmentUsed!.startsWith('[')) {
+      try { eqList = jsonDecode(dpr.equipmentUsed!); } catch (_) {}
+    } else    eqList = dpr.equipments!;
+  
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle("Equipment Used"),
+        const Divider(height: 1, thickness: 1),
+        const SizedBox(height: 12),
+        if (eqList.isEmpty)
+           const Text("No equipment recorded.", style: TextStyle(color: Colors.grey))
+        else
+          ...eqList.map((e) {
+            String name = "Equipment";
+            String hours = "0";
+            if (e is Map) {
+              name = e['name']?.toString() ?? "Equipment";
+              hours = e['hours']?.toString() ?? e['hoursUsed']?.toString() ?? "0";
+            }
+            return _listRow("Name: $name", "$hours hrs used", isValueBlue: true);
+          }),
+      ],
+    );
+  }
+
+  Widget _photosSection() {
+    final photos = dpr.photos ?? [];
+    return photos.isEmpty
+        ? Row(children: List.generate(3, (index) => _emptyBox()))
+        : Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: photos.take(6).map((p) => _imageBox(p.imageUrl)).toList(),
+          );
+  }
+
+  // -------------------- Core Helpers --------------------
+
+  Widget _textSection(String? text) {
+    return Text(
+      (text == null || text.trim().isEmpty || text == "null") ? "No details provided." : text,
+      style: const TextStyle(fontSize: 13, color: AppColors.textDark),
+    );
+  }
+
+  Widget _listRow(String title, String value, {bool isValueBlue = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark))),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isValueBlue ? AppColors.primaryBlue : AppColors.textDark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String t, {double padBottom = 12}) => Padding(
+    padding: EdgeInsets.only(bottom: padBottom),
+    child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+  );
+
+  Widget _weatherChip(String weather) {
+    IconData icon = Icons.wb_sunny_outlined;
+    if (weather.toLowerCase().contains("cloud")) icon = Icons.cloud_outlined;
+    if (weather.toLowerCase().contains("rain")) icon = Icons.thunderstorm_outlined;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.primaryBlue.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.lightGrey),
+        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: AppColors.primaryBlue),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            text,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-          ),
+          Icon(icon, size: 14, color: AppColors.primaryBlue),
+          const SizedBox(width: 6),
+          Text(weather, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryBlue)),
         ],
       ),
     );
   }
 
-  Widget _statusPill(String status) {
-    Color bg;
-    final s = status.toLowerCase();
-    if (s == "approved") {
-      bg = const Color(0xFF2ECC71);
-    } else if (s == "submitted") {
-      bg = const Color(0xFF2E86C1);
-    } else if (s == "done") {
-      bg = const Color(0xFF17A589);
-    } else {
-      bg = const Color(0xFFF39C12);
-    }
-
+  Widget _emptyBox() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
-      child: Text(
-        status,
-        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900),
-      ),
-    );
-  }
-
-  Widget _photoBox(String url) {
-    return Container(
-      height: 54,
-      width: 54,
+      height: 70,
+      width: 70,
+      margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.lightGrey),
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: url.isEmpty
-          ? const Icon(Icons.image_outlined, color: AppColors.textGrey)
-          : Image.network(
-              url,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined, color: AppColors.textGrey),
-            ),
+      child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
     );
   }
 
-  IconData _weatherIcon(String w) {
-    final s = w.toLowerCase();
-    if (s.contains("sun")) return Icons.wb_sunny_outlined;
-    if (s.contains("cloud")) return Icons.cloud_outlined;
-    if (s.contains("rain")) return Icons.thunderstorm_outlined;
-    return Icons.wb_sunny_outlined;
+  Widget _imageBox(String url) {
+    return Container(
+      height: 70,
+      width: 70,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+      ),
+    );
+  }
+
+  Widget _bottomApproveBar(BuildContext context) {
+    // Handling possible nulls safely
+    final status = dpr.status.name.toLowerCase() ?? "todo";
+    final isApproved = status == "approved" || status == "completed";
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+      ),
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: isApproved ? null : () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF17A589), // Teal color matching the design
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 0,
+          ),
+          child: Text(
+            isApproved ? "Sent for Approval" : "Send For Approval",
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+        ),
+      ),
+    );
   }
 }

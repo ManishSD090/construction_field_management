@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:construction_erp/routes.dart'; // Ensure this exists
+// Ensure this exists
 import 'package:construction_erp/screens/inventory/inventory_history_screen.dart'; // Adjust path
 import 'package:construction_erp/screens/inventory/item_details_screen.dart'; // Adjust path
 import 'package:construction_erp/screens/inventory/create_material_screen.dart';

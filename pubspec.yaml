@@ -29,10 +29,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
-     sdk: flutter
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+    sdk: flutter
   cupertino_icons: ^1.0.6
   shared_preferences: ^2.3.4
   flutter_riverpod: ^2.6.1
@@ -53,7 +50,9 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   app_settings: ^7.0.0
   http: ^1.6.0
-  image_picker: ^1.2.1
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
+  jwt_decoder: ^2.0.1 
 
 dev_dependencies:
   flutter_test:

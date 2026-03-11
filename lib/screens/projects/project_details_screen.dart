@@ -18,7 +18,6 @@ import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 import 'package:construction_erp/screens/timeline/timeline_tab.dart';
 import 'package:construction_erp/screens/timeline/create_timeline.dart' as ct;
 import 'package:construction_erp/screens/timeline/create_timeline_version.dart';
-import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
@@ -26,7 +25,7 @@ import 'package:construction_erp/screens/budget/add_record_screen.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
 import 'package:construction_erp/screens/budget/budget_screen.dart';
 // ✅ Attendance Imports from your working version
-import 'package:construction_erp/screens/attendance/payroll_details_screen.dart';
+import 'package:construction_erp/screens/payroll/payroll_details_screen.dart';
 import 'package:construction_erp/screens/attendance/mark_attendance_screen.dart';
 
 class ProjectDetailsScreen extends ConsumerStatefulWidget {
@@ -40,7 +39,7 @@ class ProjectDetailsScreen extends ConsumerStatefulWidget {
 class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     with TickerProviderStateMixin {
   String _selectedTab = 'Overview';
-  int _selectedReportType = 0;
+  final int _selectedReportType = 0;
   late Project project;
   bool _isHeaderVisible = true;
   bool _isDeleting = false;
@@ -119,9 +118,10 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           .deleteProject(project.id);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
       if (mounted) setState(() => _isDeleting = false);
     }
@@ -258,8 +258,9 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   Widget _buildTimelineTab() {
     return Consumer(builder: (context, ref, child) {
       final state = ref.watch(timelineControllerProvider).valueOrNull;
-      if (state != null && state.timelines.isNotEmpty)
+      if (state != null && state.timelines.isNotEmpty) {
         return TimelineTab(timelineId: state.timelines.first.id);
+      }
       return const Center(
           child: Text("No Timeline found. Click + to create one."));
     });
@@ -459,7 +460,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
               onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => PayrollDetailsScreen())),
+                      builder: (context) => const PayrollDetailsScreen())),
               child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -592,12 +593,18 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-    if (!['Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
+    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
       return null;
+    }
     }
     return FloatingActionButton(
         onPressed: () {
-          if (_selectedTab == 'Sub-contractor') {
+          if (_selectedTab == 'Tasks') {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const CreateTaskScreen()));
+          } else if (_selectedTab == 'Sub-contractor')
             Navigator.push(
                 context,
                 MaterialPageRoute(

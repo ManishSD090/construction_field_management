@@ -73,8 +73,9 @@ class _AssignEquipmentToProjectScreenState
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _selectedEquipmentId == null)
+    if (!_formKey.currentState!.validate() || _selectedEquipmentId == null) {
       return;
+    }
 
     setState(() => _isLoading = true);
 

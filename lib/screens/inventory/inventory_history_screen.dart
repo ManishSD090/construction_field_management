@@ -28,7 +28,7 @@ class _InventoryHistoryScreenState
   int _page = 1;
 
   // Strongly typed list of Transfer objects
-  List<InventoryTransfer> _transfers = [];
+  final List<InventoryTransfer> _transfers = [];
 
   @override
   void initState() {
@@ -84,22 +84,20 @@ class _InventoryHistoryScreenState
       Map<dynamic, dynamic> pagination = {};
 
       // Safely handle both mapped objects and raw JSON based on what the controller returns
-      if (res is Map) {
-        final rawData = res['data'] ?? res['transfers'] ?? [];
-        pagination = res['pagination'] ?? {};
+      final rawData = res['data'] ?? res['transfers'] ?? [];
+      pagination = res['pagination'] ?? {};
 
-        if (rawData is List) {
-          for (var item in rawData) {
-            if (item is InventoryTransfer) {
-              newTransfers.add(item); // Already parsed by controller
-            } else if (item is Map<String, dynamic>) {
-              newTransfers
-                  .add(InventoryTransfer.fromJson(item)); // Needs parsing
-            }
+      if (rawData is List) {
+        for (var item in rawData) {
+          if (item is InventoryTransfer) {
+            newTransfers.add(item); // Already parsed by controller
+          } else if (item is Map<String, dynamic>) {
+            newTransfers
+                .add(InventoryTransfer.fromJson(item)); // Needs parsing
           }
         }
       }
-
+    
       if (mounted) {
         setState(() {
           _transfers.addAll(newTransfers);
