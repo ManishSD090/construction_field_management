@@ -6,7 +6,6 @@ class DailyProgressReport {
   final String reportNo;
   final String projectId;
 
-  // UI now has these, keep them optional unless backend already sends them
   final String? projectName;
   final String? projectManagerId;
   final User? projectManager;
@@ -18,61 +17,47 @@ class DailyProgressReport {
 
   final DateTime date;
 
-  // Weather
-  final String? weather; // Sunny/Cloudy/Rainy
+  final String? weather;
   final String? temperature;
   final String? humidity;
 
-  // Description (UI)
-  final String workDescription; // keep required (maps to Description)
-  final String? siteVisitor; // UI has Site Visitor dropdown/text
+  final String workDescription;
 
-  // Old fields (keep if backend uses)
+  // Backend uses siteVisitors as array
+  final List<Map<String, dynamic>> siteVisitors;
+
   final String? completedWork;
   final String? pendingWork;
   final String? challenges;
   final bool? supervisorPresent;
 
-  // Attendance (NEW)
   final int? workersPresent;
   final int? workersTotal;
   final int? staffPresent;
   final int? staffTotal;
-
-  // Old totalWorkers (keep)
   final int? totalWorkers;
 
-  // Tasks completed (NEW structured)
-  final List<DPRTask>? tasksCompleted;
+  final List<DPRTask> tasksCompleted;
+  final List<DPRMaterial> materials;
+  final List<DPREquipment> equipments;
 
-  // Materials + Equipments (NEW structured)
-  final List<DPRMaterial>? materials;
-  final List<DPREquipment>? equipments;
-
-  // Sub-contractor details (NEW)
   final String? subContractorName;
   final String? subContractorNotes;
 
-  // Next day planning (NEW)
   final String? nextDayTaskName;
   final String? nextDayNotes;
 
-  // Old “string” usage (keep for backward compatibility)
   final String? equipmentUsed;
   final String? materialsUsed;
   final String? materialsReceived;
   final String? materialsRequired;
 
-  // Safety / quality / issues (keep)
   final String? safetyObservations;
   final String? incidents;
   final String? qualityChecks;
   final String? issuesFound;
-
-  // Notes (NEW – bottom notes section)
   final String? notes;
 
-  // Approvals
   final String? approvedById;
   final User? approvedBy;
   final DateTime? approvedAt;
@@ -81,9 +66,8 @@ class DailyProgressReport {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // Uploads
-  final List<DPRPhoto>? photos;
-  final List<DPRDocument>? documents;
+  final List<DPRPhoto> photos;
+  final List<DPRDocument> documents;
 
   DailyProgressReport({
     required this.id,
@@ -101,7 +85,7 @@ class DailyProgressReport {
     this.temperature,
     this.humidity,
     required this.workDescription,
-    this.siteVisitor,
+    this.siteVisitors = const [],
     this.completedWork,
     this.pendingWork,
     this.challenges,
@@ -111,9 +95,9 @@ class DailyProgressReport {
     this.workersTotal,
     this.staffPresent,
     this.staffTotal,
-    this.tasksCompleted,
-    this.materials,
-    this.equipments,
+    this.tasksCompleted = const [],
+    this.materials = const [],
+    this.equipments = const [],
     this.subContractorName,
     this.subContractorNotes,
     this.nextDayTaskName,
@@ -133,8 +117,8 @@ class DailyProgressReport {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
-    this.photos,
-    this.documents,
+    this.photos = const [],
+    this.documents = const [],
   });
 
   factory DailyProgressReport.fromJson(Map<String, dynamic> json) {
@@ -143,11 +127,14 @@ class DailyProgressReport {
       reportNo: (json['reportNo'] ?? '') as String,
       projectId: (json['projectId'] ?? '') as String,
 
-      projectName: json['projectName'] as String?,
+      projectName: json['projectName'] as String? ??
+          (json['project'] is Map ? json['project']['name'] as String? : null),
+
       projectManagerId: json['projectManagerId'] as String?,
       projectManager: json['projectManager'] != null
           ? User.fromJson(json['projectManager'])
           : null,
+
       siteEngineerId: json['siteEngineerId'] as String?,
       siteEngineer: json['siteEngineer'] != null
           ? User.fromJson(json['siteEngineer'])
@@ -164,48 +151,70 @@ class DailyProgressReport {
       humidity: json['humidity'] as String?,
 
       workDescription: (json['workDescription'] ?? '') as String,
-      siteVisitor: json['siteVisitor'] as String?,
+
+      siteVisitors: json['siteVisitors'] is List
+          ? List<Map<String, dynamic>>.from(
+              (json['siteVisitors'] as List).map(
+                (e) => Map<String, dynamic>.from(e as Map),
+              ),
+            )
+          : [],
 
       completedWork: json['completedWork'] as String?,
       pendingWork: json['pendingWork'] as String?,
       challenges: json['challenges'] as String?,
-      totalWorkers: (json['totalWorkers'] as int?) ?? 0,
-      supervisorPresent: (json['supervisorPresent'] as bool?) ?? false,
+      totalWorkers: _toInt(json['totalWorkers']),
+      supervisorPresent: json['supervisorPresent'] as bool?,
 
-      // NEW attendance
-      workersPresent: json['workersPresent'] as int?,
-      workersTotal: json['workersTotal'] as int?,
-      staffPresent: json['staffPresent'] as int?,
-      staffTotal: json['staffTotal'] as int?,
+      workersPresent: _toInt(json['workersPresent']),
+      workersTotal: _toInt(json['workersTotal']),
+      staffPresent: _toInt(json['staffPresent']),
+      staffTotal: _toInt(json['staffTotal']),
 
-      // NEW tasks list
-      tasksCompleted: json['tasksCompleted'] != null
+      tasksCompleted: json['tasksCompleted'] is List
           ? (json['tasksCompleted'] as List)
-              .map((t) => DPRTask.fromJson(t))
+              .map((e) => DPRTask.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : null,
+          : [],
 
-      // NEW materials/equipments list
-      materials: json['materials'] != null
+      materials: json['materials'] is List
           ? (json['materials'] as List)
-              .map((m) => DPRMaterial.fromJson(m))
+              .map((e) => DPRMaterial.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : null,
-      equipments: json['equipments'] != null
+          : [],
+
+      // backend may send "equipments" OR "equipmentUsage"
+      equipments: json['equipments'] is List
           ? (json['equipments'] as List)
-              .map((e) => DPREquipment.fromJson(e))
+              .map((e) => DPREquipment.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : null,
+          : json['equipmentUsage'] is List
+              ? (json['equipmentUsage'] as List)
+                  .map((e) =>
+                      DPREquipment.fromUsageJson(Map<String, dynamic>.from(e)))
+                  .toList()
+              : [],
 
-      // NEW sub-contractor
-      subContractorName: json['subContractorName'] as String?,
-      subContractorNotes: json['subContractorNotes'] as String?,
+      subContractorName: json['subContractorName'] as String? ??
+          (json['subcontractorDetails'] is Map
+              ? json['subcontractorDetails']['name'] as String?
+              : null),
 
-      // NEW next day planning
-      nextDayTaskName: json['nextDayTaskName'] as String?,
-      nextDayNotes: json['nextDayNotes'] as String?,
+      subContractorNotes: json['subContractorNotes'] as String? ??
+          (json['subcontractorDetails'] is Map
+              ? json['subcontractorDetails']['notes'] as String?
+              : null),
 
-      // Old strings
+      nextDayTaskName: json['nextDayTaskName'] as String? ??
+          (json['nextDayPlanning'] is Map
+              ? json['nextDayPlanning']['taskName'] as String?
+              : null),
+
+      nextDayNotes: json['nextDayNotes'] as String? ??
+          (json['nextDayPlanning'] is Map
+              ? json['nextDayPlanning']['description'] as String?
+              : null),
+
       equipmentUsed: json['equipmentUsed'] as String?,
       materialsUsed: json['materialsUsed'] as String?,
       materialsReceived: json['materialsReceived'] as String?,
@@ -215,30 +224,32 @@ class DailyProgressReport {
       incidents: json['incidents'] as String?,
       qualityChecks: json['qualityChecks'] as String?,
       issuesFound: json['issuesFound'] as String?,
-
       notes: json['notes'] as String?,
 
       approvedById: json['approvedById'] as String?,
       approvedBy:
           json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
+
       approvedAt: json['approvedAt'] != null
           ? DateTime.parse(json['approvedAt'])
           : null,
 
-      status: TaskStatus.values.byName((json['status'] as String?) ?? 'TODO'),
+      status: TaskStatus.fromJson(json['status'] as String?),
 
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
 
-      photos: json['photos'] != null
-          ? (json['photos'] as List).map((p) => DPRPhoto.fromJson(p)).toList()
-          : null,
-
-      documents: json['documents'] != null
-          ? (json['documents'] as List)
-              .map((d) => DPRDocument.fromJson(d))
+      photos: json['photos'] is List
+          ? (json['photos'] as List)
+              .map((e) => DPRPhoto.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : null,
+          : [],
+
+      documents: json['documents'] is List
+          ? (json['documents'] as List)
+              .map((e) => DPRDocument.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
     );
   }
 
@@ -247,110 +258,95 @@ class DailyProgressReport {
       'id': id,
       'reportNo': reportNo,
       'projectId': projectId,
-
       'projectName': projectName,
       'projectManagerId': projectManagerId,
       'projectManager': projectManager?.toJson(),
       'siteEngineerId': siteEngineerId,
       'siteEngineer': siteEngineer?.toJson(),
-
       'preparedById': preparedById,
       'preparedBy': preparedBy?.toJson(),
-
       'date': date.toIso8601String(),
-
       'weather': weather,
       'temperature': temperature,
       'humidity': humidity,
-
       'workDescription': workDescription,
-      'siteVisitor': siteVisitor,
-
+      'siteVisitors': siteVisitors,
       'completedWork': completedWork,
       'pendingWork': pendingWork,
       'challenges': challenges,
-
       'totalWorkers': totalWorkers,
       'supervisorPresent': supervisorPresent,
-
-      // NEW attendance
       'workersPresent': workersPresent,
       'workersTotal': workersTotal,
       'staffPresent': staffPresent,
       'staffTotal': staffTotal,
-
-      // NEW tasks/materials/equipments
-      'tasksCompleted': tasksCompleted?.map((t) => t.toJson()).toList(),
-      'materials': materials?.map((m) => m.toJson()).toList(),
-      'equipments': equipments?.map((e) => e.toJson()).toList(),
-
-      // NEW sub contractor + next day
+      'tasksCompleted': tasksCompleted.map((e) => e.toJson()).toList(),
+      'materials': materials.map((e) => e.toJson()).toList(),
+      'equipments': equipments.map((e) => e.toJson()).toList(),
       'subContractorName': subContractorName,
       'subContractorNotes': subContractorNotes,
       'nextDayTaskName': nextDayTaskName,
       'nextDayNotes': nextDayNotes,
-
-      // old strings
       'equipmentUsed': equipmentUsed,
       'materialsUsed': materialsUsed,
       'materialsReceived': materialsReceived,
       'materialsRequired': materialsRequired,
-
       'safetyObservations': safetyObservations,
       'incidents': incidents,
       'qualityChecks': qualityChecks,
       'issuesFound': issuesFound,
-
       'notes': notes,
-
       'approvedById': approvedById,
       'approvedBy': approvedBy?.toJson(),
       'approvedAt': approvedAt?.toIso8601String(),
-
-      'status': status.name,
+      'status': status.toJson(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-
-      'photos': photos?.map((p) => p.toJson()).toList(),
-      'documents': documents?.map((d) => d.toJson()).toList(),
+      'photos': photos.map((e) => e.toJson()).toList(),
+      'documents': documents.map((e) => e.toJson()).toList(),
     };
   }
 
   @override
   String toString() =>
       'DailyProgressReport(id: $id, reportNo: $reportNo, projectId: $projectId)';
-}
 
-// -------------------- NEW STRUCTURED MODELS --------------------
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+}
 
 class DPRTask {
   final String? id;
   final String name;
-  final int? percent; // 0-100
+  final int? percent;
   final TaskStatus? status;
-  final List<DPRSubtask>? subtasks;
+  final List<DPRSubtask> subtasks;
 
   const DPRTask({
     this.id,
     required this.name,
     this.percent,
     this.status,
-    this.subtasks,
+    this.subtasks = const [],
   });
 
   factory DPRTask.fromJson(Map<String, dynamic> json) {
     return DPRTask(
       id: json['id'] as String?,
       name: (json['name'] ?? '') as String,
-      percent: json['percent'] as int?,
+      percent: DailyProgressReport._toInt(json['percent']),
       status: json['status'] != null
-          ? TaskStatus.values.byName(json['status'] as String)
+          ? TaskStatus.fromJson(json['status'] as String?)
           : null,
-      subtasks: json['subtasks'] != null
+      subtasks: json['subtasks'] is List
           ? (json['subtasks'] as List)
-              .map((s) => DPRSubtask.fromJson(s))
+              .map((e) => DPRSubtask.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : null,
+          : [],
     );
   }
 
@@ -358,8 +354,8 @@ class DPRTask {
         'id': id,
         'name': name,
         'percent': percent,
-        'status': status?.name,
-        'subtasks': subtasks?.map((s) => s.toJson()).toList(),
+        'status': status?.toJson(),
+        'subtasks': subtasks.map((e) => e.toJson()).toList(),
       };
 }
 
@@ -367,7 +363,10 @@ class DPRSubtask {
   final String? id;
   final String name;
 
-  const DPRSubtask({this.id, required this.name});
+  const DPRSubtask({
+    this.id,
+    required this.name,
+  });
 
   factory DPRSubtask.fromJson(Map<String, dynamic> json) {
     return DPRSubtask(
@@ -376,7 +375,10 @@ class DPRSubtask {
     );
   }
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+      };
 }
 
 class DPRMaterial {
@@ -384,13 +386,17 @@ class DPRMaterial {
   final String name;
   final int qtyUsed;
 
-  const DPRMaterial({this.id, required this.name, required this.qtyUsed});
+  const DPRMaterial({
+    this.id,
+    required this.name,
+    required this.qtyUsed,
+  });
 
   factory DPRMaterial.fromJson(Map<String, dynamic> json) {
     return DPRMaterial(
       id: json['id'] as String?,
       name: (json['name'] ?? '') as String,
-      qtyUsed: (json['qtyUsed'] as int?) ?? 0,
+      qtyUsed: DailyProgressReport._toInt(json['qtyUsed']) ?? 0,
     );
   }
 
@@ -420,9 +426,19 @@ class DPREquipment {
     return DPREquipment(
       id: json['id'] as String?,
       name: (json['name'] ?? '') as String,
-      qty: (json['qty'] as int?) ?? 0,
-      hoursUsed: (json['hoursUsed'] as int?) ?? 0,
+      qty: DailyProgressReport._toInt(json['qty']) ?? 0,
+      hoursUsed: DailyProgressReport._toInt(json['hoursUsed']) ?? 0,
       fuel: (json['fuel'] ?? '') as String,
+    );
+  }
+
+  factory DPREquipment.fromUsageJson(Map<String, dynamic> json) {
+    return DPREquipment(
+      id: json['equipmentId'] as String?,
+      name: (json['name'] ?? '') as String,
+      qty: DailyProgressReport._toInt(json['quantity']) ?? 0,
+      hoursUsed: DailyProgressReport._toInt(json['hours']) ?? 0,
+      fuel: '',
     );
   }
 
@@ -434,8 +450,6 @@ class DPREquipment {
         'fuel': fuel,
       };
 }
-
-// -------------------- DOCUMENT MODEL (NEW) --------------------
 
 class DPRDocument {
   final String id;
@@ -463,8 +477,9 @@ class DPRDocument {
       fileName: json['fileName'] as String?,
       dprId: json['dprId'] as String,
       uploadedById: json['uploadedById'] as String,
-      uploadedBy:
-          json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
+      uploadedBy: json['uploadedBy'] != null
+          ? User.fromJson(json['uploadedBy'])
+          : null,
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -479,8 +494,6 @@ class DPRDocument {
         'createdAt': createdAt.toIso8601String(),
       };
 }
-
-// -------------------- YOUR EXISTING PHOTO MODEL (UNCHANGED) --------------------
 
 class DPRPhoto {
   final String id;
@@ -514,8 +527,9 @@ class DPRPhoto {
       thumbnailUrl: json['thumbnailUrl'] as String?,
       dprId: json['dprId'] as String,
       uploadedById: json['uploadedById'] as String,
-      uploadedBy:
-          json['uploadedBy'] != null ? User.fromJson(json['uploadedBy']) : null,
+      uploadedBy: json['uploadedBy'] != null
+          ? User.fromJson(json['uploadedBy'])
+          : null,
       createdAt: DateTime.parse(json['createdAt']),
     );
   }

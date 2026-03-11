@@ -374,7 +374,7 @@ class _CreateWPRScreenState extends State<CreateWPRScreen> {
               children: [
                 const Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
+                  children: [
                     Text("50",
                         style:
                             TextStyle(fontSize: 10, color: AppColors.textGrey)),
@@ -791,7 +791,7 @@ class _CreateWPRScreenState extends State<CreateWPRScreen> {
       child: const Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: const [
+        children: [
           _UploadBox(),
           _UploadBox(),
           _UploadBox(),

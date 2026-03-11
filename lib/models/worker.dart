@@ -1,0 +1,30 @@
+class Worker {
+  final String id;
+  final String workerId;
+  final String name;
+  final String? designation;
+  final double dailyWageRate;
+  String? currentStatus; // PRESENT, ABSENT, etc.
+  String multiplier;
+
+  Worker({
+    required this.id,
+    required this.workerId,
+    required this.name,
+    this.designation,
+    this.dailyWageRate = 600.0,
+    this.currentStatus,
+    this.multiplier = 'x1.0',
+  });
+
+  factory Worker.fromJson(Map<String, dynamic> json) {
+    return Worker(
+      id: json['id']?.toString() ?? '',
+      workerId: json['workerId']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      designation: json['designation']?.toString(),
+      dailyWageRate: (json['dailyWageRate'] as num?)?.toDouble() ?? 600.0,
+      currentStatus: json['todayAttendance']?['status'],
+    );
+  }
+}

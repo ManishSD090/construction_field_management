@@ -322,15 +322,11 @@ class _TransactionHistoryScreenState
                             ? AppColors.primaryBlue.withOpacity(0.1)
                             : Colors.transparent,
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          Text(
-                              _selectedStatusFilter == 'All'
-                                  ? "Status"
-                                  : _selectedStatusFilter,
-                              style: const TextStyle(fontSize: 13)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.tune, size: 16),
+                          Text("Filter", style: TextStyle(fontSize: 13)),
+                          SizedBox(width: 4),
+                          Icon(Icons.tune, size: 16),
                         ],
                       ),
                     ),

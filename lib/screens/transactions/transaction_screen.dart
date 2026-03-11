@@ -99,65 +99,90 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                   ),
                 ),
               ),
-              _buildSummaryHeader(filteredTransactions),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    _buildDatePicker(),
-                    const Spacer(),
-                    _buildStatusFilterToggle(),
-                  ],
-                ),
-              ),
-              const Divider(thickness: 1, height: 1),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(financialControllerProvider.notifier).refresh(),
-                  child: filteredTransactions.isEmpty
-                      ? const Center(child: Text("No transactions found"))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filteredTransactions.length,
-                          itemBuilder: (context, index) {
-                            final tx = filteredTransactions[index];
-                            return _buildTransactionCard(tx);
-                          },
-                        ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                const CreateTransactionScreen())).then((_) =>
-                        ref
-                            .read(financialControllerProvider.notifier)
-                            .refresh()),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+
+          // --- Funds Released Card ---
+          _buildFundsCard(),
+
+          const SizedBox(height: 16),
+
+          // --- Date Picker and Filter Row ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                // FIXED WIDTH CALENDAR BOX
+                SizedBox(
+                  width: 150,
+                  child: InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setState(() => _selectedDate = picked);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.primaryBlue),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _selectedDate == null
+                                ? "MM/DD/YYYY"
+                                : DateFormat('dd/MM/yyyy')
+                                    .format(_selectedDate!),
+                            style: const TextStyle(
+                                color: Colors.black54, fontSize: 13),
+                          ),
+                          const Icon(Icons.calendar_month_outlined,
+                              color: AppColors.primaryBlue, size: 18),
+                        ],
+                      ),
                     ),
-                    child: const Text("Log New Entry",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text("Error: $err")),
+
+                const Spacer(), // Pushes filter button to the right
+
+                _buildStatusFilterToggle(),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+          const Divider(color: AppColors.primaryBlue, thickness: 1),
+
+          // --- Dynamic Transaction List ---
+          Expanded(
+            child: filteredTransactions.isEmpty
+                ? const Center(child: Text("No transactions found"))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredTransactions.length,
+                    itemBuilder: (context, index) {
+                      final t = filteredTransactions[index];
+                      return _buildTransactionCard(
+                        t['date']!,
+                        t['project']!,
+                        t['type']!,
+                        t['amount']!,
+                        t['status']!,
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -180,72 +205,20 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryBlue,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Total Income",
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
-                Text(_formatCurrency(totalIncome),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-              ],
-            ),
-          ),
-          Container(width: 1, height: 30, color: Colors.white24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Total Expense",
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
-                Text(_formatCurrency(totalExpense),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDatePicker() {
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: _selectedDate ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2030),
-        );
-        if (picked != null) setState(() => _selectedDate = picked);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-            border: Border.all(color: AppColors.primaryBlue),
-            borderRadius: BorderRadius.circular(8)),
-        child: Row(
+      child: RichText(
+        text: const TextSpan(
+          style: TextStyle(
+              fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500),
           children: [
-            Text(
-                _selectedDate == null
-                    ? "Select Date"
-                    : DateFormat('dd/MM/yy').format(_selectedDate!),
-                style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 8),
-            const Icon(Icons.calendar_today,
-                size: 14, color: AppColors.primaryBlue),
+            TextSpan(text: "Funds Released: "),
+            TextSpan(
+              text: "₹20,00,000",
+              style: TextStyle(
+                  color: AppColors.primaryBlue, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       ),
@@ -281,12 +254,15 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     );
   }
 
-  Widget _buildTransactionCard(Transaction tx) {
-    Color statusColor = tx.status == TransactionStatus.approved
-        ? AppColors.successGreen
-        : (tx.status == TransactionStatus.pendingApproval
-            ? Colors.orange
-            : AppColors.alertRed);
+  Widget _buildTransactionCard(
+      String date, String project, String type, String amount, String status) {
+    Color statusColor;
+    if (status == "Approved") {
+      statusColor = const Color(0xFF4CAF50);
+    } else if (status == "Pending")
+      statusColor = const Color(0xFF3F51B5);
+    else
+      statusColor = const Color(0xFFF44336);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
