@@ -31,9 +31,10 @@ class _LedgerDetailsScreenState extends ConsumerState<LedgerDetailsScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Error: $e"), backgroundColor: AppColors.alertRed));
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -70,7 +71,11 @@ class _LedgerDetailsScreenState extends ConsumerState<LedgerDetailsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text("Transaction Details")),
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryBlue,
+        title: const Text("Transaction Details",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: Stack(
         children: [
           ListView(
@@ -114,7 +119,7 @@ class _LedgerDetailsScreenState extends ConsumerState<LedgerDetailsScreen> {
           color: Colors.white, borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          Text(tx.type.name.replaceAll('_', ' ').toUpperCase(),
+          Text(tx.type.toDisplayString().toUpperCase(),
               style: const TextStyle(
                   color: Colors.grey,
                   letterSpacing: 1.2,
@@ -143,7 +148,7 @@ class _LedgerDetailsScreenState extends ConsumerState<LedgerDetailsScreen> {
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color.withOpacity(0.5))),
-      child: Text(status.name.toUpperCase(),
+      child: Text(status.toDisplayString().toUpperCase(),
           style: TextStyle(
               color: color, fontWeight: FontWeight.bold, fontSize: 10)),
     );

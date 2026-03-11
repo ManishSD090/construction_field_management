@@ -6,7 +6,7 @@ import 'package:construction_erp/controllers/finance/financial_controller.dart';
 import 'package:construction_erp/models/transaction.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/screens/transactions/ledger_details_screen.dart';
-import 'package:construction_erp/screens/transactions/create_transaction_screen.dart';
+import 'package:construction_erp/screens/transactions/create_ledger_screen.dart';
 
 class TransactionScreen extends ConsumerStatefulWidget {
   const TransactionScreen({super.key});
@@ -325,7 +325,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                   decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4)),
-                  child: Text(tx.status.name.toUpperCase(),
+                  child: Text(tx.status.toDisplayString(),
                       style: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.bold,
@@ -346,7 +346,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(tx.type.name.replaceAll('_', ' ').toUpperCase(),
+                Text(tx.type.toDisplayString(),
                     style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 10,

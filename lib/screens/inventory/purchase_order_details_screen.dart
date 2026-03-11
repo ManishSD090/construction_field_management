@@ -22,6 +22,16 @@ class _PurchaseOrderDetailsScreenState
   final currencyFormat =
       NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
+  // --- REFRESH ACTION ---
+  Future<void> _onRefresh() async {
+    // Invalidate the provider to force a re-fetch
+    ref.invalidate(poDetailsProvider(widget.poId));
+    // Await the new future so the RefreshIndicator spins until data is loaded
+    try {
+      await ref.read(poDetailsProvider(widget.poId).future);
+    } catch (_) {}
+  }
+
   // --- ACTION DIALOGS ---
 
   void _showCancelDialog(BuildContext context) {
@@ -94,6 +104,172 @@ class _PurchaseOrderDetailsScreenState
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmMarkAsReceived(BuildContext context, String poId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Mark as Received"),
+        content: const Text(
+            "This will mark the PO as fully received bypassing the GRN process.\n\nNote: Inventory and budget expenses will NOT be automatically updated. Proceed?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref
+                  .read(procurementControllerProvider.notifier)
+                  .markAsReceived(poId, actualDelivery: DateTime.now());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text("Confirm", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- GRN ACTION DIALOGS ---
+
+  void _showAcceptReceiptDialog(BuildContext context, GoodsReceipt receipt) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Accept GRN"),
+        content: Text(
+            "Are you sure you want to accept all items in ${receipt.grNumber}?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(procurementControllerProvider.notifier)
+                    .acceptAllReceiptItems(receipt.id, widget.poId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("GRN Accepted Successfully"),
+                      backgroundColor: Color(0xFF00B48A)));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Failed to accept GRN: $e"),
+                      backgroundColor: Colors.red));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00B48A)),
+            child: const Text("Accept", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRejectReceiptDialog(BuildContext context, GoodsReceipt receipt) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reject GRN"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Rejecting ${receipt.grNumber}. Please provide a reason:"),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: "Rejection Reason (Required)",
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Reason is required"),
+                      backgroundColor: Colors.red),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(procurementControllerProvider.notifier)
+                    .rejectAllReceiptItems(receipt.id, widget.poId,
+                        rejectionReason: reasonController.text.trim());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("GRN Rejected"),
+                      backgroundColor: Colors.orange));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Failed to reject GRN: $e"),
+                      backgroundColor: Colors.red));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Reject", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUpdateStockDialog(BuildContext context, GoodsReceipt receipt) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Update Stock & Budget"),
+        content: Text(
+            "This will add the items from ${receipt.grNumber} to your project inventory and record the budget expense. Proceed?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(procurementControllerProvider.notifier)
+                    .updateStockFromReceipt(receipt.id, widget.poId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("Stock and Budget Updated Successfully!"),
+                      backgroundColor: Color(0xFF0D6EFD)));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Failed to update stock: $e"),
+                      backgroundColor: Colors.red));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D6EFD)),
+            child: const Text("Update", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -175,7 +351,19 @@ class _PurchaseOrderDetailsScreenState
       ),
       body: poAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text("Error: $err")),
+        error: (err, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("Error: $err"),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _onRefresh,
+                child: const Text("Retry"),
+              )
+            ],
+          ),
+        ),
         data: (po) {
           return Column(
             children: [
@@ -193,148 +381,172 @@ class _PurchaseOrderDetailsScreenState
   // ==================== OVERVIEW CONTENT ====================
 
   Widget _buildOverviewTab(PurchaseOrder po) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // HEADER CARD
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2))
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(po.poNumber,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Color(0xFF0D6EFD))),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(po.status).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _formatStatus(po.status),
-                        style: TextStyle(
-                            color: _getStatusColor(po.status),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(po.title,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-                _buildInfoRow(Icons.business, "Supplier", po.supplierName),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                    Icons.construction, "Project", po.project?.name ?? "N/A"),
-                const SizedBox(height: 8),
-                _buildInfoRow(Icons.calendar_today, "Order Date",
-                    DateFormat('dd MMM yyyy').format(po.orderDate)),
-                const SizedBox(height: 8),
-                _buildInfoRow(Icons.payment, "Payment Terms",
-                    _formatStatus(po.paymentTerm)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // FINANCIAL SUMMARY
-          const Text("Financial Summary",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: [
-                _buildFinanceRow("Subtotal", po.subtotal),
-                const SizedBox(height: 4),
-                _buildFinanceRow("Tax (${po.taxRate ?? 0}%)", po.taxAmount),
-                if ((po.shippingCost ?? 0) > 0) ...[
-                  const SizedBox(height: 4),
-                  _buildFinanceRow("Shipping", po.shippingCost!),
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: const Color(0xFF0D6EFD),
+      child: SingleChildScrollView(
+        physics:
+            const AlwaysScrollableScrollPhysics(), // Ensures pull-to-refresh always works
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // HEADER CARD
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2))
                 ],
-                const Divider(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Grand Total",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(currencyFormat.format(po.totalAmount),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Color(0xFF0D6EFD))),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(po.poNumber,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Color(0xFF0D6EFD))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(po.status).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          _formatStatus(po.status),
+                          style: TextStyle(
+                              color: _getStatusColor(po.status),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(po.title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 16),
+                  _buildInfoRow(Icons.business, "Supplier", po.supplierName),
+                  const SizedBox(height: 8),
+                  _buildInfoRow(
+                      Icons.construction, "Project", po.project?.name ?? "N/A"),
+                  const SizedBox(height: 8),
+                  _buildInfoRow(Icons.calendar_today, "Order Date",
+                      DateFormat('dd MMM yyyy').format(po.orderDate)),
+                  const SizedBox(height: 8),
+                  _buildInfoRow(Icons.payment, "Payment Terms",
+                      _formatStatus(po.paymentTerm)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // FINANCIAL SUMMARY
+            const Text("Financial Summary",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  _buildFinanceRow("Subtotal", po.subtotal),
+                  const SizedBox(height: 4),
+                  _buildFinanceRow("Tax (${po.taxRate ?? 0}%)", po.taxAmount),
+                  if ((po.shippingCost ?? 0) > 0) ...[
+                    const SizedBox(height: 4),
+                    _buildFinanceRow("Shipping", po.shippingCost!),
                   ],
-                ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: (po.paymentPercent ?? 0) / 100,
-                  backgroundColor: Colors.grey[300],
-                  color: const Color(0xFF00B48A),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Paid: ${currencyFormat.format(po.totalPaid ?? 0)}",
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(
-                        "Due: ${currencyFormat.format(po.totalDue ?? po.totalAmount)}",
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.red)),
-                  ],
-                )
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Grand Total",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(currencyFormat.format(po.totalAmount),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Color(0xFF0D6EFD))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: (po.paymentPercent ?? 0) / 100,
+                    backgroundColor: Colors.grey[300],
+                    color: const Color(0xFF00B48A),
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Paid: ${currencyFormat.format(po.totalPaid ?? 0)}",
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.grey)),
+                      Text(
+                          "Due: ${currencyFormat.format(po.totalDue ?? po.totalAmount)}",
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.red)),
+                    ],
+                  )
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // LINE ITEMS
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Line Items",
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text("${po.items?.length ?? 0} items",
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            ...(po.items ?? []).map((item) => _buildLineItemCard(item)),
 
-          // LINE ITEMS
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Line Items",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text("${po.items?.length ?? 0} items",
-                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...(po.items ?? []).map((item) => _buildLineItemCard(item)),
-        ],
+            // GOODS RECEIPTS (GRN) SECTION
+            if (po.receipts != null && po.receipts!.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Goods Receipts (GRN)",
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text("${po.receipts!.length} receipts",
+                      style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ...po.receipts!.map((receipt) => _buildReceiptCard(receipt)),
+            ]
+          ],
+        ),
       ),
     );
   }
@@ -423,6 +635,123 @@ class _PurchaseOrderDetailsScreenState
     );
   }
 
+  Widget _buildReceiptCard(GoodsReceipt receipt) {
+    final bool showAcceptReject = receipt.inspectionStatus == 'PENDING';
+    final bool showUpdateStock =
+        receipt.inspectionStatus == 'PASSED' && !receipt.stockUpdated;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: Colors.grey[200]!)),
+      elevation: 0,
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(receipt.grNumber,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Color(0xFF0D6EFD))),
+                if (receipt.stockUpdated)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text("STOCK UPDATED",
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold)),
+                  )
+              ],
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                  "Date: ${DateFormat('dd MMM yyyy').format(receipt.receiptDate)}\nStatus: ${receipt.inspectionStatus}"),
+            ),
+            isThreeLine: true,
+            trailing: Icon(
+              receipt.inspectionStatus == 'PASSED'
+                  ? Icons.check_circle
+                  : receipt.inspectionStatus == 'FAILED'
+                      ? Icons.cancel
+                      : Icons.pending,
+              color: receipt.inspectionStatus == 'PASSED'
+                  ? const Color(0xFF00B48A)
+                  : receipt.inspectionStatus == 'FAILED'
+                      ? Colors.red
+                      : Colors.orange,
+            ),
+          ),
+
+          // Action Buttons for PENDING
+          if (showAcceptReject || showUpdateStock) const Divider(height: 1),
+
+          if (showAcceptReject)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => _showRejectReceiptDialog(context, receipt),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text("Reject",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _showAcceptReceiptDialog(context, receipt),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00B48A),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: const Text("Accept GRN",
+                        style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+
+          // Action Button for PASSED but Stock NOT Updated
+          if (showUpdateStock)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _showUpdateStockDialog(context, receipt),
+                    icon: const Icon(Icons.inventory,
+                        size: 18, color: Colors.white),
+                    label: const Text("Update Stock & Budget",
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   // ==================== BOTTOM ACTION BAR ====================
 
   Widget _buildBottomActionBar(PurchaseOrder po) {
@@ -447,14 +776,19 @@ class _PurchaseOrderDetailsScreenState
             .markAsOrdered(po.id, DateTime.now());
       }));
     } else if (po.status == 'ORDERED' || po.status == 'PARTIALLY_RECEIVED') {
-      actions
-          .add(_buildActionButton("Receive Goods", const Color(0xFF00B48A), () {
+      // Option to Bypass GRN entirely
+      actions.add(_buildActionButton("Mark Received", Colors.orange,
+          () => _confirmMarkAsReceived(context, po.id),
+          isOutlined: true));
+      actions.add(const SizedBox(width: 12));
+      // Primary GRN Path
+      actions.add(_buildActionButton("Create GRN", const Color(0xFF00B48A), () {
         Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (context) => CreateGRNScreen(
                       poId: po.id,
-                    ))); // You can pass po.id to GRN screen here later
+                    )));
       }));
     } else if (po.status == 'RECEIVED' || po.status == 'PARTIALLY_PAID') {
       // Only close PO option remains for these statuses
@@ -497,7 +831,8 @@ class _PurchaseOrderDetailsScreenState
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
+        child: Text(text,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       );
     }
     return ElevatedButton(
@@ -509,7 +844,7 @@ class _PurchaseOrderDetailsScreenState
       ),
       child: Text(text,
           style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold)),
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
     );
   }
 }

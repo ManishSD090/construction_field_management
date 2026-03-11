@@ -7,7 +7,7 @@ import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/screens/admin/approvals_screen.dart';
 import 'package:construction_erp/screens/projects/project_tab.dart';
 import 'package:construction_erp/screens/inventory/inventory_dashboard_screen.dart';
-import 'package:construction_erp/screens/transactions/transaction_screen.dart';
+import 'package:construction_erp/screens/transactions/ledger_screen.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});

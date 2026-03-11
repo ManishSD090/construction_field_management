@@ -34,6 +34,8 @@ class MaterialRequest {
   final double? estimatedCost;
   final bool poCreated;
   final String? poNumber;
+  final String? purchaseOrderId; // NEW
+  final String? purchaseOrderItemId; // NEW
   final Project? project;
 
   MaterialRequest({
@@ -65,6 +67,8 @@ class MaterialRequest {
     this.estimatedCost,
     this.poCreated = false,
     this.poNumber,
+    this.purchaseOrderId,
+    this.purchaseOrderItemId,
     this.project,
   });
 
@@ -97,6 +101,8 @@ class MaterialRequest {
     double? estimatedCost,
     bool? poCreated,
     String? poNumber,
+    String? purchaseOrderId,
+    String? purchaseOrderItemId,
     Project? project,
   }) {
     return MaterialRequest(
@@ -128,6 +134,8 @@ class MaterialRequest {
       estimatedCost: estimatedCost ?? this.estimatedCost,
       poCreated: poCreated ?? this.poCreated,
       poNumber: poNumber ?? this.poNumber,
+      purchaseOrderId: purchaseOrderId ?? this.purchaseOrderId,
+      purchaseOrderItemId: purchaseOrderItemId ?? this.purchaseOrderItemId,
       project: project ?? this.project,
     );
   }
@@ -178,6 +186,8 @@ class MaterialRequest {
       estimatedCost: (json['estimatedCost'] as num?)?.toDouble(),
       poCreated: json['poCreated'] as bool? ?? false,
       poNumber: json['poNumber'] as String?,
+      purchaseOrderId: json['purchaseOrderId'] as String?,
+      purchaseOrderItemId: json['purchaseOrderItemId'] as String?,
       project:
           json['project'] != null ? Project.fromJson(json['project']) : null,
     );
@@ -210,6 +220,8 @@ class MaterialRequest {
       'estimatedCost': estimatedCost,
       'poCreated': poCreated,
       'poNumber': poNumber,
+      'purchaseOrderId': purchaseOrderId,
+      'purchaseOrderItemId': purchaseOrderItemId,
     };
   }
 }
@@ -241,6 +253,8 @@ class PurchaseOrder {
   final double? advancePercentage;
   final double? advanceAmount;
   final bool advancePaid;
+  final DateTime? advancePaidDate; // NEW
+  final String? advancePaymentId; // NEW
   final DateTime orderDate;
   final DateTime? expectedDelivery;
   final DateTime? actualDelivery;
@@ -260,6 +274,13 @@ class PurchaseOrder {
   final User? approvedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  // Lifecycle & Budget (NEW)
+  final DateTime? closedAt;
+  final DateTime? cancelledAt;
+  final String? cancellationReason;
+  final String? budgetId;
+  final String? budgetTransactionId;
 
   // Relations
   final Project? project;
@@ -290,6 +311,8 @@ class PurchaseOrder {
     this.advancePercentage,
     this.advanceAmount,
     this.advancePaid = false,
+    this.advancePaidDate,
+    this.advancePaymentId,
     required this.orderDate,
     this.expectedDelivery,
     this.actualDelivery,
@@ -309,6 +332,11 @@ class PurchaseOrder {
     this.approvedBy,
     required this.createdAt,
     required this.updatedAt,
+    this.closedAt,
+    this.cancelledAt,
+    this.cancellationReason,
+    this.budgetId,
+    this.budgetTransactionId,
     this.project,
     this.items,
     this.receipts,
@@ -338,6 +366,8 @@ class PurchaseOrder {
     double? advancePercentage,
     double? advanceAmount,
     bool? advancePaid,
+    DateTime? advancePaidDate,
+    String? advancePaymentId,
     DateTime? orderDate,
     DateTime? expectedDelivery,
     DateTime? actualDelivery,
@@ -357,6 +387,11 @@ class PurchaseOrder {
     User? approvedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? closedAt,
+    DateTime? cancelledAt,
+    String? cancellationReason,
+    String? budgetId,
+    String? budgetTransactionId,
     Project? project,
     List<PurchaseOrderItem>? items,
     List<GoodsReceipt>? receipts,
@@ -385,6 +420,8 @@ class PurchaseOrder {
       advancePercentage: advancePercentage ?? this.advancePercentage,
       advanceAmount: advanceAmount ?? this.advanceAmount,
       advancePaid: advancePaid ?? this.advancePaid,
+      advancePaidDate: advancePaidDate ?? this.advancePaidDate,
+      advancePaymentId: advancePaymentId ?? this.advancePaymentId,
       orderDate: orderDate ?? this.orderDate,
       expectedDelivery: expectedDelivery ?? this.expectedDelivery,
       actualDelivery: actualDelivery ?? this.actualDelivery,
@@ -404,6 +441,11 @@ class PurchaseOrder {
       approvedBy: approvedBy ?? this.approvedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      closedAt: closedAt ?? this.closedAt,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      budgetId: budgetId ?? this.budgetId,
+      budgetTransactionId: budgetTransactionId ?? this.budgetTransactionId,
       project: project ?? this.project,
       items: items ?? this.items,
       receipts: receipts ?? this.receipts,
@@ -435,6 +477,10 @@ class PurchaseOrder {
       advancePercentage: (json['advancePercentage'] as num?)?.toDouble(),
       advanceAmount: (json['advanceAmount'] as num?)?.toDouble(),
       advancePaid: json['advancePaid'] as bool? ?? false,
+      advancePaidDate: json['advancePaidDate'] != null
+          ? DateTime.parse(json['advancePaidDate'].toString())
+          : null,
+      advancePaymentId: json['advancePaymentId'] as String?,
       orderDate: json['orderDate'] != null
           ? DateTime.parse(json['orderDate'].toString())
           : DateTime.now(),
@@ -467,6 +513,15 @@ class PurchaseOrder {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'].toString())
           : DateTime.now(),
+      closedAt: json['closedAt'] != null
+          ? DateTime.parse(json['closedAt'].toString())
+          : null,
+      cancelledAt: json['cancelledAt'] != null
+          ? DateTime.parse(json['cancelledAt'].toString())
+          : null,
+      cancellationReason: json['cancellationReason'] as String?,
+      budgetId: json['budgetId'] as String?,
+      budgetTransactionId: json['budgetTransactionId'] as String?,
       project:
           json['project'] != null ? Project.fromJson(json['project']) : null,
       items: (json['items'] as List?)
@@ -505,6 +560,8 @@ class PurchaseOrder {
       'advancePercentage': advancePercentage,
       'advanceAmount': advanceAmount,
       'advancePaid': advancePaid,
+      'advancePaidDate': advancePaidDate?.toIso8601String(),
+      'advancePaymentId': advancePaymentId,
       'orderDate': orderDate.toIso8601String(),
       'expectedDelivery': expectedDelivery?.toIso8601String(),
       'actualDelivery': actualDelivery?.toIso8601String(),
@@ -520,6 +577,11 @@ class PurchaseOrder {
       'paymentPercent': paymentPercent,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'closedAt': closedAt?.toIso8601String(),
+      'cancelledAt': cancelledAt?.toIso8601String(),
+      'cancellationReason': cancellationReason,
+      'budgetId': budgetId,
+      'budgetTransactionId': budgetTransactionId,
     };
   }
 }
@@ -547,6 +609,9 @@ class PurchaseOrderItem {
   final double acceptedQuantity;
   final double rejectedQuantity;
   final double returnedQuantity;
+  final String? qualityStandard; // NEW
+  final bool inspectionRequired; // NEW
+  final String? budgetCategoryId; // NEW
   final bool isClosed;
   final String? notes;
 
@@ -569,6 +634,9 @@ class PurchaseOrderItem {
     this.acceptedQuantity = 0.0,
     this.rejectedQuantity = 0.0,
     this.returnedQuantity = 0.0,
+    this.qualityStandard,
+    this.inspectionRequired = false,
+    this.budgetCategoryId,
     this.isClosed = false,
     this.notes,
   });
@@ -593,6 +661,9 @@ class PurchaseOrderItem {
       acceptedQuantity: (json['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
       rejectedQuantity: (json['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
       returnedQuantity: (json['returnedQuantity'] as num?)?.toDouble() ?? 0.0,
+      qualityStandard: json['qualityStandard'] as String?,
+      inspectionRequired: json['inspectionRequired'] as bool? ?? false,
+      budgetCategoryId: json['budgetCategoryId'] as String?,
       isClosed: json['isClosed'] as bool? ?? false,
       notes: json['notes'] as String?,
     );
@@ -618,6 +689,9 @@ class PurchaseOrderItem {
       'acceptedQuantity': acceptedQuantity,
       'rejectedQuantity': rejectedQuantity,
       'returnedQuantity': returnedQuantity,
+      'qualityStandard': qualityStandard,
+      'inspectionRequired': inspectionRequired,
+      'budgetCategoryId': budgetCategoryId,
       'isClosed': isClosed,
       'notes': notes,
     };
@@ -637,11 +711,19 @@ class GoodsReceipt {
   final String receivedById;
   final User? receivedBy;
   final String? deliveryChallanNo;
-  final String inspectionStatus; // e.g., PENDING, PASSED, FAILED
+  final String
+      inspectionStatus; // e.g., PENDING, PASSED, FAILED, ACCEPTED, REJECTED
   final bool? qualityCheckPassed;
+  final String? qualityRating; // NEW
+  final String? qualityNotes; // NEW
   final bool stockUpdated;
   final DateTime? stockUpdatedAt;
+  final bool isRejected; // NEW
+  final String? rejectionReason; // NEW
+  final String? returnVoucherNo; // NEW
+  final DateTime? returnedDate; // NEW
   final String? notes;
+  final List<GoodsReceiptItem>? items; // NEW (CRITICAL FOR UI)
 
   GoodsReceipt({
     required this.id,
@@ -654,9 +736,16 @@ class GoodsReceipt {
     this.deliveryChallanNo,
     required this.inspectionStatus,
     this.qualityCheckPassed,
+    this.qualityRating,
+    this.qualityNotes,
     this.stockUpdated = false,
     this.stockUpdatedAt,
+    this.isRejected = false,
+    this.rejectionReason,
+    this.returnVoucherNo,
+    this.returnedDate,
     this.notes,
+    this.items,
   });
 
   factory GoodsReceipt.fromJson(Map<String, dynamic> json) {
@@ -674,11 +763,22 @@ class GoodsReceipt {
       deliveryChallanNo: json['deliveryChallanNo'] as String?,
       inspectionStatus: json['inspectionStatus'] as String? ?? 'PENDING',
       qualityCheckPassed: json['qualityCheckPassed'] as bool?,
+      qualityRating: json['qualityRating'] as String?,
+      qualityNotes: json['qualityNotes'] as String?,
       stockUpdated: json['stockUpdated'] as bool? ?? false,
       stockUpdatedAt: json['stockUpdatedAt'] != null
           ? DateTime.parse(json['stockUpdatedAt'].toString())
           : null,
+      isRejected: json['isRejected'] as bool? ?? false,
+      rejectionReason: json['rejectionReason'] as String?,
+      returnVoucherNo: json['returnVoucherNo'] as String?,
+      returnedDate: json['returnedDate'] != null
+          ? DateTime.parse(json['returnedDate'].toString())
+          : null,
       notes: json['notes'] as String?,
+      items: (json['items'] as List?)
+          ?.map((i) => GoodsReceiptItem.fromJson(i))
+          .toList(),
     );
   }
 
@@ -693,8 +793,120 @@ class GoodsReceipt {
       'deliveryChallanNo': deliveryChallanNo,
       'inspectionStatus': inspectionStatus,
       'qualityCheckPassed': qualityCheckPassed,
+      'qualityRating': qualityRating,
+      'qualityNotes': qualityNotes,
       'stockUpdated': stockUpdated,
       'stockUpdatedAt': stockUpdatedAt?.toIso8601String(),
+      'isRejected': isRejected,
+      'rejectionReason': rejectionReason,
+      'returnVoucherNo': returnVoucherNo,
+      'returnedDate': returnedDate?.toIso8601String(),
+      'notes': notes,
+    };
+  }
+}
+
+// ==========================================================================
+// GOODS RECEIPT ITEM MODEL (NEW)
+// ==========================================================================
+
+class GoodsReceiptItem {
+  final String id;
+  final String goodsReceiptId;
+  final String poItemId;
+  final double receivedQuantity;
+  final double acceptedQuantity;
+  final double rejectedQuantity;
+  final double returnedQuantity;
+  final String unit;
+  final String? condition;
+  final String? qualityRating;
+  final String inspectionStatus;
+  final String? inspectionNotes;
+  final String? batchNo;
+  final String? serialNo;
+  final DateTime? manufacturingDate;
+  final DateTime? expiryDate;
+  final String? storedLocation;
+  final String? binLocation;
+  final String? notes;
+
+  final PurchaseOrderItem? poItem;
+
+  GoodsReceiptItem({
+    required this.id,
+    required this.goodsReceiptId,
+    required this.poItemId,
+    required this.receivedQuantity,
+    this.acceptedQuantity = 0.0,
+    this.rejectedQuantity = 0.0,
+    this.returnedQuantity = 0.0,
+    required this.unit,
+    this.condition,
+    this.qualityRating,
+    this.inspectionStatus = 'PENDING',
+    this.inspectionNotes,
+    this.batchNo,
+    this.serialNo,
+    this.manufacturingDate,
+    this.expiryDate,
+    this.storedLocation,
+    this.binLocation,
+    this.notes,
+    this.poItem,
+  });
+
+  factory GoodsReceiptItem.fromJson(Map<String, dynamic> json) {
+    return GoodsReceiptItem(
+      id: json['id'] as String? ?? '',
+      goodsReceiptId: json['goodsReceiptId'] as String? ?? '',
+      poItemId: json['poItemId'] as String? ?? '',
+      receivedQuantity: (json['receivedQuantity'] as num?)?.toDouble() ?? 0.0,
+      acceptedQuantity: (json['acceptedQuantity'] as num?)?.toDouble() ?? 0.0,
+      rejectedQuantity: (json['rejectedQuantity'] as num?)?.toDouble() ?? 0.0,
+      returnedQuantity: (json['returnedQuantity'] as num?)?.toDouble() ?? 0.0,
+      unit: json['unit'] as String? ?? '',
+      condition: json['condition'] as String?,
+      qualityRating: json['qualityRating'] as String?,
+      inspectionStatus: json['inspectionStatus'] as String? ?? 'PENDING',
+      inspectionNotes: json['inspectionNotes'] as String?,
+      batchNo: json['batchNo'] as String?,
+      serialNo: json['serialNo'] as String?,
+      manufacturingDate: json['manufacturingDate'] != null
+          ? DateTime.parse(json['manufacturingDate'].toString())
+          : null,
+      expiryDate: json['expiryDate'] != null
+          ? DateTime.parse(json['expiryDate'].toString())
+          : null,
+      storedLocation: json['storedLocation'] as String?,
+      binLocation: json['binLocation'] as String?,
+      notes: json['notes'] as String?,
+      poItem: json['poItem'] != null
+          ? PurchaseOrderItem.fromJson(json['poItem'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'goodsReceiptId': goodsReceiptId,
+      'poItemId': poItemId,
+      'receivedQuantity': receivedQuantity,
+      'acceptedQuantity': acceptedQuantity,
+      'rejectedQuantity': rejectedQuantity,
+      'returnedQuantity': returnedQuantity,
+      'unit': unit,
+      'condition': condition,
+      'qualityRating': qualityRating,
+      'inspectionStatus': inspectionStatus,
+      'inspectionNotes': inspectionNotes,
+      'batchNo': batchNo,
+      'serialNo': serialNo,
+      'manufacturingDate': manufacturingDate?.toIso8601String(),
+      'expiryDate': expiryDate?.toIso8601String(),
+      'storedLocation': storedLocation,
+      'binLocation': binLocation,
       'notes': notes,
     };
   }
@@ -714,7 +926,11 @@ class PurchaseOrderPayment {
   final String? transactionId;
   final String? referenceNo;
   final String paymentType; // e.g., ADVANCE, PARTIAL, FINAL
+  final int? paymentOrder; // NEW
   final String status; // e.g., PENDING, PAID
+  final String? bankName; // NEW
+  final String? bankAccount; // NEW
+  final String? bankIfsc; // NEW
   final String? approvedById;
   final User? approvedBy;
   final DateTime? approvedAt;
@@ -730,7 +946,11 @@ class PurchaseOrderPayment {
     this.transactionId,
     this.referenceNo,
     required this.paymentType,
+    this.paymentOrder,
     required this.status,
+    this.bankName,
+    this.bankAccount,
+    this.bankIfsc,
     this.approvedById,
     this.approvedBy,
     this.approvedAt,
@@ -750,7 +970,11 @@ class PurchaseOrderPayment {
       transactionId: json['transactionId'] as String?,
       referenceNo: json['referenceNo'] as String?,
       paymentType: json['paymentType'] as String? ?? 'PARTIAL',
+      paymentOrder: json['paymentOrder'] as int?,
       status: json['status'] as String? ?? 'PENDING',
+      bankName: json['bankName'] as String?,
+      bankAccount: json['bankAccount'] as String?,
+      bankIfsc: json['bankIfsc'] as String?,
       approvedById: json['approvedById'] as String?,
       approvedBy:
           json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
@@ -772,7 +996,11 @@ class PurchaseOrderPayment {
       'transactionId': transactionId,
       'referenceNo': referenceNo,
       'paymentType': paymentType,
+      'paymentOrder': paymentOrder,
       'status': status,
+      'bankName': bankName,
+      'bankAccount': bankAccount,
+      'bankIfsc': bankIfsc,
       'approvedById': approvedById,
       'approvedAt': approvedAt?.toIso8601String(),
       'notes': notes,

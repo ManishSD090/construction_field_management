@@ -77,6 +77,13 @@ final poTimelineProvider =
   return controller.getPOTimeline(id);
 });
 
+/// Fetches Pending PO Approvals
+final pendingPOApprovalsProvider =
+    FutureProvider.family<List<PurchaseOrder>, String?>((ref, projectId) async {
+  final controller = ref.read(procurementControllerProvider.notifier);
+  return controller.getPendingPOApprovals(projectId: projectId);
+});
+
 // ==========================================================================
 // CONTROLLER
 // ==========================================================================
@@ -242,6 +249,23 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
     refresh();
   }
 
+  /// Direct consumption of a Material from a DPR context
+  Future<void> consumeMaterialFromDPR(Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_mrPath/consume', data: data);
+    refresh();
+  }
+
+  Future<Map<String, dynamic>> getMaterialRequestStatistics(
+      {String? projectId, String? startDate, String? endDate}) async {
+    final response =
+        await _dioClient.dio.get('$_mrPath/statistics', queryParameters: {
+      if (projectId != null) 'projectId': projectId,
+      if (startDate != null) 'startDate': startDate,
+      if (endDate != null) 'endDate': endDate,
+    });
+    return response.data['data'];
+  }
+
   // ==========================================================================
   // PURCHASE ORDER CORE ACTIONS
   // ==========================================================================
@@ -275,6 +299,31 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
     ref.invalidate(poDetailsProvider(poId));
   }
 
+  /// Explicit Approve Endpoint
+  Future<void> approvePO(String poId, {String? notes}) async {
+    final response =
+        await _dioClient.dio.post('$_poPath/approvals/$poId/approve', data: {
+      'approvalNotes': notes,
+    });
+    final updated = PurchaseOrder.fromJson(response.data['data']);
+    _updateLocalPO(poId, (_) => updated);
+    ref.invalidate(poDetailsProvider(poId));
+    ref.invalidate(pendingPOApprovalsProvider(null));
+  }
+
+  /// Explicit Reject Endpoint
+  Future<void> rejectPO(String poId, {required String rejectionReason}) async {
+    final response =
+        await _dioClient.dio.post('$_poPath/approvals/$poId/reject', data: {
+      'rejectionReason': rejectionReason,
+    });
+    final updated = PurchaseOrder.fromJson(response.data['data']);
+    _updateLocalPO(poId, (_) => updated);
+    ref.invalidate(poDetailsProvider(poId));
+    ref.invalidate(pendingPOApprovalsProvider(null));
+  }
+
+  /// Legacy combined approve/reject (Optional, but kept for backward compatibility)
   Future<void> approveRejectPO(String poId,
       {required bool approved, String? notes, String? rejectionReason}) async {
     final response =
@@ -293,6 +342,19 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
     final response = await _dioClient.dio.post('$_poPath/$poId/order', data: {
       'orderDate': orderDate.toIso8601String(),
       'notes': notes,
+    });
+    final updated = PurchaseOrder.fromJson(response.data['data']);
+    _updateLocalPO(poId, (_) => updated);
+    ref.invalidate(poDetailsProvider(poId));
+  }
+
+  /// Marks a PO as completely received, manually bypassing the GR process if needed
+  Future<void> markAsReceived(String poId,
+      {DateTime? actualDelivery, String? notes}) async {
+    final response = await _dioClient.dio.post('$_poPath/$poId/receive', data: {
+      if (actualDelivery != null)
+        'actualDelivery': actualDelivery.toIso8601String(),
+      if (notes != null) 'notes': notes,
     });
     final updated = PurchaseOrder.fromJson(response.data['data']);
     _updateLocalPO(poId, (_) => updated);
@@ -322,6 +384,7 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
   // ==========================================================================
 
   Future<void> addPOItem(String poId, Map<String, dynamic> data) async {
+    // Note: To link a Material Request, include 'materialRequestId': '...' in `data`
     await _dioClient.dio.post('$_poPath/$poId/items', data: data);
     ref.invalidate(poDetailsProvider(poId));
   }
@@ -406,6 +469,23 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
 
   // --- GOODS RECEIPT INDIVIDUAL ITEMS ---
 
+  Future<void> addReceiptItem(
+      String receiptId, Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .post('$_poPath/goods-receipts/$receiptId/items', data: data);
+    // Ideally we invalidate the specific receipt or parent PO
+  }
+
+  Future<void> updateReceiptItem(
+      String itemId, Map<String, dynamic> data) async {
+    await _dioClient.dio
+        .put('$_poPath/goods-receipt-items/$itemId', data: data);
+  }
+
+  Future<void> removeReceiptItem(String itemId) async {
+    await _dioClient.dio.delete('$_poPath/goods-receipt-items/$itemId');
+  }
+
   Future<void> acceptReceiptItem(String itemId, String poId,
       {String? qualityRating, String? notes}) async {
     await _dioClient.dio
@@ -443,13 +523,24 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
   // PAYMENTS
   // ==========================================================================
 
-  /// Record an Advance or Final payment against a PO
-  Future<void> recordPayment(String poId, Map<String, dynamic> data,
-      {bool isAdvance = false}) async {
-    final endpoint =
-        isAdvance ? '$_poPath/$poId/advance' : '$_poPath/$poId/final-payment';
-    await _dioClient.dio.post(endpoint, data: data);
+  Future<void> createPOPayment(Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_poPath/payments', data: data);
+    if (data.containsKey('purchaseOrderId')) {
+      ref.invalidate(poDetailsProvider(data['purchaseOrderId']));
+      refresh();
+    }
+  }
 
+  Future<void> recordAdvancePayment(
+      String poId, Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_poPath/$poId/advance', data: data);
+    ref.invalidate(poDetailsProvider(poId));
+    refresh();
+  }
+
+  Future<void> recordFinalPayment(
+      String poId, Map<String, dynamic> data) async {
+    await _dioClient.dio.post('$_poPath/$poId/final-payment', data: data);
     ref.invalidate(poDetailsProvider(poId));
     refresh();
   }
@@ -501,13 +592,22 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
     ref.invalidate(poDetailsProvider(poId));
   }
 
+  Future<void> updatePOComment(String commentId, String poId, String content,
+      {bool? isInternal}) async {
+    await _dioClient.dio.put('$_poPath/comments/$commentId', data: {
+      'content': content,
+      if (isInternal != null) 'isInternal': isInternal,
+    });
+    ref.invalidate(poDetailsProvider(poId));
+  }
+
   Future<void> deletePOComment(String commentId, String poId) async {
     await _dioClient.dio.delete('$_poPath/comments/$commentId');
     ref.invalidate(poDetailsProvider(poId));
   }
 
   // ==========================================================================
-  // FETCHERS (Used by FutureProviders)
+  // FETCHERS (Used by FutureProviders & Others)
   // ==========================================================================
 
   Future<PurchaseOrder> getPurchaseOrderById(String id) async {
@@ -528,5 +628,18 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
   Future<Map<String, dynamic>> getPOAuditTrail(String poId) async {
     final response = await _dioClient.dio.get('$_poPath/audit/$poId');
     return response.data['data'];
+  }
+
+  Future<List<PurchaseOrder>> getPendingPOApprovals(
+      {int page = 1, int limit = 10, String? projectId}) async {
+    final response = await _dioClient.dio
+        .get('$_poPath/approvals/pending', queryParameters: {
+      'page': page,
+      'limit': limit,
+      if (projectId != null) 'projectId': projectId,
+    });
+    return (response.data['data'] as List)
+        .map((e) => PurchaseOrder.fromJson(e))
+        .toList();
   }
 }

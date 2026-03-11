@@ -49,6 +49,8 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   // Multiple Items State
   List<Map<String, dynamic>> _addedItems = [];
   String? _selectedMaterialId;
+  String? _selectedMaterialRequestId; // NEW: Tracks the linked request
+  String? _selectedMaterialRequestNo; // NEW: For UI display
 
   // Temporary dummy suppliers (Replace with your actual SupplierController when ready)
   final List<Map<String, String>> _dummySuppliers = [
@@ -63,8 +65,8 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     // Fetch materials and pending requests when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(inventoryControllerProvider.notifier).refresh();
-      // Optionally refresh procurement to get the latest material requests
-      // ref.read(procurementControllerProvider.notifier).refresh();
+      // Ensure procurement state has the latest material requests
+      ref.read(procurementControllerProvider.notifier).refresh();
     });
 
     // Add listeners to update the total amount dynamically
@@ -143,6 +145,8 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     setState(() {
       _addedItems.add({
         'materialId': _selectedMaterialId,
+        'materialRequestId': _selectedMaterialRequestId, // Smart linking
+        'requestNo': _selectedMaterialRequestNo, // For UI display only
         'description': desc,
         'quantity': qty,
         'unit': _itemUnitController.text.trim(),
@@ -152,6 +156,8 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
 
       // Reset item form
       _selectedMaterialId = null;
+      _selectedMaterialRequestId = null;
+      _selectedMaterialRequestNo = null;
       _itemDescController.clear();
       _itemQtyController.clear();
       _itemUnitController.text = 'Nos';
@@ -173,13 +179,22 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     final procState = ref.read(procurementControllerProvider).value;
     if (procState == null) return;
 
-    // Filter requests that need fulfilling (Approved or Requested)
+    // Get IDs of requests already added to the PO list to exclude them
+    final addedRequestIds = _addedItems
+        .map((item) => item['materialRequestId'] as String?)
+        .where((id) => id != null)
+        .toSet();
+
+    // Filter: Status is REQUESTED (or APPROVED), not poCreated, and not already added
     final pendingRequests = procState.materialRequests
-        .where((mr) => mr.status == 'APPROVED' || mr.status == 'REQUESTED')
+        .where((mr) =>
+            (mr.status == 'REQUESTED' || mr.status == 'APPROVED') &&
+            mr.poCreated == false &&
+            !addedRequestIds.contains(mr.id))
         .toList();
 
     if (pendingRequests.isEmpty) {
-      _showError("No pending material requests found.");
+      _showError("No pending material requests available to add.");
       return;
     }
 
@@ -206,22 +221,32 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                       return ListTile(
                         title: Text(req.materialName),
                         subtitle: Text(
-                            "Req #: ${req.requestNo} • Qty: ${req.quantity} ${req.unit}"),
+                            "Req #: ${req.requestNo} • Qty: ${req.quantity} ${req.unit}\nStatus: ${req.status}"),
                         trailing: const Icon(Icons.add_circle,
                             color: Color(0xFF0D6EFD)),
+                        isThreeLine: true,
                         onTap: () {
                           Navigator.pop(context);
                           setState(() {
+                            // Smart Linking Data
+                            _selectedMaterialRequestId = req.id;
+                            _selectedMaterialRequestNo = req.requestNo;
                             _selectedMaterialId = req.materialId;
+
+                            // Prefill Form Data
                             _itemDescController.text = req.materialName;
                             _itemQtyController.text = req.quantity.toString();
                             _itemUnitController.text = req.unit;
+
                             // Estimate unit price if available
                             if (req.estimatedCost != null && req.quantity > 0) {
                               _itemPriceController.text =
                                   (req.estimatedCost! / req.quantity)
                                       .toStringAsFixed(2);
+                            } else {
+                              _itemPriceController.clear();
                             }
+
                             if (_selectedProjectId == null) {
                               _selectedProjectId = req.projectId;
                             }
@@ -269,13 +294,21 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
 
     setState(() => _isLoading = true);
 
+    // Clean up items for backend (remove UI-only fields)
+    final cleanedItems = _addedItems.map((item) {
+      final cleanedItem = Map<String, dynamic>.from(item);
+      cleanedItem.remove('requestNo'); // Not needed by backend
+      cleanedItem.removeWhere((key, value) => value == null);
+      return cleanedItem;
+    }).toList();
+
     final payload = <String, dynamic>{
       'projectId': _selectedProjectId,
       'title': _titleController.text.trim(),
       'type': 'MATERIAL',
       if (_expectedDate != null)
         'expectedDelivery': _expectedDate!.toUtc().toIso8601String(),
-      'items': _addedItems,
+      'items': cleanedItems,
     };
 
     if (_isCustomSupplier) {
@@ -344,6 +377,16 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
         error: (e, s) => null,
       );
     }
+
+    // Filter out materials that are already added to the PO
+    final addedMaterialIds = _addedItems
+        .map((item) => item['materialId'] as String?)
+        .where((id) => id != null)
+        .toSet();
+
+    final availableMaterials = projectMaterials
+        .where((mat) => !addedMaterialIds.contains(mat.id))
+        .toList();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -572,6 +615,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                           final item = _addedItems[index];
                           final subtotal = item['quantity'] * item['unitPrice'];
                           final tax = subtotal * (item['taxPercent'] / 100);
+                          final hasRequest = item['materialRequestId'] != null;
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -582,12 +626,32 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 4),
-                              title: Text(item['description'],
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14)),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(item['description'],
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14)),
+                                  ),
+                                  if (hasRequest)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text("LINKED",
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange,
+                                              fontWeight: FontWeight.bold)),
+                                    )
+                                ],
+                              ),
                               subtitle: Text(
-                                  "${item['quantity']} ${item['unit']} @ ₹${item['unitPrice']} \nGST: ${item['taxPercent']}%"),
+                                  "${item['quantity']} ${item['unit']} @ ₹${item['unitPrice']} \nGST: ${item['taxPercent']}%${hasRequest ? '\nReq: ${item['requestNo']}' : ''}"),
                               isThreeLine: true,
                               trailing: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -649,6 +713,28 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                           ),
                           const Divider(height: 16),
 
+                          // Visual indicator if linked to a request
+                          if (_selectedMaterialRequestId != null) ...[
+                            InputChip(
+                              label:
+                                  Text("Linked: $_selectedMaterialRequestNo"),
+                              backgroundColor: Colors.amber.withOpacity(0.2),
+                              labelStyle: const TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12),
+                              deleteIconColor: Colors.orange,
+                              onDeleted: () {
+                                setState(() {
+                                  _selectedMaterialRequestId = null;
+                                  _selectedMaterialRequestNo = null;
+                                  _itemDescController.clear();
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
                           _buildLabel("Select Material (Optional)"),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -672,11 +758,14 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                                       value: _selectedMaterialId,
                                       hint: Text(_selectedProjectId == null
                                           ? "Select a project first"
-                                          : "Choose from inventory"),
+                                          : availableMaterials.isEmpty &&
+                                                  projectMaterials.isNotEmpty
+                                              ? "All materials added"
+                                              : "Choose from inventory"),
                                       icon: const Icon(
                                           Icons.keyboard_arrow_down,
                                           color: Color(0xFF0D6EFD)),
-                                      items: projectMaterials.map((mat) {
+                                      items: availableMaterials.map((mat) {
                                         return DropdownMenuItem<String>(
                                           value: mat.id,
                                           child: Text(mat.name,
@@ -684,13 +773,14 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                                               overflow: TextOverflow.ellipsis),
                                         );
                                       }).toList(),
-                                      onChanged: _selectedProjectId == null
+                                      onChanged: _selectedProjectId == null ||
+                                              availableMaterials.isEmpty
                                           ? null
                                           : (value) {
                                               setState(() {
                                                 _selectedMaterialId = value;
                                                 if (value != null) {
-                                                  final mat = projectMaterials
+                                                  final mat = availableMaterials
                                                       .firstWhere(
                                                           (m) => m.id == value);
                                                   _itemDescController.text =

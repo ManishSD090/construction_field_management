@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart'; // Required for specific error handling
 import 'package:construction_erp/routes.dart';
 
 // Models & Controllers
@@ -10,7 +11,7 @@ import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/controllers/inventory/inventory_controller.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
-import 'package:construction_erp/controllers/inventory/procurement_controller.dart'; // Added Procurement Controller
+import 'package:construction_erp/controllers/inventory/procurement_controller.dart';
 
 class ItemDetailsScreen extends ConsumerStatefulWidget {
   final bool isMaterial;
@@ -54,11 +55,11 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
   final TextEditingController _reqQtyController = TextEditingController();
   final TextEditingController _reqVendorNameController =
       TextEditingController();
-  final TextEditingController _reqPurposeController =
-      TextEditingController(); // Required by backend
-  String? _selectedReqProjectId; // Required by backend
-  String _selectedUrgency = 'MEDIUM'; // Default urgency
-  DateTime? _reqDate; // Expected Delivery
+  final TextEditingController _reqPurposeController = TextEditingController();
+  String? _selectedReqProjectId;
+  String _selectedUrgency = 'MEDIUM';
+  DateTime? _reqDate;
+  bool _isSubmittingReq = false;
 
   // Controllers for Add Stock Modal
   final TextEditingController _addStockQtyController = TextEditingController();
@@ -76,6 +77,31 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
   final TextEditingController _assignRateController = TextEditingController();
   final TextEditingController _assignFuelCostController =
       TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-select project safely in initState rather than build()
+    if (!widget.isGlobalContext && widget.projectId != null) {
+      _selectedReqProjectId = widget.projectId;
+    }
+  }
+
+  @override
+  void dispose() {
+    _transferQtyController.dispose();
+    _transferDescController.dispose();
+    _reqQtyController.dispose();
+    _reqVendorNameController.dispose();
+    _reqPurposeController.dispose();
+    _addStockQtyController.dispose();
+    _addStockPriceController.dispose();
+    _addStockBatchController.dispose();
+    _addStockNotesController.dispose();
+    _assignRateController.dispose();
+    _assignFuelCostController.dispose();
+    super.dispose();
+  }
 
   String _formatDate(dynamic date) {
     if (date == null) return "N/A";
@@ -111,22 +137,6 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
     if (picked != null) {
       onDateSelected(picked);
     }
-  }
-
-  @override
-  void dispose() {
-    _transferQtyController.dispose();
-    _transferDescController.dispose();
-    _reqQtyController.dispose();
-    _reqVendorNameController.dispose();
-    _reqPurposeController.dispose();
-    _addStockQtyController.dispose();
-    _addStockPriceController.dispose();
-    _addStockBatchController.dispose();
-    _addStockNotesController.dispose();
-    _assignRateController.dispose();
-    _assignFuelCostController.dispose();
-    super.dispose();
   }
 
   // --- API Submission Methods ---
@@ -206,7 +216,7 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
     }
   }
 
-  void _submitRequest(String unit) async {
+  void _submitRequest(String unit, StateSetter setModalState) async {
     if (_selectedReqProjectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -235,6 +245,8 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
       return;
     }
 
+    setModalState(() => _isSubmittingReq = true);
+
     final payload = {
       'projectId': _selectedReqProjectId,
       'materialId': widget.itemId,
@@ -243,7 +255,8 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
       'unit': unit,
       'purpose': purpose,
       'urgency': _selectedUrgency,
-      'supplier': _reqVendorNameController.text.trim(),
+      if (_reqVendorNameController.text.trim().isNotEmpty)
+        'supplier': _reqVendorNameController.text.trim(),
       if (_reqDate != null)
         'expectedDelivery': _reqDate!.toUtc().toIso8601String(),
     };
@@ -253,7 +266,7 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
           .read(procurementControllerProvider.notifier)
           .createMaterialRequest(payload);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Close modal on success
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Material Request Created'),
@@ -262,10 +275,21 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setModalState(() => _isSubmittingReq = false);
+
+        // Extract exact backend error (e.g. Budget check failures)
+        String errorMessage = 'Failed to create request';
+        if (e is DioException && e.response?.data != null) {
+          errorMessage = e.response!.data['message'] ?? errorMessage;
+        } else {
+          errorMessage = '$errorMessage: $e';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Failed to create request: $e'),
-              backgroundColor: Colors.red),
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4)),
         );
       }
     }
@@ -392,13 +416,6 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
 
     final projectStateAsync = ref.watch(projectControllerProvider);
     final List<Project> projectList = projectStateAsync.value?.projects ?? [];
-
-    // Pre-select project if we are in project context
-    if (!widget.isGlobalContext &&
-        widget.projectId != null &&
-        _selectedReqProjectId == null) {
-      _selectedReqProjectId = widget.projectId;
-    }
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -826,6 +843,9 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
 
   void _showRequestModal(
       BuildContext context, List<Project> projectList, String unit) {
+    // Reset state when opening modal
+    _isSubmittingReq = false;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -990,16 +1010,27 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => _submitRequest(unit),
+                        onPressed: _isSubmittingReq
+                            ? null
+                            : () => _submitRequest(unit, setModalState),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF00B48A),
+                          disabledBackgroundColor:
+                              const Color(0xFF00B48A).withOpacity(0.6),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
                         ),
-                        child: const Text("Submit Request",
-                            style:
-                                TextStyle(color: Colors.white, fontSize: 16)),
+                        child: _isSubmittingReq
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text("Submit Request",
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 16)),
                       ),
                     )
                   ],
