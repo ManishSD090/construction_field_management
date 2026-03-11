@@ -341,6 +341,7 @@ class BudgetTransaction {
   final User? createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final BudgetCategoryAllocation? transferToCategory;
 
   BudgetTransaction({
     required this.id,
@@ -370,6 +371,7 @@ class BudgetTransaction {
     this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.transferToCategory,
   });
 
   factory BudgetTransaction.fromJson(Map<String, dynamic> json) {
@@ -415,6 +417,11 @@ class BudgetTransaction {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'].toString())
           : DateTime.now(),
+
+      // CRITICAL FIX: Properly parsing the partial nested map for transferToCategory!
+      transferToCategory: json['transferToCategory'] != null
+          ? BudgetCategoryAllocation.fromJson(json['transferToCategory'])
+          : null,
     );
   }
 
@@ -774,10 +781,6 @@ class BudgetForecast {
     };
   }
 }
-
-// ==========================================================================
-// STATE CLASS
-// ==========================================================================
 
 class BudgetState {
   final List<Budget> budgets;

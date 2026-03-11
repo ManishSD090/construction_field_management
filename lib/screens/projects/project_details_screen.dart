@@ -22,7 +22,7 @@ import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
-import 'package:construction_erp/screens/budget/create_request_screen.dart';
+import 'package:construction_erp/screens/budget/add_record_screen.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
 import 'package:construction_erp/screens/budget/budget_screen.dart';
 // ✅ Attendance Imports from your working version

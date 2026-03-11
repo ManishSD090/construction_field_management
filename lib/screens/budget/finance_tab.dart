@@ -12,7 +12,7 @@ import 'package:construction_erp/controllers/finance/financial_controller.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/screens/budget/budget_screen.dart';
 import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
-import 'package:construction_erp/screens/budget/create_request_screen.dart';
+import 'package:construction_erp/screens/budget/add_record_screen.dart';
 import 'package:construction_erp/screens/budget/create_budget_screen.dart';
 
 class ProjectFinancialsTab extends ConsumerWidget {
@@ -48,9 +48,25 @@ class ProjectFinancialsTab extends ConsumerWidget {
       error: (err, stack) => Padding(
         padding: const EdgeInsets.all(32.0),
         child: Center(
-          child: Text(
-            'Failed to load financials: $err',
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Failed to load financials: $err',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () =>
+                    ref.invalidate(projectBudgetsProvider(project.id)),
+                icon: const Icon(Icons.refresh),
+                label: const Text("Retry"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                ),
+              )
+            ],
           ),
         ),
       ),
@@ -118,6 +134,13 @@ class ProjectFinancialsTab extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                TextButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(projectBudgetsProvider(project.id)),
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text("Refresh"),
+                ),
                 const SizedBox(height: 40),
               ],
             ),
@@ -130,7 +153,6 @@ class ProjectFinancialsTab extends ConsumerWidget {
           orElse: () => budgets.first,
         );
 
-        // fl_chart handles percentages automatically if we pass raw values.
         final double spentVal = budget.totalSpent;
         final double committedVal = budget.totalCommitted;
         final double remainingVal =
@@ -139,14 +161,27 @@ class ProjectFinancialsTab extends ConsumerWidget {
         final bool isChartEmpty =
             spentVal == 0 && committedVal == 0 && remainingVal == 0;
 
-        // Note: Removed RefreshIndicator and ScrollView so this widget integrates perfectly
-        // into the ProjectDetailsScreen parent scroll view.
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Column(
             children: [
-              // Info Banner indicating the status of the current budget
-              _buildStatusBanner(budget.status),
+              // Row with status and Refresh Button
+              Row(
+                children: [
+                  Expanded(child: _buildStatusBanner(budget.status)),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () {
+                      ref.invalidate(projectBudgetsProvider(project.id));
+                      ref.invalidate(projectCashboxProvider(project.id));
+                      ref.invalidate(activeProjectBudgetProvider(project.id));
+                    },
+                    icon:
+                        const Icon(Icons.refresh, color: AppColors.primaryBlue),
+                    tooltip: "Refresh Financials",
+                  ),
+                ],
+              ),
 
               // Top Approved Budget Header
               Container(
@@ -276,7 +311,6 @@ class ProjectFinancialsTab extends ConsumerWidget {
                                     ],
                             ),
                           ),
-                          // Text inside the chart when it's empty
                           if (isChartEmpty)
                             Text(
                               "No Data",
@@ -300,7 +334,10 @@ class ProjectFinancialsTab extends ConsumerWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const TransactionHistoryScreen(),
+                      builder: (context) => TransactionHistoryScreen(
+                        budgetId: budget.id,
+                        projectId: project.id,
+                      ),
                     ),
                   );
                 },
@@ -314,7 +351,7 @@ class ProjectFinancialsTab extends ConsumerWidget {
                 ),
               ),
 
-              // Conditional Action Button (Hidden if we are viewing a draft/pending)
+              // Conditional Action Button
               if (!isHeaderVisible && budget.status == BudgetStatus.active)
                 Padding(
                   padding: const EdgeInsets.only(top: 20),
@@ -325,7 +362,9 @@ class ProjectFinancialsTab extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const CreateRequestScreen(),
+                            builder: (context) => AddRecordScreen(
+                                budgetId: budget.id,
+                                initialType: RecordType.expense),
                           ),
                         );
                       },
@@ -337,7 +376,7 @@ class ProjectFinancialsTab extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: const Text(
-                        "Create Request",
+                        "Add Record",
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -353,7 +392,6 @@ class ProjectFinancialsTab extends ConsumerWidget {
     );
   }
 
-  // Info banner to clarify the status of the loaded budget
   Widget _buildStatusBanner(BudgetStatus status) {
     Color bgColor;
     Color textColor;
@@ -393,7 +431,6 @@ class ProjectFinancialsTab extends ConsumerWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16, top: 16),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: bgColor,
@@ -417,7 +454,6 @@ class ProjectFinancialsTab extends ConsumerWidget {
     );
   }
 
-  // Extracted helper to build the summary cards
   Widget _buildBudgetCard({
     required String title,
     required String amount,

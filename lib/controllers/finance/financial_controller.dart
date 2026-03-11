@@ -5,6 +5,7 @@ import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/models/budget.dart';
 import 'package:construction_erp/models/transaction.dart';
 import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/models/project.dart';
 
 // ==========================================================================
 // STATE CLASS
@@ -121,7 +122,9 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     return state.value ?? FinancialState();
   }
 
-  // --- PRIVATE UTILITIES ---
+  // ==========================================================================
+  // PRIVATE UTILITIES
+  // ==========================================================================
 
   void _updateLocalBudget(String budgetId, Budget Function(Budget) updateFn) {
     final currentState = state.value;
@@ -132,7 +135,20 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     state = AsyncValue.data(currentState.copyWith(budgets: updatedBudgets));
   }
 
-  // --- PAGINATION & REFRESH ---
+  /// Updates a single transaction in the local Riverpod state without a network refresh
+  void _updateLocalTransaction(
+      String txId, Transaction Function(Transaction) updateFn) {
+    final currentState = state.value;
+    if (currentState == null) return;
+    final updatedTxs = currentState.transactions
+        .map((t) => t.id == txId ? updateFn(t) : t)
+        .toList();
+    state = AsyncValue.data(currentState.copyWith(transactions: updatedTxs));
+  }
+
+  // ==========================================================================
+  // PAGINATION & REFRESH
+  // ==========================================================================
 
   Future<void> _fetchBudgetsPage(
       {required int page, required bool isRefresh}) async {
@@ -371,24 +387,27 @@ class FinancialController extends AsyncNotifier<FinancialState> {
 
   Future<void> createCommitment(Map<String, dynamic> data) async {
     await _dioClient.dio.post('$_budgetsPath/transactions/commit', data: data);
-    if (data['budgetId'] != null)
+    if (data['budgetId'] != null) {
       ref.invalidate(budgetDetailsProvider(data['budgetId']));
+    }
   }
 
   Future<void> createExpenseTransaction(Map<String, dynamic> data) async {
     await _dioClient.dio.post('$_budgetsPath/transactions/expense', data: data);
-    if (data['budgetId'] != null)
+    if (data['budgetId'] != null) {
       ref.invalidate(budgetDetailsProvider(data['budgetId']));
+    }
   }
 
   Future<void> transferBetweenCategories(Map<String, dynamic> data) async {
     await _dioClient.dio
         .post('$_budgetsPath/transactions/transfer', data: data);
-    if (data['budgetId'] != null)
+    if (data['budgetId'] != null) {
       ref.invalidate(budgetDetailsProvider(data['budgetId']));
+    }
   }
 
-  Future<void> updateTransactionStatus(
+  Future<void> updateBudgetTransactionStatus(
       String transactionId, BudgetTransactionStatus status,
       {String? notes}) async {
     await _dioClient.dio
@@ -413,8 +432,7 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     final response = await _dioClient.dio.get(
       '$_budgetsPath/$budgetId/revisions',
       queryParameters: {
-        if (status != null)
-          'status': status.toJson(), // Sends the status to the backend query
+        if (status != null) 'status': status.toJson(),
       },
     );
     final List<dynamic> data = response.data['data'];
@@ -611,7 +629,7 @@ class FinancialController extends AsyncNotifier<FinancialState> {
   }
 
   // ==========================================================================
-  // MODULE 9: LEDGER TRANSACTIONS (PHASE 4)
+  // MODULE 9: LEDGER TRANSACTIONS (STRONGLY TYPED)
   // ==========================================================================
 
   Future<void> createLedgerTransaction(
@@ -619,6 +637,7 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     final response =
         await _dioClient.dio.post(_transactionsPath, data: transactionData);
     final newTransaction = Transaction.fromJson(response.data['data']);
+
     final currentState = state.value;
     if (currentState != null) {
       state = AsyncValue.data(currentState.copyWith(
@@ -632,25 +651,89 @@ class FinancialController extends AsyncNotifier<FinancialState> {
     final response = await _dioClient.dio.patch(
         '$_transactionsPath/$transactionId/approve',
         data: {'approvalNotes': approvalNotes});
+
     final updatedTx = Transaction.fromJson(response.data['data']);
     _updateLocalTransaction(transactionId, (_) => updatedTx);
-    if (updatedTx.projectId.isNotEmpty)
+
+    if (updatedTx.projectId.isNotEmpty) {
       ref.invalidate(projectCashboxProvider(updatedTx.projectId));
+    }
   }
 
-  void _updateLocalTransaction(
-      String txId, Transaction Function(Transaction) updateFn) {
-    final currentState = state.value;
-    if (currentState == null) return;
-    final updatedTxs = currentState.transactions
-        .map((t) => t.id == txId ? updateFn(t) : t)
-        .toList();
-    state = AsyncValue.data(currentState.copyWith(transactions: updatedTxs));
+  Future<void> rejectLedgerTransaction(String transactionId,
+      {required String rejectionReason}) async {
+    final response = await _dioClient.dio.patch(
+      '$_transactionsPath/$transactionId/reject',
+      data: {'rejectionReason': rejectionReason},
+    );
+
+    final updatedTx = Transaction.fromJson(response.data['data']);
+    _updateLocalTransaction(transactionId, (_) => updatedTx);
+  }
+
+  Future<void> voidLedgerTransaction(String transactionId,
+      {required String voidReason}) async {
+    final response = await _dioClient.dio.patch(
+      '$_transactionsPath/$transactionId/void',
+      data: {'voidReason': voidReason},
+    );
+
+    final updatedTx = Transaction.fromJson(response.data['data']);
+    _updateLocalTransaction(transactionId, (_) => updatedTx);
+
+    if (updatedTx.projectId.isNotEmpty) {
+      ref.invalidate(projectCashboxProvider(updatedTx.projectId));
+    }
+  }
+
+  Future<void> updatePendingLedgerTransaction(
+      String transactionId, Map<String, dynamic> updates) async {
+    final response = await _dioClient.dio.put(
+      '$_transactionsPath/$transactionId',
+      data: updates,
+    );
+
+    final updatedTx = Transaction.fromJson(response.data['data']);
+    _updateLocalTransaction(transactionId, (_) => updatedTx);
   }
 
   Future<ProjectCashbox> getProjectCashbox(String projectId) async {
     final response = await _dioClient.dio
         .get('$_transactionsPath/cashbox/project/$projectId');
     return ProjectCashbox.fromJson(response.data['data']);
+  }
+
+  // --- REPORTS & STATEMENTS ---
+
+  Future<Map<String, dynamic>> getProjectTransactionSummary(String projectId,
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio.get(
+      '$_transactionsPath/summary/project/$projectId',
+      queryParameters: params,
+    );
+    return response.data['data'];
+  }
+
+  Future<Map<String, dynamic>> getProjectCashboxStatement(String projectId,
+      {Map<String, dynamic>? params}) async {
+    final response = await _dioClient.dio.get(
+      '$_transactionsPath/cashbox/project/$projectId/statement',
+      queryParameters: params,
+    );
+
+    final data = response.data['data'];
+
+    return {
+      'project':
+          data['project'] != null ? Project.fromJson(data['project']) : null,
+      'cashbox': ProjectCashbox.fromJson(data['cashbox']),
+      'statement': (data['statement'] as List)
+          .map((e) => {
+                'transaction': Transaction.fromJson(e),
+                'delta': (e['delta'] as num).toDouble(),
+                'runningBalance': (e['runningBalance'] as num).toDouble(),
+              })
+          .toList(),
+    };
   }
 }
