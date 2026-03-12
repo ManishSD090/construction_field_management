@@ -226,8 +226,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next is AsyncError && !next.isLoading) {
-        _showErrorSnackBar(_getErrorMessage(next.error!));
-      } else if (!next.isLoading && next.value != null) {
+_showErrorSnackBar(_getErrorMessage(next.error ?? Exception("Unknown error")));      } else if (!next.isLoading && next.value != null) {
         _removeOverlay(); // Clean up animation overlay
 
         final user = next.value!;

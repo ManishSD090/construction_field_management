@@ -481,6 +481,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ],
             ),
             child: Column(
+               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

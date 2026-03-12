@@ -591,51 +591,56 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
-        .contains(_selectedTab)) {
-      return null;
-    }
-
-    return FloatingActionButton(
-      onPressed: () {
-        if (_selectedTab == 'Tasks') {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const CreateTaskScreen()));
-        } else if (_selectedTab == 'Sub-contractor') {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      AddSubContractorScreen(projectId: project.id)));
-        } else if (_selectedTab == 'Timeline') {
-          final tId = ref
-              .read(timelineControllerProvider)
-              .valueOrNull
-              ?.timelines
-              .firstOrNull
-              ?.id;
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => tId != null
-                      ? CreateTimelineVersionScreen(timelineId: tId)
-                      : ct.CreateTimelineScreen(projectId: project.id)));
-        } else if (_selectedTab == 'DPR') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateDPRScreen(
-                scrollController: ScrollController(),
-              ),
-            ),
-          );
-        }
-      },
-      backgroundColor: AppColors.primaryBlue,
-      shape: const CircleBorder(),
-      child: const Icon(Icons.add, color: Colors.white),
-    );
+  if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
+    return null;
   }
-}
+
+  return FloatingActionButton(
+    onPressed: () {
+      if (_selectedTab == 'Tasks') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CreateTaskScreen(),
+          ),
+        );
+      } else if (_selectedTab == 'Sub-contractor') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                AddSubContractorScreen(projectId: project.id),
+          ),
+        );
+      } else if (_selectedTab == 'Timeline') {
+        final tId = ref
+            .read(timelineControllerProvider)
+            .valueOrNull
+            ?.timelines
+            .firstOrNull
+            ?.id;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => tId != null
+                ? CreateTimelineVersionScreen(timelineId: tId)
+                : ct.CreateTimelineScreen(projectId: project.id),
+          ),
+        );
+      } else if (_selectedTab == 'DPR') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CreateDPRScreen(
+              scrollController: ScrollController(),
+            ),
+          ),
+        );
+      }
+    },
+    backgroundColor: AppColors.primaryBlue,
+    shape: const CircleBorder(),
+    child: const Icon(Icons.add, color: Colors.white),
+  );
+}}
