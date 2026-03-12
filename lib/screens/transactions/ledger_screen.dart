@@ -60,6 +60,8 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
         ],
       ),
       body: financialState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text("Error: $err")),
         data: (state) {
           final filteredTransactions = state.transactions.where((t) {
             final query = _searchController.text.toLowerCase();
@@ -99,90 +101,85 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // --- Funds Released Card ---
-          _buildFundsCard(),
+              // --- Income and Expense Summary Cards ---
+              _buildSummaryHeader(state.transactions),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-          // --- Date Picker and Filter Row ---
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                // FIXED WIDTH CALENDAR BOX
-                SizedBox(
-                  width: 150,
-                  child: InkWell(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setState(() => _selectedDate = picked);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.primaryBlue),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _selectedDate == null
-                                ? "MM/DD/YYYY"
-                                : DateFormat('dd/MM/yyyy')
-                                    .format(_selectedDate!),
-                            style: const TextStyle(
-                                color: Colors.black54, fontSize: 13),
+              // --- Date Picker and Filter Row ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    // FIXED WIDTH CALENDAR BOX
+                    SizedBox(
+                      width: 150,
+                      child: InkWell(
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setState(() => _selectedDate = picked);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.primaryBlue),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          const Icon(Icons.calendar_month_outlined,
-                              color: AppColors.primaryBlue, size: 18),
-                        ],
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _selectedDate == null
+                                    ? "MM/DD/YYYY"
+                                    : DateFormat('dd/MM/yyyy')
+                                        .format(_selectedDate!),
+                                style: const TextStyle(
+                                    color: Colors.black54, fontSize: 13),
+                              ),
+                              const Icon(Icons.calendar_month_outlined,
+                                  color: AppColors.primaryBlue, size: 18),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+
+                    const Spacer(), // Pushes filter button to the right
+
+                    _buildStatusFilterToggle(),
+                  ],
                 ),
+              ),
 
-                const Spacer(), // Pushes filter button to the right
+              const SizedBox(height: 8),
+              const Divider(color: AppColors.primaryBlue, thickness: 1),
 
-                _buildStatusFilterToggle(),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 8),
-          const Divider(color: AppColors.primaryBlue, thickness: 1),
-
-          // --- Dynamic Transaction List ---
-          Expanded(
-            child: filteredTransactions.isEmpty
-                ? const Center(child: Text("No transactions found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredTransactions.length,
-                    itemBuilder: (context, index) {
-                      final t = filteredTransactions[index];
-                      return _buildTransactionCard(
-                        t['date']!,
-                        t['project']!,
-                        t['type']!,
-                        t['amount']!,
-                        t['status']!,
-                      );
-                    },
-                  ),
-          ),
-        ],
+              // --- Dynamic Transaction List ---
+              Expanded(
+                child: filteredTransactions.isEmpty
+                    ? const Center(child: Text("No transactions found"))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredTransactions.length,
+                        itemBuilder: (context, index) {
+                          final tx = filteredTransactions[index];
+                          // Pass the entire transaction object to the card builder
+                          return _buildTransactionCard(tx);
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -201,26 +198,86 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             t.type == TransactionType.expense)
         .fold(0, (sum, t) => sum + t.totalAmount);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: RichText(
-        text: const TextSpan(
-          style: TextStyle(
-              fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500),
-          children: [
-            TextSpan(text: "Funds Released: "),
-            TextSpan(
-              text: "₹20,00,000",
-              style: TextStyle(
-                  color: AppColors.primaryBlue, fontWeight: FontWeight.bold),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Income Card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.arrow_downward, color: Colors.green, size: 16),
+                      SizedBox(width: 4),
+                      Text("Total Income",
+                          style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatCurrency(totalIncome),
+                    style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 12),
+          // Expense Card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.arrow_upward, color: Colors.red, size: 16),
+                      SizedBox(width: 4),
+                      Text("Total Expense",
+                          style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatCurrency(totalExpense),
+                    style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -247,6 +304,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
         child: Row(
           children: [
             Text(_activeFilter, style: const TextStyle(fontSize: 12)),
+            const SizedBox(width: 4),
             const Icon(Icons.tune, size: 14),
           ],
         ),
@@ -254,15 +312,16 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     );
   }
 
-  Widget _buildTransactionCard(
-      String date, String project, String type, String amount, String status) {
+  // Accepts the Transaction object rather than individual string fields
+  Widget _buildTransactionCard(Transaction tx) {
     Color statusColor;
-    if (status == "Approved") {
+    if (tx.status == TransactionStatus.approved) {
       statusColor = const Color(0xFF4CAF50);
-    } else if (status == "Pending")
+    } else if (tx.status == TransactionStatus.pendingApproval) {
       statusColor = const Color(0xFF3F51B5);
-    else
+    } else {
       statusColor = const Color(0xFFF44336);
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -301,11 +360,14 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                   decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4)),
-                  child: Text(tx.status.toDisplayString(),
-                      style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9)),
+                  child: Text(
+                    // Note: Ensure your Enum has an extension or simply use .name
+                    tx.status.name.toUpperCase(),
+                    style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 9),
+                  ),
                 ),
               ],
             ),
@@ -322,11 +384,13 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(tx.type.toDisplayString(),
-                    style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  tx.type.name.toUpperCase(),
+                  style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
                 Text(DateFormat('dd MMM yyyy').format(tx.transactionDate),
                     style: const TextStyle(color: Colors.grey, fontSize: 11)),

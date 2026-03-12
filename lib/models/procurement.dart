@@ -1,10 +1,10 @@
 import 'package:construction_erp/models/project.dart';
+import 'package:construction_erp/models/budget.dart';
 import 'package:construction_erp/models/user.dart';
 
 // ==========================================================================
 // MATERIAL REQUEST MODEL
 // ==========================================================================
-
 class MaterialRequest {
   final String id;
   final String requestNo;
@@ -34,9 +34,10 @@ class MaterialRequest {
   final double? estimatedCost;
   final bool poCreated;
   final String? poNumber;
-  final String? purchaseOrderId; // NEW
-  final String? purchaseOrderItemId; // NEW
+  final String? purchaseOrderId;
+  final String? purchaseOrderItemId;
   final Project? project;
+  final List<BudgetTransaction>? budgetTransactions; // NEW FIELD
 
   MaterialRequest({
     required this.id,
@@ -70,6 +71,7 @@ class MaterialRequest {
     this.purchaseOrderId,
     this.purchaseOrderItemId,
     this.project,
+    this.budgetTransactions, // NEW FIELD
   });
 
   MaterialRequest copyWith({
@@ -104,6 +106,7 @@ class MaterialRequest {
     String? purchaseOrderId,
     String? purchaseOrderItemId,
     Project? project,
+    List<BudgetTransaction>? budgetTransactions, // NEW FIELD
   }) {
     return MaterialRequest(
       id: id ?? this.id,
@@ -137,6 +140,8 @@ class MaterialRequest {
       purchaseOrderId: purchaseOrderId ?? this.purchaseOrderId,
       purchaseOrderItemId: purchaseOrderItemId ?? this.purchaseOrderItemId,
       project: project ?? this.project,
+      budgetTransactions:
+          budgetTransactions ?? this.budgetTransactions, // NEW FIELD
     );
   }
 
@@ -190,6 +195,12 @@ class MaterialRequest {
       purchaseOrderItemId: json['purchaseOrderItemId'] as String?,
       project:
           json['project'] != null ? Project.fromJson(json['project']) : null,
+      // NEW FIELD PARSING
+      budgetTransactions: json['budgetTransactions'] != null
+          ? (json['budgetTransactions'] as List)
+              .map((e) => BudgetTransaction.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -222,6 +233,8 @@ class MaterialRequest {
       'poNumber': poNumber,
       'purchaseOrderId': purchaseOrderId,
       'purchaseOrderItemId': purchaseOrderItemId,
+      'budgetTransactions':
+          budgetTransactions?.map((e) => e.toJson()).toList(), // NEW FIELD
     };
   }
 }

@@ -1,4 +1,3 @@
-import 'package:construction_erp/screens/budget/finance_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -20,10 +19,9 @@ import 'package:construction_erp/screens/timeline/create_timeline.dart' as ct;
 import 'package:construction_erp/screens/timeline/create_timeline_version.dart';
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
-import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
-import 'package:construction_erp/screens/budget/add_record_screen.dart';
+import 'package:construction_erp/screens/budget/finance_tab.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
-import 'package:construction_erp/screens/budget/budget_screen.dart';
+
 // ✅ Attendance Imports from your working version
 import 'package:construction_erp/screens/payroll/payroll_details_screen.dart';
 import 'package:construction_erp/screens/attendance/mark_attendance_screen.dart';
@@ -593,48 +591,51 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
+    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
+        .contains(_selectedTab)) {
       return null;
     }
-    }
+
     return FloatingActionButton(
-        onPressed: () {
-          if (_selectedTab == 'Tasks') {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const CreateTaskScreen()));
-          } else if (_selectedTab == 'Sub-contractor')
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        AddSubContractorScreen(projectId: project.id)));
-          } else if (_selectedTab == 'Timeline') {
-            final tId = ref
-                .read(timelineControllerProvider)
-                .valueOrNull
-                ?.timelines
-                .firstOrNull
-                ?.id;
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => tId != null
-                        ? CreateTimelineVersionScreen(timelineId: tId)
-                        : ct.CreateTimelineScreen(projectId: project.id)));
-          } else if (_selectedTab == 'DPR')
-            Navigator.push(
+      onPressed: () {
+        if (_selectedTab == 'Tasks') {
+          Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => CreateDPRScreen(
-                  scrollController: ScrollController(),
-                ),
+                  builder: (context) => const CreateTaskScreen()));
+        } else if (_selectedTab == 'Sub-contractor') {
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      AddSubContractorScreen(projectId: project.id)));
+        } else if (_selectedTab == 'Timeline') {
+          final tId = ref
+              .read(timelineControllerProvider)
+              .valueOrNull
+              ?.timelines
+              .firstOrNull
+              ?.id;
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => tId != null
+                      ? CreateTimelineVersionScreen(timelineId: tId)
+                      : ct.CreateTimelineScreen(projectId: project.id)));
+        } else if (_selectedTab == 'DPR') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreateDPRScreen(
+                scrollController: ScrollController(),
               ),
-            );
-        },
-        backgroundColor: AppColors.primaryBlue,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white));
+            ),
+          );
+        }
+      },
+      backgroundColor: AppColors.primaryBlue,
+      shape: const CircleBorder(),
+      child: const Icon(Icons.add, color: Colors.white),
+    );
   }
 }

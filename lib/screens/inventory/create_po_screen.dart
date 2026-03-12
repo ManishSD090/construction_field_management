@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:construction_erp/controllers/inventory/procurement_controller.dart';
 import 'package:construction_erp/controllers/inventory/inventory_controller.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
+import 'package:construction_erp/controllers/finance/financial_controller.dart'; // Ensure this path matches your project
 import 'package:construction_erp/models/project.dart';
+import 'package:construction_erp/models/budget.dart';
 import 'package:construction_erp/models/procurement.dart';
 import 'package:construction_erp/models/material.dart' as erp_mat;
 
@@ -21,6 +23,8 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
 
   // PO Header Controllers
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _notesController =
+      TextEditingController(); // NEW: PO Level Notes
 
   // Custom Supplier Controllers
   final TextEditingController _supplierNameController = TextEditingController();
@@ -49,8 +53,9 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   // Multiple Items State
   List<Map<String, dynamic>> _addedItems = [];
   String? _selectedMaterialId;
-  String? _selectedMaterialRequestId; // NEW: Tracks the linked request
-  String? _selectedMaterialRequestNo; // NEW: For UI display
+  String? _selectedMaterialRequestId;
+  String? _selectedMaterialRequestNo;
+  String? _selectedBudgetCategoryId; // NEW: Track selected budget category
 
   // Temporary dummy suppliers (Replace with your actual SupplierController when ready)
   final List<Map<String, String>> _dummySuppliers = [
@@ -62,14 +67,11 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch materials and pending requests when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(inventoryControllerProvider.notifier).refresh();
-      // Ensure procurement state has the latest material requests
       ref.read(procurementControllerProvider.notifier).refresh();
     });
 
-    // Add listeners to update the total amount dynamically
     _itemQtyController.addListener(() => setState(() {}));
     _itemPriceController.addListener(() => setState(() {}));
     _itemGstController.addListener(() => setState(() {}));
@@ -78,6 +80,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _notesController.dispose();
     _supplierNameController.dispose();
     _supplierPhoneController.dispose();
     _supplierAddressController.dispose();
@@ -128,7 +131,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
 
   // --- ITEM MANAGEMENT ---
 
-  void _addItem() {
+  void _addItem(Budget? activeBudget) {
     final desc = _itemDescController.text.trim();
     final qty = double.tryParse(_itemQtyController.text) ?? 0;
     final price = double.tryParse(_itemPriceController.text) ?? 0;
@@ -141,12 +144,30 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
       _showError("Quantity and Unit Price must be > 0");
       return;
     }
+    if (activeBudget != null && _selectedBudgetCategoryId == null) {
+      _showError("Please select a Budget Category for this item");
+      return;
+    }
+
+    // Get category name for UI display
+    String? categoryName;
+    if (_selectedBudgetCategoryId != null &&
+        activeBudget != null &&
+        activeBudget.categories != null) {
+      try {
+        final match = activeBudget.categories!
+            .firstWhere((c) => c.id == _selectedBudgetCategoryId);
+        categoryName = match.category.toString().split('.').last;
+      } catch (_) {}
+    }
 
     setState(() {
       _addedItems.add({
         'materialId': _selectedMaterialId,
-        'materialRequestId': _selectedMaterialRequestId, // Smart linking
-        'requestNo': _selectedMaterialRequestNo, // For UI display only
+        'materialRequestId': _selectedMaterialRequestId,
+        'requestNo': _selectedMaterialRequestNo,
+        'budgetCategoryId': _selectedBudgetCategoryId, // Added to payload
+        'categoryName': categoryName, // For UI Display only
         'description': desc,
         'quantity': qty,
         'unit': _itemUnitController.text.trim(),
@@ -158,13 +179,13 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
       _selectedMaterialId = null;
       _selectedMaterialRequestId = null;
       _selectedMaterialRequestNo = null;
+      _selectedBudgetCategoryId = null;
       _itemDescController.clear();
       _itemQtyController.clear();
       _itemUnitController.text = 'Nos';
       _itemPriceController.clear();
       _itemGstController.text = '18';
 
-      // Hide keyboard after adding item
       FocusScope.of(context).unfocus();
     });
   }
@@ -179,13 +200,11 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     final procState = ref.read(procurementControllerProvider).value;
     if (procState == null) return;
 
-    // Get IDs of requests already added to the PO list to exclude them
     final addedRequestIds = _addedItems
         .map((item) => item['materialRequestId'] as String?)
         .where((id) => id != null)
         .toSet();
 
-    // Filter: Status is REQUESTED (or APPROVED), not poCreated, and not already added
     final pendingRequests = procState.materialRequests
         .where((mr) =>
             (mr.status == 'REQUESTED' || mr.status == 'APPROVED') &&
@@ -228,17 +247,14 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                         onTap: () {
                           Navigator.pop(context);
                           setState(() {
-                            // Smart Linking Data
                             _selectedMaterialRequestId = req.id;
                             _selectedMaterialRequestNo = req.requestNo;
                             _selectedMaterialId = req.materialId;
 
-                            // Prefill Form Data
                             _itemDescController.text = req.materialName;
                             _itemQtyController.text = req.quantity.toString();
                             _itemUnitController.text = req.unit;
 
-                            // Estimate unit price if available
                             if (req.estimatedCost != null && req.quantity > 0) {
                               _itemPriceController.text =
                                   (req.estimatedCost! / req.quantity)
@@ -249,6 +265,13 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
 
                             if (_selectedProjectId == null) {
                               _selectedProjectId = req.projectId;
+                            }
+
+                            // Auto-select budget category if the request already has a commitment
+                            if (req.budgetTransactions != null &&
+                                req.budgetTransactions!.isNotEmpty) {
+                              _selectedBudgetCategoryId =
+                                  req.budgetTransactions!.first.categoryId;
                             }
                           });
                         },
@@ -297,7 +320,9 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     // Clean up items for backend (remove UI-only fields)
     final cleanedItems = _addedItems.map((item) {
       final cleanedItem = Map<String, dynamic>.from(item);
-      cleanedItem.remove('requestNo'); // Not needed by backend
+      cleanedItem.remove('requestNo');
+      cleanedItem
+          .remove('categoryName'); // Added this to prevent backend crashes
       cleanedItem.removeWhere((key, value) => value == null);
       return cleanedItem;
     }).toList();
@@ -305,15 +330,24 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     final payload = <String, dynamic>{
       'projectId': _selectedProjectId,
       'title': _titleController.text.trim(),
+      'description': _notesController.text.trim(),
       'type': 'MATERIAL',
       if (_expectedDate != null)
         'expectedDelivery': _expectedDate!.toUtc().toIso8601String(),
       'items': cleanedItems,
     };
 
+    // Inject Budget ID to Root Payload if exists
+    final activeBudget =
+        ref.read(activeProjectBudgetProvider(_selectedProjectId!)).value;
+    if (activeBudget != null) {
+      payload['budgetId'] = activeBudget.id;
+    }
+
     if (_isCustomSupplier) {
       payload['supplierName'] = _supplierNameController.text.trim();
-      payload['supplierContact'] = _supplierPhoneController.text.trim();
+      payload['supplierPhone'] =
+          _supplierPhoneController.text.trim(); // FIXED THIS MAPPING
       payload['supplierAddress'] = _supplierAddressController.text.trim();
       payload['supplierGST'] = _supplierGstController.text.trim();
     } else {
@@ -353,6 +387,15 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
     final projectStateAsync = ref.watch(projectControllerProvider);
     final List<Project> projectList = projectStateAsync.value?.projects ?? [];
 
+    // Fetch active budget for the selected project
+    AsyncValue<Budget?>? activeBudgetAsync;
+    Budget? activeBudget;
+    if (_selectedProjectId != null) {
+      activeBudgetAsync =
+          ref.watch(activeProjectBudgetProvider(_selectedProjectId!));
+      activeBudget = activeBudgetAsync?.value;
+    }
+
     // Dynamically fetch materials based on selected project
     List<erp_mat.Material> projectMaterials = [];
     bool isMaterialsLoading = false;
@@ -366,7 +409,6 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
             if (item['material'] != null) {
               projectMaterials.add(erp_mat.Material.fromJson(item['material']));
             } else {
-              // Fallback just in case the API structure wraps it differently
               try {
                 projectMaterials.add(erp_mat.Material.fromJson(item));
               } catch (_) {}
@@ -378,7 +420,6 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
       );
     }
 
-    // Filter out materials that are already added to the PO
     final addedMaterialIds = _addedItems
         .map((item) => item['materialId'] as String?)
         .where((id) => id != null)
@@ -425,6 +466,11 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                     _buildLabel("PO Title *"),
                     _buildTextField("e.g. Cement Order for Block A",
                         controller: _titleController),
+                    const SizedBox(height: 12),
+
+                    _buildLabel("Notes / Description"),
+                    _buildTextField("Optional instructions or details...",
+                        controller: _notesController, maxLines: 2),
                     const SizedBox(height: 16),
 
                     Row(
@@ -534,8 +580,9 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                                     }).toList(),
                                     onChanged: (value) => setState(() {
                                       if (_selectedProjectId != value) {
-                                        _selectedMaterialId =
-                                            null; // reset selected material when project changes
+                                        _selectedMaterialId = null;
+                                        _selectedBudgetCategoryId =
+                                            null; // reset category on project change
                                       }
                                       _selectedProjectId = value;
                                     }),
@@ -616,6 +663,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                           final subtotal = item['quantity'] * item['unitPrice'];
                           final tax = subtotal * (item['taxPercent'] / 100);
                           final hasRequest = item['materialRequestId'] != null;
+                          final hasCategory = item['categoryName'] != null;
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -651,7 +699,9 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                                 ],
                               ),
                               subtitle: Text(
-                                  "${item['quantity']} ${item['unit']} @ ₹${item['unitPrice']} \nGST: ${item['taxPercent']}%${hasRequest ? '\nReq: ${item['requestNo']}' : ''}"),
+                                  "${item['quantity']} ${item['unit']} @ ₹${item['unitPrice']} \nGST: ${item['taxPercent']}%"
+                                  "${hasRequest ? '\nReq: ${item['requestNo']}' : ''}"
+                                  "${hasCategory ? '\nBudget: ${item['categoryName']}' : ''}"),
                               isThreeLine: true,
                               trailing: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -733,6 +783,65 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                               },
                             ),
                             const SizedBox(height: 12),
+                          ],
+
+                          // --- BUDGET CATEGORY SELECTION ---
+                          if (activeBudgetAsync != null) ...[
+                            activeBudgetAsync.when(
+                              data: (budget) {
+                                if (budget == null ||
+                                    (budget.categories?.isEmpty ?? true)) {
+                                  return const SizedBox
+                                      .shrink(); // No budget found for project
+                                }
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel("Budget Category *"),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: const Color(0xFF0D6EFD)),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: Colors.white,
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          isExpanded: true,
+                                          value: _selectedBudgetCategoryId,
+                                          hint: const Text("Select Category"),
+                                          icon: const Icon(
+                                              Icons.keyboard_arrow_down,
+                                              color: Color(0xFF0D6EFD)),
+                                          items: budget.categories!.map((cat) {
+                                            return DropdownMenuItem<String>(
+                                              value: cat.id,
+                                              child: Text(
+                                                "${cat.category.toString().split('.').last} (Bal: ₹${cat.remainingAmount.toStringAsFixed(0)})",
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (value) => setState(() {
+                                            _selectedBudgetCategoryId = value;
+                                          }),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                );
+                              },
+                              loading: () => const Padding(
+                                padding: EdgeInsets.only(bottom: 12.0),
+                                child: Text("Loading project budget...",
+                                    style: TextStyle(color: Colors.grey)),
+                              ),
+                              error: (e, s) => const SizedBox.shrink(),
+                            ),
                           ],
 
                           _buildLabel("Select Material (Optional)"),
@@ -871,7 +980,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: _addItem,
+                              onPressed: () => _addItem(activeBudget),
                               icon: const Icon(Icons.add_shopping_cart,
                                   color: Colors.white, size: 20),
                               label: const Text("Add Item to List",
@@ -930,7 +1039,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
 
                     const SizedBox(height: 30),
 
-                    // FINAL SUBMIT BUTTON - Made Green to distinguish from 'Add Item'
+                    // FINAL SUBMIT BUTTON
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -972,9 +1081,11 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   Widget _buildTextField(String hint,
       {TextEditingController? controller,
       bool isNumber = false,
-      bool isWhiteBg = false}) {
+      bool isWhiteBg = false,
+      int maxLines = 1}) {
     return TextField(
       controller: controller,
+      maxLines: maxLines,
       keyboardType: isNumber
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,

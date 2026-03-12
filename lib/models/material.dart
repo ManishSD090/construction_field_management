@@ -1,4 +1,6 @@
 import 'package:construction_erp/models/user.dart';
+import 'package:construction_erp/models/project.dart';
+import 'package:construction_erp/models/budget.dart';
 import 'package:construction_erp/models/enums.dart';
 
 class Material {
@@ -126,7 +128,7 @@ class MaterialRequest {
   final double quantity;
   final String unit;
   final String purpose;
-  final Priority urgency;
+  final String urgency; // e.g., MEDIUM, HIGH
   final String requestedById;
   final User? requestedBy;
   final String? approvedById;
@@ -138,19 +140,18 @@ class MaterialRequest {
   final String? supplier;
   final DateTime? expectedDelivery;
   final DateTime? actualDelivery;
-  final MaterialStatus status;
+  final String status; // e.g., REQUESTED, APPROVED, DELIVERED
   final String? rejectionReason;
-
-  // PO & Budget related new fields
-  final String? purchaseOrderId;
-  final String? poItemId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
   final bool committedToBudget;
   final double? estimatedCost;
   final bool poCreated;
   final String? poNumber;
-
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final String? purchaseOrderId;
+  final String? purchaseOrderItemId;
+  final Project? project;
+  final List<BudgetTransaction>? budgetTransactions; // NEW FIELD
 
   MaterialRequest({
     required this.id,
@@ -175,68 +176,145 @@ class MaterialRequest {
     this.actualDelivery,
     required this.status,
     this.rejectionReason,
-    this.purchaseOrderId,
-    this.poItemId,
+    required this.createdAt,
+    required this.updatedAt,
     this.committedToBudget = false,
     this.estimatedCost,
     this.poCreated = false,
     this.poNumber,
-    required this.createdAt,
-    required this.updatedAt,
+    this.purchaseOrderId,
+    this.purchaseOrderItemId,
+    this.project,
+    this.budgetTransactions, // NEW FIELD
   });
+
+  MaterialRequest copyWith({
+    String? id,
+    String? requestNo,
+    String? projectId,
+    String? materialId,
+    String? materialName,
+    double? quantity,
+    String? unit,
+    String? purpose,
+    String? urgency,
+    String? requestedById,
+    User? requestedBy,
+    String? approvedById,
+    User? approvedBy,
+    DateTime? approvedAt,
+    String? orderedById,
+    User? orderedBy,
+    DateTime? orderedAt,
+    String? supplier,
+    DateTime? expectedDelivery,
+    DateTime? actualDelivery,
+    String? status,
+    String? rejectionReason,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? committedToBudget,
+    double? estimatedCost,
+    bool? poCreated,
+    String? poNumber,
+    String? purchaseOrderId,
+    String? purchaseOrderItemId,
+    Project? project,
+    List<BudgetTransaction>? budgetTransactions, // NEW FIELD
+  }) {
+    return MaterialRequest(
+      id: id ?? this.id,
+      requestNo: requestNo ?? this.requestNo,
+      projectId: projectId ?? this.projectId,
+      materialId: materialId ?? this.materialId,
+      materialName: materialName ?? this.materialName,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
+      purpose: purpose ?? this.purpose,
+      urgency: urgency ?? this.urgency,
+      requestedById: requestedById ?? this.requestedById,
+      requestedBy: requestedBy ?? this.requestedBy,
+      approvedById: approvedById ?? this.approvedById,
+      approvedBy: approvedBy ?? this.approvedBy,
+      approvedAt: approvedAt ?? this.approvedAt,
+      orderedById: orderedById ?? this.orderedById,
+      orderedBy: orderedBy ?? this.orderedBy,
+      orderedAt: orderedAt ?? this.orderedAt,
+      supplier: supplier ?? this.supplier,
+      expectedDelivery: expectedDelivery ?? this.expectedDelivery,
+      actualDelivery: actualDelivery ?? this.actualDelivery,
+      status: status ?? this.status,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      committedToBudget: committedToBudget ?? this.committedToBudget,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      poCreated: poCreated ?? this.poCreated,
+      poNumber: poNumber ?? this.poNumber,
+      purchaseOrderId: purchaseOrderId ?? this.purchaseOrderId,
+      purchaseOrderItemId: purchaseOrderItemId ?? this.purchaseOrderItemId,
+      project: project ?? this.project,
+      budgetTransactions:
+          budgetTransactions ?? this.budgetTransactions, // NEW FIELD
+    );
+  }
 
   factory MaterialRequest.fromJson(Map<String, dynamic> json) {
     return MaterialRequest(
-      id: json['id']?.toString() ?? '',
-      requestNo: json['requestNo']?.toString() ?? '',
-      projectId: json['projectId']?.toString() ?? '',
-      materialId: json['materialId']?.toString(),
-      materialName: json['materialName']?.toString() ?? '',
-      quantity:
-          num.tryParse(json['quantity']?.toString() ?? '')?.toDouble() ?? 0.0,
-      unit: json['unit']?.toString() ?? '',
-      purpose: json['purpose']?.toString() ?? '',
-      urgency: Priority.fromJson(json['urgency']?.toString()),
-      requestedById: json['requestedById']?.toString() ?? '',
-      requestedBy: json['requestedBy'] is Map<String, dynamic>
+      id: json['id'] as String? ?? '',
+      requestNo: json['requestNo'] as String? ?? '',
+      projectId: json['projectId'] as String? ?? '',
+      materialId: json['materialId'] as String?,
+      materialName: json['materialName'] as String? ?? '',
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      unit: json['unit'] as String? ?? '',
+      purpose: json['purpose'] as String? ?? '',
+      urgency: json['urgency'] as String? ?? 'MEDIUM',
+      requestedById: json['requestedById'] as String? ?? '',
+      requestedBy: json['requestedBy'] != null
           ? User.fromJson(json['requestedBy'])
           : null,
-      approvedById: json['approvedById']?.toString(),
-      approvedBy: json['approvedBy'] is Map<String, dynamic>
-          ? User.fromJson(json['approvedBy'])
-          : null,
+      approvedById: json['approvedById'] as String?,
+      approvedBy:
+          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
       approvedAt: json['approvedAt'] != null
-          ? DateTime.tryParse(json['approvedAt'].toString())
+          ? DateTime.parse(json['approvedAt'].toString())
           : null,
-      orderedById: json['orderedById']?.toString(),
-      orderedBy: json['orderedBy'] is Map<String, dynamic>
-          ? User.fromJson(json['orderedBy'])
-          : null,
+      orderedById: json['orderedById'] as String?,
+      orderedBy:
+          json['orderedBy'] != null ? User.fromJson(json['orderedBy']) : null,
       orderedAt: json['orderedAt'] != null
-          ? DateTime.tryParse(json['orderedAt'].toString())
+          ? DateTime.parse(json['orderedAt'].toString())
           : null,
-      supplier: json['supplier']?.toString(),
+      supplier: json['supplier'] as String?,
       expectedDelivery: json['expectedDelivery'] != null
-          ? DateTime.tryParse(json['expectedDelivery'].toString())
+          ? DateTime.parse(json['expectedDelivery'].toString())
           : null,
       actualDelivery: json['actualDelivery'] != null
-          ? DateTime.tryParse(json['actualDelivery'].toString())
+          ? DateTime.parse(json['actualDelivery'].toString())
           : null,
-      status: MaterialStatus.fromJson(json['status']?.toString()),
-      rejectionReason: json['rejectionReason']?.toString(),
-      purchaseOrderId: json['purchaseOrderId']?.toString(),
-      poItemId: json['poItemId']?.toString(),
-      committedToBudget: json['committedToBudget'] == true ||
-          json['committedToBudget']?.toString().toLowerCase() == 'true',
-      estimatedCost:
-          num.tryParse(json['estimatedCost']?.toString() ?? '')?.toDouble(),
-      poCreated: json['poCreated'] == true ||
-          json['poCreated']?.toString().toLowerCase() == 'true',
-      poNumber: json['poNumber']?.toString(),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
-          DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
-          DateTime.now(),
+      status: json['status'] as String? ?? 'REQUESTED',
+      rejectionReason: json['rejectionReason'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'].toString())
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'].toString())
+          : DateTime.now(),
+      committedToBudget: json['committedToBudget'] as bool? ?? false,
+      estimatedCost: (json['estimatedCost'] as num?)?.toDouble(),
+      poCreated: json['poCreated'] as bool? ?? false,
+      poNumber: json['poNumber'] as String?,
+      purchaseOrderId: json['purchaseOrderId'] as String?,
+      purchaseOrderItemId: json['purchaseOrderItemId'] as String?,
+      project:
+          json['project'] != null ? Project.fromJson(json['project']) : null,
+      // NEW FIELD PARSING
+      budgetTransactions: json['budgetTransactions'] != null
+          ? (json['budgetTransactions'] as List)
+              .map((e) => BudgetTransaction.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -250,28 +328,27 @@ class MaterialRequest {
       'quantity': quantity,
       'unit': unit,
       'purpose': purpose,
-      'urgency': urgency.toJson(),
+      'urgency': urgency,
       'requestedById': requestedById,
-      'requestedBy': requestedBy?.toJson(),
       'approvedById': approvedById,
-      'approvedBy': approvedBy?.toJson(),
       'approvedAt': approvedAt?.toIso8601String(),
       'orderedById': orderedById,
-      'orderedBy': orderedBy?.toJson(),
       'orderedAt': orderedAt?.toIso8601String(),
       'supplier': supplier,
       'expectedDelivery': expectedDelivery?.toIso8601String(),
       'actualDelivery': actualDelivery?.toIso8601String(),
-      'status': status.toJson(),
+      'status': status,
       'rejectionReason': rejectionReason,
-      'purchaseOrderId': purchaseOrderId,
-      'poItemId': poItemId,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'committedToBudget': committedToBudget,
       'estimatedCost': estimatedCost,
       'poCreated': poCreated,
       'poNumber': poNumber,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'purchaseOrderId': purchaseOrderId,
+      'purchaseOrderItemId': purchaseOrderItemId,
+      'budgetTransactions':
+          budgetTransactions?.map((e) => e.toJson()).toList(), // NEW FIELD
     };
   }
 }
