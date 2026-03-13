@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
+import 'package:construction_erp/controllers/admin/dashboard_controller.dart';
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/models/user.dart';
 // ✅ Import the new screen
@@ -16,54 +17,97 @@ class DashboardTab extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final user = authState.value;
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(context, ref, user),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Quick actions",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    // Watch the dashboard controller provider
+    final dashboardAsync = ref.watch(dashboardControllerProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(dashboardControllerProvider.notifier).refresh();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context, ref, user),
+            const SizedBox(height: 20),
+
+            // Handle Loading, Error, and Data states
+            dashboardAsync.when(
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40.0),
+                  child: CircularProgressIndicator(),
                 ),
-                const SizedBox(height: 18),
-                _buildQuickActionsGrid(context), // Pass context here
-              ],
-            ),
-          ),
-          const SizedBox(height: 25),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Recent activity",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: const Text("View all",
-                          style: TextStyle(color: Colors.blue)),
-                    )
-                  ],
+              ),
+              error: (error, stackTrace) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'Error loading dashboard:\n$error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ),
-                const SizedBox(height: 10),
-                _buildRecentActivityList(),
-              ],
+              ),
+              data: (dashboardState) =>
+                  _buildDashboardContent(context, dashboardState),
             ),
-          ),
-          const SizedBox(height: 80),
-        ],
+
+            const SizedBox(height: 80),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildDashboardContent(BuildContext context, DashboardState state) {
+    final quickActions = state.summary?['quickActions'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Quick actions",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 18),
+              _buildQuickActionsGrid(context, quickActions),
+            ],
+          ),
+        ),
+        const SizedBox(height: 25),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Recent activity",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Navigate to full activity feed if needed
+                    },
+                    child: const Text("View all",
+                        style: TextStyle(color: Colors.blue)),
+                  )
+                ],
+              ),
+              const SizedBox(height: 10),
+              _buildRecentActivityList(state.recentActivities),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -122,7 +166,26 @@ class DashboardTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActionsGrid(BuildContext context) {
+  Widget _buildQuickActionsGrid(
+      BuildContext context, Map<String, dynamic>? quickActions) {
+    // Safely extract counts and labels, providing fallbacks if null
+    final txCount = quickActions?['transactions']?['count']?.toString() ?? '0';
+    final txLabel =
+        quickActions?['transactions']?['unit']?.toString() ?? 'Requests';
+
+    final invValue =
+        quickActions?['inventory']?['formattedValue']?.toString() ?? '₹0';
+    final invLabel =
+        quickActions?['inventory']?['unit']?.toString() ?? 'Total Usage';
+
+    final appCount = quickActions?['approvals']?['count']?.toString() ?? '0';
+    final appLabel =
+        quickActions?['approvals']?['unit']?.toString() ?? 'pending';
+
+    final projCount = quickActions?['projects']?['count']?.toString() ?? '0';
+    final projLabel =
+        quickActions?['projects']?['unit']?.toString() ?? 'active';
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -133,32 +196,30 @@ class DashboardTab extends ConsumerWidget {
       childAspectRatio: 1.3,
       children: [
         _buildActionCard(Icons.person_outline, Colors.blue[50]!, Colors.blue,
-            "Transactions", "12 Requests", () {
+            "Transactions", "$txCount $txLabel", () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const TransactionScreen()),
           );
         }),
         _buildActionCard(Icons.assignment_outlined, Colors.teal[50]!,
-            Colors.teal, "Inventory", "1,42,300 total usage", () {
+            Colors.teal, "Inventory", "$invValue $invLabel", () {
           Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (context) => const InventoryDashboardScreen()),
           );
         }),
-
         // ✅ CLICKABLE APPROVALS CARD
         _buildActionCard(Icons.description_outlined, Colors.orange[50]!,
-            Colors.orange, "Approvals", "20 pending", () {
+            Colors.orange, "Approvals", "$appCount $appLabel", () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const ApprovalsScreen()),
           );
         }),
-
         _buildActionCard(Icons.inventory_2_outlined, Colors.red[50]!,
-            Colors.redAccent, "Projects", "3 active", () {
+            Colors.redAccent, "Projects", "$projCount $projLabel", () {
           Navigator.pushNamed(context, AppRoutes.home,
               arguments: HomeArguments.project);
         }),
@@ -200,30 +261,92 @@ class DashboardTab extends ConsumerWidget {
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
             Text(subtitle,
-                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRecentActivityList() {
+  Widget _buildRecentActivityList(List<dynamic> activities) {
+    if (activities.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 30.0),
+        child: Center(
+          child: Text("No recent activities found.",
+              style: TextStyle(color: Colors.grey, fontSize: 15)),
+        ),
+      );
+    }
+
     return Column(
-      children: [
-        _buildActivityItem(Icons.assignment_turned_in, Colors.blue,
-            "Task completed", "Foundation work - Block A", "2 h ago"),
-        const SizedBox(height: 12),
-        _buildActivityItem(
-            Icons.book, Colors.blue, "DPR submitted", "24 Dec 2025", "5 h ago"),
-        const SizedBox(height: 12),
-        _buildActivityItem(Icons.check_circle_outline, Colors.blue,
-            "Check in recorded", "Arrived at site", "7 h ago"),
-      ],
+      children: activities.map((activity) {
+        final type = activity['type'] as String? ?? '';
+        final title = activity['title'] as String? ?? 'Unknown Activity';
+        final subtitle = activity['description'] as String? ?? '';
+        final timestampStr = activity['timestamp'] as String? ?? '';
+        final projectName =
+            activity['projectName'] as String? ?? 'Unknown Project';
+
+        // Setup Icon and Color based on Backend activity Type
+        IconData icon = Icons.info_outline;
+        Color color = Colors.grey;
+
+        switch (type) {
+          case 'TASK_COMPLETED':
+            icon = Icons.assignment_turned_in;
+            color = Colors.blue;
+            break;
+          case 'DPR_SUBMITTED':
+            icon = Icons.book;
+            color = Colors.green;
+            break;
+          case 'CHECK_IN':
+            icon = Icons.check_circle_outline;
+            color = Colors.orange;
+            break;
+          case 'TRANSACTION':
+            icon = Icons.attach_money;
+            color = Colors.purple;
+            break;
+          case 'MATERIAL_REQUEST':
+            icon = Icons.inventory;
+            color = Colors.redAccent;
+            break;
+        }
+
+        // Parse timestamp and generate "time ago" string
+        String timeAgo = "Just now";
+        if (timestampStr.isNotEmpty) {
+          try {
+            final date = DateTime.parse(timestampStr);
+            final difference = DateTime.now().difference(date);
+            if (difference.inDays > 0) {
+              timeAgo = "${difference.inDays} d ago";
+            } else if (difference.inHours > 0) {
+              timeAgo = "${difference.inHours} h ago";
+            } else if (difference.inMinutes > 0) {
+              timeAgo = "${difference.inMinutes} m ago";
+            }
+          } catch (e) {
+            // Fallback if parsing fails
+            timeAgo = timestampStr.split('T').first;
+          }
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: _buildActivityItem(
+              icon, color, title, subtitle, timeAgo, projectName),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildActivityItem(
-      IconData icon, Color color, String title, String subtitle, String time) {
+  Widget _buildActivityItem(IconData icon, Color color, String title,
+      String subtitle, String time, String projectName) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -255,7 +378,26 @@ class DashboardTab extends ConsumerWidget {
                         fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 2),
                 Text(subtitle,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 12, color: Colors.blueGrey),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(projectName,
+                          style: const TextStyle(
+                              color: Colors.blueGrey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
