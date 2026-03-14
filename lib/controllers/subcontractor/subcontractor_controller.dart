@@ -338,4 +338,111 @@ class SubcontractorController extends AsyncNotifier<SubcontractorState> {
     final response = await _dioClient.dio.get('$_basePath/statistics');
     return response.data['data'];
   }
+
+  // ==========================================================================
+  // NEW MISSING ENDPOINTS
+  // ==========================================================================
+
+  Future<Map<String, dynamic>> getSubcontractorDashboardStats() async {
+    final response = await _dioClient.dio.get('$_basePath/dashboard/stats');
+    return response.data['data'];
+  }
+
+  Future<Map<String, dynamic>> getSubcontractorsByWorkType(
+      String workType) async {
+    final response = await _dioClient.dio.get('$_basePath/work-type/$workType');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getContractorProjectsByContractorId(
+      String contractorId,
+      {int page = 1,
+      String search = '',
+      String? status,
+      String? workType,
+      String? startDate,
+      String? endDate}) async {
+    final response = await _dioClient.dio.get(
+      '$_basePath/$contractorId/contractorProjectsByContractorId',
+      queryParameters: {
+        'page': page,
+        if (search.isNotEmpty) 'search': search,
+        if (status != null) 'status': status,
+        if (workType != null) 'workType': workType,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
+      },
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getAllProjectsWithSubcontractors({
+    int page = 1,
+    String search = '',
+    String? projectStatus,
+    String? contractorStatus,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final response = await _dioClient.dio.get(
+      '$_basePath/projects/all',
+      queryParameters: {
+        'page': page,
+        if (search.isNotEmpty) 'search': search,
+        if (projectStatus != null) 'projectStatus': projectStatus,
+        if (contractorStatus != null) 'contractorStatus': contractorStatus,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
+      },
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getContractorAssignments(
+      String contractorProjectId,
+      {int page = 1,
+      String search = '',
+      String? status,
+      String? startDate,
+      String? endDate,
+      String? workerId}) async {
+    final response = await _dioClient.dio.get(
+      '$_basePath/projects/$contractorProjectId/assignments',
+      queryParameters: {
+        'page': page,
+        if (search.isNotEmpty) 'search': search,
+        if (status != null) 'status': status,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
+        if (workerId != null) 'workerId': workerId,
+      },
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getAssignmentById(String assignmentId) async {
+    final response =
+        await _dioClient.dio.get('$_basePath/assignments/$assignmentId');
+    return response.data['data'];
+  }
+
+  Future<Map<String, dynamic>> getSubcontractorWorkersForAttendance({
+    String? contractorId,
+    String? projectId,
+  }) async {
+    final response = await _dioClient.dio.get(
+      '$_basePath/workers/for-attendance',
+      queryParameters: {
+        if (contractorId != null) 'contractorId': contractorId,
+        if (projectId != null) 'projectId': projectId,
+      },
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getSubcontractorWorkerDetails(
+      String workerId) async {
+    final response = await _dioClient.dio.get('$_basePath/workers/$workerId');
+    return response.data['data'];
+  }
 }

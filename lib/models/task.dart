@@ -193,6 +193,9 @@ class Subtask {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // NEW: Added to capture the assignments array from the backend
+  final List<dynamic>? assignments;
+
   Subtask({
     required this.id,
     required this.description,
@@ -203,6 +206,7 @@ class Subtask {
     this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.assignments, // NEW
   });
 
   Subtask copyWith({
@@ -215,6 +219,7 @@ class Subtask {
     User? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
+    List<dynamic>? assignments, // NEW
   }) {
     return Subtask(
       id: id ?? this.id,
@@ -226,6 +231,7 @@ class Subtask {
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      assignments: assignments ?? this.assignments, // NEW
     );
   }
 
@@ -246,6 +252,8 @@ class Subtask {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'].toString())
           : DateTime.now(),
+      // NEW: Parse the assignments array
+      assignments: json['assignments'] as List<dynamic>?,
     );
   }
 
@@ -259,6 +267,7 @@ class Subtask {
       'createdById': createdById,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'assignments': assignments, // NEW
     };
   }
 }

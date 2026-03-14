@@ -5,7 +5,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import 'package:construction_erp/screens/inventory/purchase_order_list_screen.dart';
-import 'package:construction_erp/controllers/inventory/inventory_controller.dart'; // Adjust import path as needed
+import 'package:construction_erp/controllers/inventory/inventory_controller.dart';
+import 'package:construction_erp/controllers/finance/financial_controller.dart'; // Added financial controller import
+import 'package:construction_erp/models/budget.dart'; // Added budget model import
 
 // A unified model to hold mixed activity data for the UI
 class ActivityData {
@@ -205,6 +207,10 @@ class _ProjectInventoryDashboardScreenState
     // Watch the inventory state
     final inventoryStateAsync = ref.watch(inventoryControllerProvider);
 
+    // Watch the active budget for this project
+    final activeBudgetAsync =
+        ref.watch(activeProjectBudgetProvider(widget.projectId));
+
     // Removed Material, RefreshIndicator, and SingleChildScrollView.
     // Since ProjectDetailsScreen already handles the scrolling, returning a Column
     // fixes the nested scroll bug and allows dragging anywhere on the screen!
@@ -253,7 +259,7 @@ class _ProjectInventoryDashboardScreenState
             const SizedBox(height: 24),
 
             // 2. Budget Section (Included in Project Dashboard)
-            _buildBudgetSection(),
+            _buildBudgetSection(activeBudgetAsync),
 
             const SizedBox(height: 24),
 
@@ -422,7 +428,7 @@ class _ProjectInventoryDashboardScreenState
     );
   }
 
-  Widget _buildBudgetSection() {
+  Widget _buildBudgetSection(AsyncValue<Budget?> activeBudgetAsync) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -438,49 +444,99 @@ class _ProjectInventoryDashboardScreenState
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const Divider(height: 24),
-
-          // Custom Progress Bar
-          Container(
-            height: 35,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFCDE1FF), // Light blue background
-              borderRadius: BorderRadius.circular(8),
+          activeBudgetAsync.when(
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
             ),
-            child: Row(
-              children: [
-                // Used Portion
-                Expanded(
-                  flex: 60, // 60% Used
-                  child: Container(
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text("Error loading budget: $error",
+                  style: const TextStyle(color: Colors.red)),
+            ),
+            data: (budget) {
+              if (budget == null) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    "No active budget assigned to this project.",
+                    style: TextStyle(
+                        color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                );
+              }
+
+              final double totalAmount = (budget.totalApproved ?? 0).toDouble();
+
+              // Depending on your actual Budget model, calculate remaining and used.
+              // Assuming 'remainingAmount' exists, or 'consumedAmount'/'committedAmount'.
+              final double remainingAmount =
+                  (budget.totalRemaining ?? totalAmount).toDouble();
+              final double usedAmount = totalAmount - remainingAmount;
+
+              // Calculate percentages for the UI
+              final double usedPercent = totalAmount > 0
+                  ? (usedAmount / totalAmount).clamp(0.0, 1.0)
+                  : 0.0;
+              final int flexUsed = (usedPercent * 100).toInt();
+              final int flexRemaining = 100 - flexUsed;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Custom Progress Bar
+                  Container(
+                    height: 35,
+                    width: double.infinity,
                     decoration: BoxDecoration(
-                      color: primaryBlue,
+                      color: const Color(0xFFCDE1FF), // Light blue background
                       borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Row(
+                      children: [
+                        if (flexUsed > 0)
+                          Expanded(
+                            flex: flexUsed,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: primaryBlue,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        if (flexRemaining > 0)
+                          Expanded(
+                            flex: flexRemaining,
+                            child:
+                                const SizedBox(), // Transparent/Light blue background shows
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                // Remaining Portion
-                const Expanded(
-                  flex: 40,
-                  child: SizedBox(), // Transparent/Light blue background shows
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "Total Contract: ₹20,00,000",
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Used: ₹12,00,000",
-                  style: TextStyle(fontSize: 13, color: Colors.black87)),
-              Text("Remaining: ₹8,00,000",
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700])),
-            ],
+                  const SizedBox(height: 12),
+                  Text(
+                    "Total Budget: ${currencyFormat.format(totalAmount)}",
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Used: ${currencyFormat.format(usedAmount)}",
+                          style: const TextStyle(
+                              fontSize: 13, color: Colors.black87)),
+                      Text(
+                          "Remaining: ${currencyFormat.format(remainingAmount)}",
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.grey[700])),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

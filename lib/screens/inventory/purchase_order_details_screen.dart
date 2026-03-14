@@ -34,6 +34,80 @@ class _PurchaseOrderDetailsScreenState
 
   // --- ACTION DIALOGS ---
 
+  void _showApprovePODialog(BuildContext context) {
+    final notesController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Approve PO"),
+        content: TextField(
+          controller: notesController,
+          decoration: const InputDecoration(
+            hintText: "Approval Notes (Optional)",
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              final notes = notesController.text.trim();
+              ref.read(procurementControllerProvider.notifier).approvePO(
+                  widget.poId,
+                  notes: notes.isNotEmpty ? notes : null);
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00B48A)),
+            child: const Text("Approve", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRejectPODialog(BuildContext context) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reject PO"),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(
+            hintText: "Rejection Reason (Required)",
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Reason is required"),
+                      backgroundColor: Colors.red),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              ref.read(procurementControllerProvider.notifier).rejectPO(
+                  widget.poId,
+                  rejectionReason: reasonController.text.trim());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Reject", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCancelDialog(BuildContext context) {
     final reasonController = TextEditingController();
     showDialog(
@@ -763,6 +837,15 @@ class _PurchaseOrderDetailsScreenState
         ref
             .read(procurementControllerProvider.notifier)
             .submitPOForApproval(po.id);
+      }));
+    } else if (po.status == 'PENDING_APPROVAL') {
+      // NEW: Added Approve and Reject Actions for PENDING_APPROVAL status
+      actions.add(_buildActionButton(
+          "Reject", Colors.red, () => _showRejectPODialog(context),
+          isOutlined: true));
+      actions.add(const SizedBox(width: 12));
+      actions.add(_buildActionButton("Approve", const Color(0xFF00B48A), () {
+        _showApprovePODialog(context);
       }));
     } else if (po.status == 'APPROVED') {
       actions.add(_buildActionButton(

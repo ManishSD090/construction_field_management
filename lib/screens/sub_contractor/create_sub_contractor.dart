@@ -37,8 +37,8 @@ class _CreateSubContractorScreenState
   final _branchController = TextEditingController();
 
   // Rates & Capacity
-  final _maxWorkersController = TextEditingController(text: "10");
-  final _maxMachinesController = TextEditingController(text: "10");
+  final _maxWorkersController = TextEditingController(text: "300");
+  final _maxMachinesController = TextEditingController(text: "50");
   final _hourlyRateController = TextEditingController();
   final _dailyRateController = TextEditingController();
 

@@ -34,7 +34,8 @@ class AdminProfileScreen extends ConsumerWidget {
           padding: EdgeInsets.only(left: 10),
           child: Text(
             "Profile",
-            style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
+            style:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
           ),
         ),
         shape: const RoundedRectangleBorder(
@@ -43,7 +44,8 @@ class AdminProfileScreen extends ConsumerWidget {
       ),
       body: authState.when(
         data: (user) {
-          if (user == null) return const Center(child: Text("No session found"));
+          if (user == null)
+            return const Center(child: Text("No session found"));
           return _buildProfileBody(context, ref, user);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -116,7 +118,8 @@ class AdminProfileScreen extends ConsumerWidget {
             children: [
               Text(
                 user.name,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               Text(user.company?.name ?? "ABC Infrastructure Pvt Ltd",
                   style: const TextStyle(fontSize: 14, color: Colors.black87)),
@@ -147,15 +150,19 @@ class AdminProfileScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Account Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text("Account Info",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const Divider(height: 24),
           _buildInfoRow("User type:", user.userType.toDisplayString()),
           const SizedBox(height: 12),
           _buildInfoRow("Account created:", formatDate(user.createdAt)),
           const SizedBox(height: 12),
-          _buildInfoRow("Last Login:", user.lastLogin != null 
-              ? DateFormat('dd MMM yyyy · hh:mm a').format(user.lastLogin!.toLocal()) 
-              : "14 Aug 2025 · 09:12 AM"),
+          _buildInfoRow(
+              "Last Login:",
+              user.lastLogin != null
+                  ? DateFormat('dd MMM yyyy · hh:mm a')
+                      .format(user.lastLogin!.toLocal())
+                  : "14 Aug 2025 · 09:12 AM"),
         ],
       ),
     );
@@ -170,33 +177,50 @@ class AdminProfileScreen extends ConsumerWidget {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text("Account Settings", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: Text("Account Settings",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           const Divider(),
           _buildSettingsTile(
             icon: Icons.person_outline,
             title: "Personal Info",
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PersonalInfoScreen())),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const PersonalInfoScreen())),
           ),
           _buildSettingsTile(
             icon: Icons.business_outlined,
             title: "Company Details",
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CompanyDetailsScreen(company: user.company ?? Company(name: "N/A")))),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => CompanyDetailsScreen(
+                        company: user.company ?? Company(name: "N/A")))),
           ),
           _buildSettingsTile(
             icon: Icons.group_outlined,
             title: "Manage Users and Roles",
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageUsersMenuScreen())),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const ManageUsersMenuScreen())),
           ),
           _buildSettingsTile(
             icon: Icons.history_outlined,
             title: "Approval History",
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ApprovalsScreen())),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const ApprovalsScreen())),
           ),
           _buildSettingsTile(
-            icon: Icons.book_outlined,
-            title: "Libraries",
-            onTap: () {}, // Add Library Route here
+            icon: Icons.engineering_outlined,
+            title: "Manage Sub-Contractors",
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const SubcontractorListScreen())),
           ),
         ],
       ),
@@ -212,10 +236,15 @@ class AdminProfileScreen extends ConsumerWidget {
           // Logic for check-in
         },
         icon: const Icon(Icons.history_toggle_off, color: Colors.white),
-        label: const Text("Check-in", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        label: const Text("Check-in",
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryBlue,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           elevation: 0,
         ),
       ),
@@ -228,15 +257,25 @@ class AdminProfileScreen extends ConsumerWidget {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+      boxShadow: [
+        BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4))
+      ],
     );
   }
 
-  Widget _buildSettingsTile({required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildSettingsTile(
+      {required IconData icon,
+      required String title,
+      required VoidCallback onTap}) {
     return ListTile(
       leading: Icon(icon, color: Colors.black87, size: 22),
-      title: Text(title, style: const TextStyle(fontSize: 14, color: Colors.black87)),
-      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+      title: Text(title,
+          style: const TextStyle(fontSize: 14, color: Colors.black87)),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded,
+          size: 16, color: Colors.grey),
       onTap: onTap,
     );
   }
@@ -244,8 +283,10 @@ class AdminProfileScreen extends ConsumerWidget {
   Widget _buildInfoRow(String label, String value) {
     return Row(
       children: [
-        Text("$label ", style: const TextStyle(color: Color(0xFF666666), fontSize: 14)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        Text("$label ",
+            style: const TextStyle(color: Color(0xFF666666), fontSize: 14)),
+        Text(value,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
       ],
     );
   }
@@ -257,12 +298,14 @@ class AdminProfileScreen extends ConsumerWidget {
         title: const Text("Logout"),
         content: const Text("Are you sure you want to log out?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(authControllerProvider.notifier).logout();
-              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (ctx) => false);
+              Navigator.pushNamedAndRemoveUntil(
+                  context, AppRoutes.login, (ctx) => false);
             },
             child: const Text("Logout", style: TextStyle(color: Colors.red)),
           ),

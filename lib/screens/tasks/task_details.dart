@@ -61,6 +61,92 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
     }
   }
 
+  // Robust helper to safely extract the assignee name and type
+  // from the nested assignments array structure regardless of model mapping
+  String _getAssigneeDetails(Subtask subtask) {
+    try {
+      final dynamic s = subtask;
+
+      // Let's try to access assignments list directly
+      dynamic assignmentsList;
+      try {
+        assignmentsList = s.assignments;
+      } catch (_) {
+        try {
+          // Fallback: Check if subtask has a toJson() method that captures the unmapped array
+          assignmentsList = s.toJson()['assignments'];
+        } catch (_) {}
+      }
+
+      if (assignmentsList != null &&
+          assignmentsList is List &&
+          assignmentsList.isNotEmpty) {
+        final assignment = assignmentsList.first;
+
+        // Safely extract properties handling both Dart Maps and Dart Objects
+        String? workerType;
+        dynamic siteStaff;
+        dynamic subcontractorWorker;
+
+        if (assignment is Map) {
+          workerType = assignment['workerType'];
+          siteStaff = assignment['siteStaff'];
+          subcontractorWorker = assignment['subcontractorWorker'];
+        } else {
+          try {
+            workerType = assignment.workerType;
+          } catch (_) {}
+          try {
+            siteStaff = assignment.siteStaff;
+          } catch (_) {}
+          try {
+            subcontractorWorker = assignment.subcontractorWorker;
+          } catch (_) {}
+        }
+
+        if (workerType == 'SITE_STAFF' && siteStaff != null) {
+          String name = 'Unknown';
+          if (siteStaff is Map) {
+            name = siteStaff['name'] ?? 'Unknown';
+          } else {
+            try {
+              name = siteStaff.name;
+            } catch (_) {}
+          }
+          return "Site Staff: $name";
+        } else if (workerType == 'SUBCONTRACTOR' &&
+            subcontractorWorker != null) {
+          String name = 'Unknown';
+          if (subcontractorWorker is Map) {
+            name = subcontractorWorker['name'] ?? 'Unknown';
+          } else {
+            try {
+              name = subcontractorWorker.name;
+            } catch (_) {}
+          }
+          return "Subcontractor: $name";
+        }
+      }
+
+      // Fallback for older backend structures just in case
+      try {
+        if (s.assignedTo != null) return "Site Staff: ${s.assignedTo.name}";
+      } catch (_) {}
+      try {
+        if (s.worker != null) return "Site Staff: ${s.worker.name}";
+      } catch (_) {}
+      try {
+        if (s.contractorWorker != null)
+          return "Subcontractor: ${s.contractorWorker.name}";
+      } catch (_) {}
+
+      return "Unassigned";
+    } catch (e) {
+      if (kDebugMode) print("Error parsing assignee: $e");
+      return "Unassigned";
+    }
+  }
+
   // ===========================================================================
   // PHOTO UPLOAD LOGIC
   // ===========================================================================
@@ -517,6 +603,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
 
   Widget _buildSubtaskCard(Task task, Subtask subtask) {
     final isUpdating = _updatingSubtasks.contains(subtask.id);
+    final assigneeDetails = _getAssigneeDetails(subtask);
 
     return GestureDetector(
       onTap: isUpdating
@@ -658,7 +745,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
+              _infoRow("Assigned to: ", assigneeDetails),
+              const SizedBox(height: 4),
               _infoRow("Created: ", _formatDate(subtask.createdAt)),
             ],
           ),

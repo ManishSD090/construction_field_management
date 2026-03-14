@@ -1,4 +1,5 @@
 import 'package:construction_erp/screens/sub_contractor/edit_sub_contractor.dart';
+import 'package:construction_erp/screens/sub_contractor/manage_workers_screen.dart'; // Added import for Manage Workers
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
@@ -76,6 +77,10 @@ class SubcontractorDetailsScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       _buildFinancialCard(data.financialSummary?.totalPaid ?? 0,
                           data.financialSummary?.pendingAmount ?? 0),
+                      const SizedBox(height: 24),
+                      // ✅ Added Manage Workers Button
+                      _buildManageWorkersButton(context, data.id),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -361,6 +366,38 @@ class SubcontractorDetailsScreen extends ConsumerWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
       ],
+    );
+  }
+
+  // ✅ New Manage Workers Button
+  Widget _buildManageWorkersButton(BuildContext context, String contractorId) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ManageWorkersScreen(contractorId: contractorId),
+            ),
+          );
+        },
+        icon: const Icon(Icons.people_alt_outlined, color: Colors.white),
+        label: const Text(
+          "Manage Workers",
+          style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+      ),
     );
   }
 }

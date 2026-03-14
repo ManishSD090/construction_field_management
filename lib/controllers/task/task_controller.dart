@@ -382,11 +382,34 @@ class TaskController extends AsyncNotifier<TaskState> {
   // ==========================================================================
 
   /// Fetches all site staff (workers).
-  /// TODO: In the future, change this endpoint or add query parameters to fetch ONLY
   /// workers assigned to the current project (`/worker/site-staff?projectId=...`).
-  Future<List<dynamic>> getAllSiteStaff() async {
-    final response = await _dioClient.dio.get('/workers/site-staff');
+  Future<List<dynamic>> getAllSiteStaff({String? projectId}) async {
+    final response = await _dioClient.dio.get(projectId != null
+        ? '/workers/site-staff?projectId=$projectId'
+        : '/workers/site-staff');
     // Based on your backend, the data is inside response.data['data']
+    return response.data['data'];
+  }
+
+  Future<List<dynamic>> getSubcontractorWorkersByProjectId(
+    String projectId, {
+    int page = 1,
+    String search = '',
+    String? status,
+    String? skill,
+  }) async {
+    final response = await _dioClient.dio
+        .get('/subcontractors/projects/$projectId/workers', queryParameters: {
+      'page': page,
+      'limit':
+          100, // High limit to ensure we get them all for assignment dropdowns
+      if (search.isNotEmpty) 'search': search,
+      if (status != null) 'status': status,
+      if (skill != null) 'skill': skill,
+    });
+
+    // Returning just the data list, but the backend also provides 'summary' and 'pagination'
+    // if you ever need them by returning the full response.data instead.
     return response.data['data'];
   }
 
@@ -452,17 +475,5 @@ class TaskController extends AsyncNotifier<TaskState> {
       // Handle error (e.g., if assignment fails, you might want to alert the user)
       rethrow;
     }
-  }
-
-  /// Fetches Subcontractor Workers (useful for assigning them to subtasks)
-  Future<List<dynamic>> getSubcontractorWorkers(String projectId) async {
-    // We can use your existing for-attendance endpoint which also filters by projectId
-    // and returns the subcontractor worker details we need.
-    final response = await _dioClient.dio
-        .get('/subcontractors/workers/for-attendance', queryParameters: {
-      'projectId': projectId,
-    });
-
-    return response.data['data'];
   }
 }

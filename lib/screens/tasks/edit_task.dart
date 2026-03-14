@@ -8,7 +8,7 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/task.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/controllers/task/task_controller.dart';
-import 'package:construction_erp/controllers/project/project_controller.dart'; // Added Project Controller
+import 'package:construction_erp/controllers/project/project_controller.dart';
 
 class EditTaskScreen extends ConsumerStatefulWidget {
   final String taskId;
@@ -28,7 +28,6 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
   String _assignedType = 'Workers';
 
   // Local map to temporarily hold assignee names for UI feedback
-  // since the base Task model might not deeply nest SubtaskAssignments.
   final Map<String, String> _localAssignees = {};
 
   // Image Picker state
@@ -58,6 +57,92 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
         return AppColors.alertRed;
       default:
         return AppColors.primaryBlue;
+    }
+  }
+
+  // Robust helper to safely extract the assignee name and type
+  // from the nested assignments array structure regardless of model mapping
+  String _getAssigneeDetails(Subtask subtask) {
+    try {
+      final dynamic s = subtask;
+
+      // Let's try to access assignments list directly
+      dynamic assignmentsList;
+      try {
+        assignmentsList = s.assignments;
+      } catch (_) {
+        try {
+          // Fallback: Check if subtask has a toJson() method that captures the unmapped array
+          assignmentsList = s.toJson()['assignments'];
+        } catch (_) {}
+      }
+
+      if (assignmentsList != null &&
+          assignmentsList is List &&
+          assignmentsList.isNotEmpty) {
+        final assignment = assignmentsList.first;
+
+        // Safely extract properties handling both Dart Maps and Dart Objects
+        String? workerType;
+        dynamic siteStaff;
+        dynamic subcontractorWorker;
+
+        if (assignment is Map) {
+          workerType = assignment['workerType'];
+          siteStaff = assignment['siteStaff'];
+          subcontractorWorker = assignment['subcontractorWorker'];
+        } else {
+          try {
+            workerType = assignment.workerType;
+          } catch (_) {}
+          try {
+            siteStaff = assignment.siteStaff;
+          } catch (_) {}
+          try {
+            subcontractorWorker = assignment.subcontractorWorker;
+          } catch (_) {}
+        }
+
+        if (workerType == 'SITE_STAFF' && siteStaff != null) {
+          String name = 'Unknown';
+          if (siteStaff is Map) {
+            name = siteStaff['name'] ?? 'Unknown';
+          } else {
+            try {
+              name = siteStaff.name;
+            } catch (_) {}
+          }
+          return "Site Staff: $name";
+        } else if (workerType == 'SUBCONTRACTOR' &&
+            subcontractorWorker != null) {
+          String name = 'Unknown';
+          if (subcontractorWorker is Map) {
+            name = subcontractorWorker['name'] ?? 'Unknown';
+          } else {
+            try {
+              name = subcontractorWorker.name;
+            } catch (_) {}
+          }
+          return "Subcontractor: $name";
+        }
+      }
+
+      // Fallback for older backend structures just in case
+      try {
+        if (s.assignedTo != null) return "Site Staff: ${s.assignedTo.name}";
+      } catch (_) {}
+      try {
+        if (s.worker != null) return "Site Staff: ${s.worker.name}";
+      } catch (_) {}
+      try {
+        if (s.contractorWorker != null)
+          return "Subcontractor: ${s.contractorWorker.name}";
+      } catch (_) {}
+
+      return "Unassigned";
+    } catch (e) {
+      if (kDebugMode) print("Error parsing assignee: $e");
+      return "Unassigned";
     }
   }
 
@@ -294,148 +379,216 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Assign Worker",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDark),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textGrey),
-                    onPressed: () => Navigator.pop(context),
-                  )
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: FutureBuilder<List<dynamic>>(
-                  future: _assignedType == 'Workers'
-                      ? ref
-                          .read(taskControllerProvider.notifier)
-                          .getAllSiteStaff()
-                      : ref
-                          .read(taskControllerProvider.notifier)
-                          .getSubcontractorWorkers(widget.projectId),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                          child: CircularProgressIndicator(
-                              color: AppColors.primaryBlue));
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          "Error fetching workers: ${snapshot.error}",
-                          style: const TextStyle(color: AppColors.alertRed),
-                        ),
-                      );
-                    }
-
-                    final workers = snapshot.data ?? [];
-
-                    if (workers.isEmpty) {
-                      return Center(
-                        child: Text(
-                          _assignedType == 'Workers'
-                              ? "No site staff available."
-                              : "No subcontractor workers available.",
-                          style: const TextStyle(color: AppColors.textGrey),
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      itemCount: workers.length,
-                      separatorBuilder: (context, i) =>
-                          Divider(color: Colors.grey.shade200),
-                      itemBuilder: (context, workerIndex) {
-                        final worker = workers[workerIndex];
-
-                        // Handle slight differences in returned data structures
-                        final workerName = worker['name'] ?? 'Unknown';
-                        final workerSubtitle = _assignedType == 'Workers'
-                            ? (worker['designation'] ?? 'Site Staff')
-                            : (worker['contractor']?['name'] ??
-                                'Subcontractor');
-
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                AppColors.primaryBlue.withOpacity(0.1),
-                            child: const Icon(Icons.person,
-                                color: AppColors.primaryBlue),
-                          ),
-                          title: Text(workerName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(workerSubtitle,
-                              style: const TextStyle(
-                                  color: AppColors.textGrey, fontSize: 13)),
-                          onTap: () async {
-                            // Close bottom sheet
-                            Navigator.pop(context);
-
-                            try {
-                              // Trigger Backend API Assignment
-                              await ref
-                                  .read(taskControllerProvider.notifier)
-                                  .assignSubtaskToWorker(
-                                    workerId: worker['id'],
-                                    subtaskId: subtask.id,
-                                    taskId: task.id,
-                                    projectId: widget.projectId,
-                                    workerType: _assignedType == 'Workers'
-                                        ? 'SITE_STAFF'
-                                        : 'SUBCONTRACTOR',
-                                  );
-
-                              // Update local UI state for immediate feedback
-                              if (mounted) {
-                                setState(() {
-                                  _localAssignees[subtask.id] = workerName;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text("Worker assigned successfully!"),
-                                      backgroundColor: AppColors.successGreen),
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content:
-                                          Text("Failed to assign worker: $e"),
-                                      backgroundColor: AppColors.alertRed),
-                                );
-                              }
-                            }
-                          },
-                        );
-                      },
-                    );
-                  },
+        return StatefulBuilder(
+            // Use StatefulBuilder to manage _assignedType state inside bottom sheet
+            builder: (context, setModalState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.6,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Assign Worker",
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: AppColors.textGrey),
+                      onPressed: () => Navigator.pop(context),
+                    )
+                  ],
                 ),
-              ),
-            ],
-          ),
-        );
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => setModalState(
+                          () => _assignedType = 'Sub-contractors'),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Radio<String>(
+                            value: 'Sub-contractors',
+                            groupValue: _assignedType,
+                            activeColor: AppColors.primaryBlue,
+                            onChanged: (value) =>
+                                setModalState(() => _assignedType = value!),
+                          ),
+                          const Text("Sub-contractors",
+                              style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    InkWell(
+                      onTap: () =>
+                          setModalState(() => _assignedType = 'Workers'),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Radio<String>(
+                            value: 'Workers',
+                            groupValue: _assignedType,
+                            activeColor: AppColors.primaryBlue,
+                            onChanged: (value) =>
+                                setModalState(() => _assignedType = value!),
+                          ),
+                          const Text("Workers", style: TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Divider(color: Colors.grey.shade300, thickness: 1),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: FutureBuilder<List<dynamic>>(
+                    future: _assignedType == 'Workers'
+                        ? ref
+                            .read(taskControllerProvider.notifier)
+                            .getAllSiteStaff()
+                        // .getAllSiteStaff(projectId: widget.projectId) // Can be filter by projectId
+                        : ref
+                            .read(taskControllerProvider.notifier)
+                            .getSubcontractorWorkersByProjectId(
+                                widget.projectId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.primaryBlue));
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            "Error fetching workers: ${snapshot.error}",
+                            style: const TextStyle(color: AppColors.alertRed),
+                          ),
+                        );
+                      }
+
+                      final workers = snapshot.data ?? [];
+
+                      if (workers.isEmpty) {
+                        return Center(
+                          child: Text(
+                            _assignedType == 'Workers'
+                                ? "No site staff available."
+                                : "No subcontractor workers available.",
+                            style: const TextStyle(color: AppColors.textGrey),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        itemCount: workers.length,
+                        separatorBuilder: (context, i) =>
+                            Divider(color: Colors.grey.shade200),
+                        itemBuilder: (context, workerIndex) {
+                          final worker = workers[workerIndex];
+
+                          // Handle slight differences in returned data structures
+                          final workerName = worker['name'] ?? 'Unknown';
+                          final workerSubtitle = _assignedType == 'Workers'
+                              ? (worker['designation'] ?? 'Site Staff')
+                              : (worker['contractor']?['name'] ??
+                                  'Subcontractor');
+
+                          // Format the label correctly matching our new UI display
+                          final typeLabel = _assignedType == 'Workers'
+                              ? 'Site Staff'
+                              : 'Subcontractor';
+                          final formattedWorkerLabel =
+                              "$typeLabel: $workerName";
+
+                          // Determine if this worker is currently assigned to this subtask
+                          final currentAssignee = _localAssignees[subtask.id] ??
+                              _getAssigneeDetails(subtask);
+                          final isSelected =
+                              currentAssignee == formattedWorkerLabel;
+
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  AppColors.primaryBlue.withOpacity(0.1),
+                              child: const Icon(Icons.person,
+                                  color: AppColors.primaryBlue),
+                            ),
+                            title: Text(workerName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: Text(workerSubtitle,
+                                style: const TextStyle(
+                                    color: AppColors.textGrey, fontSize: 13)),
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle,
+                                    color: AppColors.primaryBlue)
+                                : null,
+                            onTap: () async {
+                              // Close bottom sheet
+                              Navigator.pop(context);
+
+                              try {
+                                // Trigger Backend API Assignment
+                                await ref
+                                    .read(taskControllerProvider.notifier)
+                                    .assignSubtaskToWorker(
+                                      workerId: worker['id'],
+                                      subtaskId: subtask.id,
+                                      taskId: task.id,
+                                      projectId: widget.projectId,
+                                      workerType: _assignedType == 'Workers'
+                                          ? 'SITE_STAFF'
+                                          : 'SUBCONTRACTOR',
+                                    );
+
+                                // Update local UI state for immediate feedback using the formatted label
+                                if (mounted) {
+                                  setState(() {
+                                    _localAssignees[subtask.id] =
+                                        formattedWorkerLabel;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Worker assigned successfully!"),
+                                        backgroundColor:
+                                            AppColors.successGreen),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text("Failed to assign worker: $e"),
+                                        backgroundColor: AppColors.alertRed),
+                                  );
+                                }
+                              }
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
       },
     );
   }
@@ -588,61 +741,9 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
               ),
               const SizedBox(height: 25),
 
-              // Assigned To Selection
-              const Text(
-                "Assign Subtasks To",
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  InkWell(
-                    onTap: () =>
-                        setState(() => _assignedType = 'Sub-contractors'),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Radio<String>(
-                          value: 'Sub-contractors',
-                          groupValue: _assignedType,
-                          activeColor: AppColors.primaryBlue,
-                          onChanged: (value) =>
-                              setState(() => _assignedType = value!),
-                        ),
-                        const Text("Sub-contractors",
-                            style: TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  InkWell(
-                    onTap: () => setState(() => _assignedType = 'Workers'),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Radio<String>(
-                          value: 'Workers',
-                          groupValue: _assignedType,
-                          activeColor: AppColors.primaryBlue,
-                          onChanged: (value) =>
-                              setState(() => _assignedType = value!),
-                        ),
-                        const Text("Workers", style: TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Divider(color: Colors.grey.shade300, thickness: 1),
-              const SizedBox(height: 20),
-
               // Subtasks Section
               const Text(
-                "Subtasks",
+                "Subtasks & Assignments",
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -763,7 +864,10 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
   Widget _buildEditableSubtaskCard(Task task, Subtask subtask) {
     final title = subtask.description;
     final isComplete = subtask.isCompleted;
-    final assigneeName = _localAssignees[subtask.id];
+
+    // Safely extract the already assigned worker with their type
+    final assigneeDetails =
+        _localAssignees[subtask.id] ?? _getAssigneeDetails(subtask);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -824,7 +928,7 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: assigneeName != null
+                    color: assigneeDetails != "Unassigned"
                         ? AppColors.primaryBlue
                         : Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(8),
@@ -833,18 +937,18 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    assigneeName ?? "Select $_assignedType",
+                    assigneeDetails,
                     style: TextStyle(
-                        color: assigneeName != null
+                        color: assigneeDetails != "Unassigned"
                             ? AppColors.textDark
                             : AppColors.textGrey,
                         fontSize: 13,
-                        fontWeight: assigneeName != null
+                        fontWeight: assigneeDetails != "Unassigned"
                             ? FontWeight.w500
                             : FontWeight.normal),
                   ),
                   Icon(Icons.keyboard_arrow_down,
-                      color: assigneeName != null
+                      color: assigneeDetails != "Unassigned"
                           ? AppColors.primaryBlue
                           : AppColors.textGrey,
                       size: 20),
