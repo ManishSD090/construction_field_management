@@ -426,6 +426,28 @@ class SubcontractorController extends AsyncNotifier<SubcontractorState> {
     return response.data['data'];
   }
 
+  Future<List<dynamic>> getSubcontractorWorkersByProjectId(
+    String projectId, {
+    int page = 1,
+    String search = '',
+    String? status,
+    String? skill,
+  }) async {
+    final response = await _dioClient.dio
+        .get('/subcontractors/projects/$projectId/workers', queryParameters: {
+      'page': page,
+      'limit':
+          100, // High limit to ensure we get them all for assignment dropdowns
+      if (search.isNotEmpty) 'search': search,
+      if (status != null) 'status': status,
+      if (skill != null) 'skill': skill,
+    });
+
+    // Returning just the data list, but the backend also provides 'summary' and 'pagination'
+    // if you ever need them by returning the full response.data instead.
+    return response.data['data'];
+  }
+
   Future<Map<String, dynamic>> getSubcontractorWorkersForAttendance({
     String? contractorId,
     String? projectId,

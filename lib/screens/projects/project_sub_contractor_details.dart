@@ -1,8 +1,10 @@
 import 'package:construction_erp/screens/projects/edit_sub_contractor_project.dart';
+import 'package:construction_erp/screens/sub_contractor/manage_workers_screen.dart'; // Added import for Manage Workers
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Added Riverpod
 import 'package:construction_erp/controllers/subcontractor/subcontractor_controller.dart'; // ✅ Import your controller
 import 'package:intl/intl.dart'; // ✅ For date formatting
+import 'package:construction_erp/core/services/app_colors.dart';
 
 class ProjectSubContractorDetailsScreen extends ConsumerWidget {
   // ✅ Changed to ConsumerWidget
@@ -48,7 +50,6 @@ class ProjectSubContractorDetailsScreen extends ConsumerWidget {
               (financial['totalContractAmount'] as num).toDouble();
           final double remainingAmount =
               (financial['balanceAmount'] as num).toDouble();
-          // final double usedAmount = (financial['totalPaid'] as num).toDouble();
           final double usedAmount = totalContract - remainingAmount;
           final double progress =
               totalContract > 0 ? usedAmount / totalContract : 0.0;
@@ -155,7 +156,7 @@ class ProjectSubContractorDetailsScreen extends ConsumerWidget {
 
                         const SizedBox(height: 25),
 
-                        // --- 3. Budget Card ---
+                        // --- 3. Workforce Card (Assignments Summary) ---
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -173,101 +174,24 @@ class ProjectSubContractorDetailsScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSectionHeader("Budget", isInsideCard: true),
-                              const SizedBox(height: 15),
-                              Text(
-                                  "Total Contract: ₹${NumberFormat('#,##,###').format(totalContract)}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87)),
-                              const SizedBox(height: 12),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  minHeight: 12,
-                                  backgroundColor: const Color(0xFFD6E4FF),
-                                  valueColor:
-                                      const AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF0D6EFD)),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                      "Used: ₹${NumberFormat('#,##,###').format(usedAmount)}",
-                                      style: const TextStyle(fontSize: 12)),
-                                  Text(
-                                      "Remaining: ₹${NumberFormat('#,##,###').format(remainingAmount)}",
-                                      style: const TextStyle(fontSize: 12)),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        // --- 4. Workforce Card ---
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
-                                blurRadius: 5,
-                                offset: const Offset(0, 2),
-                              )
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionHeader("Workforce",
+                              _buildSectionHeader("Work Assignments",
                                   isInsideCard: true),
                               const SizedBox(height: 15),
                               _buildWorkforceRow(
-                                  "Total Workers:",
-                                  "${workers['total']}",
-                                  const Color(0xFF0D6EFD)),
+                                  "Total Assigned:",
+                                  "${workers['total'] ?? 0}",
+                                  AppColors.primaryBlue),
+                              const SizedBox(height: 10),
+                              _buildWorkforceRow("Active Workers:",
+                                  "${workers['active'] ?? 0}", Colors.orange),
+                              const SizedBox(height: 10),
+                              _buildWorkforceRow("Completed Tasks:",
+                                  "${workers['completed'] ?? 0}", Colors.green),
                               const SizedBox(height: 10),
                               _buildWorkforceRow(
-                                  "Active Today:",
-                                  "${workers['active']}",
-                                  const Color(0xFF0D6EFD)),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 45,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content:
-                                                Text("Attendance Marked!")));
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0D6EFD),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: const Text(
-                                    "Mark Attendance",
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14),
-                                  ),
-                                ),
-                              ),
+                                  "Completion Rate:",
+                                  "${workers['completionRate'] ?? 0}%",
+                                  Colors.black87),
                             ],
                           ),
                         ),
@@ -329,7 +253,7 @@ class ProjectSubContractorDetailsScreen extends ConsumerWidget {
     }
   }
 
-  // --- HELPER WIDGETS (Keep exactly as your previous UI) ---
+  // --- HELPER WIDGETS ---
   Widget _buildSectionHeader(String title, {bool isInsideCard = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,6 +295,7 @@ class ProjectSubContractorDetailsScreen extends ConsumerWidget {
 
   Widget _buildWorkforceRow(String label, String value, Color valueColor) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
             style: const TextStyle(
