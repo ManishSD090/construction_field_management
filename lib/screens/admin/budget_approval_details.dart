@@ -1,342 +1,25 @@
-// import 'package:flutter/material.dart';
-// import 'package:construction_erp/core/services/app_colors.dart';
-
-// class BudgetApprovalDetailsScreen extends StatefulWidget {
-//   final Map<String, dynamic> approvalData;
-
-//   const BudgetApprovalDetailsScreen({super.key, required this.approvalData});
-
-//   @override
-//   State<BudgetApprovalDetailsScreen> createState() =>
-//       _BudgetApprovalDetailsScreenState();
-// }
-
-// class _BudgetApprovalDetailsScreenState
-//     extends State<BudgetApprovalDetailsScreen> {
-//   final TextEditingController _remarksController = TextEditingController();
-//   final _formKey = GlobalKey<FormState>();
-
-//   // Dummy Particulars Data matching the visual list
-//   final List<Map<String, String>> _particulars = List.generate(
-//     6,
-//     (index) => {
-//       "sr": "${index + 1}".padLeft(2, '0'),
-//       "name": "Particular 1",
-//       "qty": "Number",
-//       "amt": "Amount",
-//     },
-//   );
-
-//   @override
-//   void dispose() {
-//     _remarksController.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: Colors.grey[50], // Light background
-//       appBar: AppBar(
-//         backgroundColor: AppColors.primaryBlue,
-//         elevation: 0,
-//         leading: IconButton(
-//           icon: const Icon(Icons.arrow_back, color: Colors.white),
-//           onPressed: () => Navigator.pop(context),
-//         ),
-//         title: const Text(
-//           "Budget Approvals",
-//           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-//         ),
-//       ),
-//       body: SingleChildScrollView(
-//         padding: const EdgeInsets.all(20),
-//         child: Form(
-//           key: _formKey,
-//           child: Container(
-//             padding: const EdgeInsets.all(20),
-//             decoration: BoxDecoration(
-//               color: Colors.white,
-//               borderRadius: BorderRadius.circular(16),
-//               boxShadow: [
-//                 BoxShadow(
-//                   color: Colors.black.withOpacity(0.05),
-//                   blurRadius: 10,
-//                   offset: const Offset(0, 4),
-//                 )
-//               ],
-//             ),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 // --- HEADER SECTION ---
-//                 Row(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                   children: [
-//                     Expanded(
-//                       child: Column(
-//                         crossAxisAlignment: CrossAxisAlignment.start,
-//                         children: [
-//                           Text(
-//                             widget.approvalData['project'] ?? "Project Name",
-//                             style: const TextStyle(
-//                               fontSize: 18,
-//                               fontWeight: FontWeight.bold,
-//                               color: Colors.black87,
-//                             ),
-//                           ),
-//                           const SizedBox(height: 4),
-//                           Text(
-//                             widget.approvalData['location'] ?? "Location",
-//                             style: const TextStyle(
-//                                 fontSize: 12, color: Colors.grey),
-//                           ),
-//                         ],
-//                       ),
-//                     ),
-//                     Column(
-//                       crossAxisAlignment: CrossAxisAlignment.end,
-//                       children: [
-//                         const SizedBox(height: 30),
-//                         Text(
-//                           "Sent: ${widget.approvalData['sent'] ?? '13 Oct 2026'}",
-//                           style:
-//                               const TextStyle(fontSize: 10, color: Colors.grey),
-//                         ),
-//                         const SizedBox(height: 2),
-//                         Text(
-//                           "Received: ${widget.approvalData['received'] ?? '12 JAN 2026'}",
-//                           style:
-//                               const TextStyle(fontSize: 10, color: Colors.grey),
-//                         ),
-//                       ],
-//                     )
-//                   ],
-//                 ),
-
-//                 const SizedBox(height: 0),
-//                 Text(
-//                   widget.approvalData['manager'] ?? "Manager Name",
-//                   style: const TextStyle(
-//                       fontSize: 15,
-//                       fontWeight: FontWeight.w500,
-//                       color: Colors.black87),
-//                 ),
-
-//                 const SizedBox(height: 20),
-
-//                 // --- TABLE HEADER ---
-//                 const Row(
-//                   children: [
-//                     SizedBox(
-//                         width: 50,
-//                         child: Text("Sr. No.",
-//                             style: TextStyle(
-//                                 fontWeight: FontWeight.bold, fontSize: 13))),
-//                     Expanded(
-//                         flex: 4,
-//                         child: Text("Particulars",
-//                             style: TextStyle(
-//                                 fontWeight: FontWeight.bold, fontSize: 13))),
-//                     Expanded(
-//                         flex: 2,
-//                         child: Text("Quantity",
-//                             textAlign: TextAlign.center,
-//                             style: TextStyle(
-//                                 fontWeight: FontWeight.bold, fontSize: 13))),
-//                     Expanded(
-//                         flex: 2,
-//                         child: Text("Amount",
-//                             textAlign: TextAlign.right,
-//                             style: TextStyle(
-//                                 fontWeight: FontWeight.bold, fontSize: 13))),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 8),
-//                 const Divider(thickness: 1, color: Colors.grey),
-//                 const SizedBox(height: 8),
-
-//                 // --- TABLE LIST ---
-//                 ListView.separated(
-//                   shrinkWrap: true,
-//                   physics: const NeverScrollableScrollPhysics(),
-//                   itemCount: _particulars.length,
-//                   separatorBuilder: (c, i) => const SizedBox(height: 16),
-//                   itemBuilder: (context, index) {
-//                     final item = _particulars[index];
-//                     return Row(
-//                       children: [
-//                         SizedBox(
-//                             width: 50,
-//                             child: Text(item['sr']!,
-//                                 style: const TextStyle(
-//                                     fontSize: 13, color: Colors.black87))),
-//                         Expanded(
-//                             flex: 4,
-//                             child: Text(item['name']!,
-//                                 style: const TextStyle(
-//                                     fontSize: 13, color: Colors.black87))),
-//                         Expanded(
-//                             flex: 2,
-//                             child: Text(item['qty']!,
-//                                 textAlign: TextAlign.center,
-//                                 style: const TextStyle(
-//                                     fontSize: 13, color: Colors.black87))),
-//                         Expanded(
-//                             flex: 2,
-//                             child: Text(item['amt']!,
-//                                 textAlign: TextAlign.right,
-//                                 style: const TextStyle(
-//                                     fontSize: 13, color: Colors.black87))),
-//                       ],
-//                     );
-//                   },
-//                 ),
-
-//                 const SizedBox(
-//                     height: 100), // Spacing to push bottom section down
-
-//                 // --- REMARKS SECTION ---
-//                 const Text("Remarks",
-//                     style:
-//                         TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-//                 const SizedBox(height: 8),
-//                 TextFormField(
-//                   controller: _remarksController,
-//                   maxLines: 1,
-//                   style: const TextStyle(fontSize: 14),
-//                   validator: (value) {
-//                     if (value == null || value.trim().isEmpty) {
-//                       return 'Please enter remarks';
-//                     }
-//                     return null;
-//                   },
-//                   decoration: InputDecoration(
-//                     hintText: "Approval/Reject Remarks",
-//                     hintStyle: const TextStyle(color: Colors.grey),
-//                     contentPadding: const EdgeInsets.symmetric(
-//                         horizontal: 12, vertical: 14),
-//                     // Border Styles
-//                     border: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                       borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
-//                     ),
-//                     enabledBorder: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                       borderSide: const BorderSide(color: Color(0xFF0D6EFD)),
-//                     ),
-//                     focusedBorder: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                       borderSide: const BorderSide(
-//                           color: Color(0xFF0D6EFD), width: 1.5),
-//                     ),
-//                     errorBorder: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                       borderSide: const BorderSide(color: Colors.red),
-//                     ),
-//                   ),
-//                 ),
-
-//                 const SizedBox(height: 20),
-
-//                 // --- ACTION BUTTONS ---
-//                 Row(
-//                   children: [
-//                     Expanded(
-//                       child: SizedBox(
-//                         height: 45,
-//                         child: ElevatedButton(
-//                           onPressed: () {
-//                             if (_formKey.currentState!.validate()) {
-//                               Navigator.pop(context);
-//                               ScaffoldMessenger.of(context).showSnackBar(
-//                                 const SnackBar(
-//                                     content: Text("Budget Approved")),
-//                               );
-//                             }
-//                           },
-//                           style: ElevatedButton.styleFrom(
-//                             backgroundColor: const Color(0xFF4CAF50), // Green
-//                             shape: RoundedRectangleBorder(
-//                                 borderRadius: BorderRadius.circular(8)),
-//                             elevation: 0,
-//                           ),
-//                           child: const Text("Approve",
-//                               style: TextStyle(
-//                                   color: Colors.white,
-//                                   fontWeight: FontWeight.bold,
-//                                   fontSize: 16)),
-//                         ),
-//                       ),
-//                     ),
-//                     const SizedBox(width: 20),
-//                     Expanded(
-//                       child: SizedBox(
-//                         height: 45,
-//                         child: ElevatedButton(
-//                           onPressed: () {
-//                             if (_formKey.currentState!.validate()) {
-//                               Navigator.pop(context);
-//                               ScaffoldMessenger.of(context).showSnackBar(
-//                                 const SnackBar(
-//                                     content: Text("Budget Rejected"),
-//                                     backgroundColor: Colors.red),
-//                               );
-//                             }
-//                           },
-//                           style: ElevatedButton.styleFrom(
-//                             backgroundColor: const Color(0xFFEF5350), // Red
-//                             shape: RoundedRectangleBorder(
-//                                 borderRadius: BorderRadius.circular(8)),
-//                             elevation: 0,
-//                           ),
-//                           child: const Text("Reject",
-//                               style: TextStyle(
-//                                   color: Colors.white,
-//                                   fontWeight: FontWeight.bold,
-//                                   fontSize: 16)),
-//                         ),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
+import 'package:construction_erp/controllers/approval/approval_controller.dart';
+import 'package:construction_erp/models/enums.dart';
 
-class BudgetApprovalDetailsScreen extends StatefulWidget {
-  final Map<String, dynamic> approvalData;
+class BudgetApprovalDetailsScreen extends ConsumerStatefulWidget {
+  final BudgetApprovalItem approvalItem;
 
-  const BudgetApprovalDetailsScreen({super.key, required this.approvalData});
+  const BudgetApprovalDetailsScreen({super.key, required this.approvalItem});
 
   @override
-  State<BudgetApprovalDetailsScreen> createState() =>
+  ConsumerState<BudgetApprovalDetailsScreen> createState() =>
       _BudgetApprovalDetailsScreenState();
 }
 
 class _BudgetApprovalDetailsScreenState
-    extends State<BudgetApprovalDetailsScreen> {
+    extends ConsumerState<BudgetApprovalDetailsScreen> {
   final TextEditingController _remarksController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-
-  final List<Map<String, String>> _particulars = List.generate(
-    6,
-    (index) => {
-      "sr": "${index + 1}".padLeft(2, '0'),
-      "name": "Particular 1",
-      "qty": "Number",
-      "amt": "Amount",
-    },
-  );
+  bool _isProcessing = false;
 
   @override
   void dispose() {
@@ -344,41 +27,65 @@ class _BudgetApprovalDetailsScreenState
     super.dispose();
   }
 
-  // ✅ Custom Popup Function
+  Future<void> _processApproval(bool isApproved) async {
+    if (!isApproved && _remarksController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a reason for rejection.')));
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      if (widget.approvalItem.revision != null) {
+        // ✅ APPROVING A BUDGET REVISION (Hits your /revisions/:id/approve-reject route)
+        await ref.read(approvalControllerProvider.notifier).approveRejectBudgetRevision(
+              revisionId: widget.approvalItem.revision!.id,
+              isApproved: isApproved,
+              reason: _remarksController.text.isNotEmpty ? _remarksController.text : null,
+            );
+      } else {
+        // ✅ APPROVING A BASE BUDGET (Hits your /budgets/approvals/:id/approve route)
+        await ref.read(approvalControllerProvider.notifier).approveRejectBudget(
+              budgetId: widget.approvalItem.budget.id,
+              isApproved: isApproved,
+              reason: _remarksController.text.isNotEmpty ? _remarksController.text : null,
+            );
+      }
+
+      _showStatusDialog(isApproved: isApproved);
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   void _showStatusDialog({required bool isApproved}) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isApproved ? "Budget Approved" : "Budget Rejected",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  isApproved ? "Approved" : "Rejected",
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isApproved
-                        ? const Color(0xFF009688) // Green for Approved
-                        : const Color(0xFFEF5350), // Red for Rejected
+                    color: isApproved ? const Color(0xFF009688) : const Color(0xFFEF5350),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                      isApproved ? Icons.check : Icons.close, // Check or Cross
-                      color: Colors.white,
-                      size: 30),
+                  child: Icon(isApproved ? Icons.check : Icons.close, color: Colors.white, size: 30),
                 ),
               ],
             ),
@@ -387,17 +94,57 @@ class _BudgetApprovalDetailsScreenState
       },
     );
 
-    // Close dialog and screen after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.pop(context); // Close Dialog
-        Navigator.pop(context); // Go back to list
+        Navigator.pop(context);
+        Navigator.pop(context);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final budget = widget.approvalItem.budget;
+    final revision = widget.approvalItem.revision;
+
+    final bool isRevision = revision != null;
+    final String displayTitle = isRevision ? "REV: ${budget.name}" : budget.name;
+    final String labelText = isRevision ? "Budget Revision" : "Base Budget";
+    
+    final currencyFormatter = NumberFormat.currency(symbol: '₹', locale: 'en_IN', decimalDigits: 0);
+
+    final List<Widget> particularsList = [];
+    
+    if (isRevision) {
+      final changes = revision.categoryChanges;
+      int index = 1;
+      changes.forEach((categoryId, changeData) {
+        double amount = 0;
+        if (changeData is num) {
+          amount = changeData.toDouble();
+        } else if (changeData is Map && changeData['change'] != null) {
+          amount = (changeData['change'] as num).toDouble();
+        }
+        
+        particularsList.add(_buildParticularRow(
+          sr: "${index++}".padLeft(2, '0'),
+          name: "Category Update",
+          amountText: "${amount >= 0 ? '+' : ''}${currencyFormatter.format(amount)}",
+          isHighlight: true,
+        ));
+      });
+    } else {
+      final categories = budget.categories ?? [];
+      for (int i = 0; i < categories.length; i++) {
+        final cat = categories[i];
+        particularsList.add(_buildParticularRow(
+          sr: "${i + 1}".padLeft(2, '0'),
+          name: cat.category.name.replaceAll('_', ' '),
+          amountText: currencyFormatter.format(cat.allocatedAmount),
+        ));
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -407,10 +154,7 @@ class _BudgetApprovalDetailsScreenState
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Budget Approvals",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text("Budget Approvals", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -421,18 +165,11 @@ class _BudgetApprovalDetailsScreenState
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Info
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -441,219 +178,126 @@ class _BudgetApprovalDetailsScreenState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.approvalData['project'] ?? "Project Name",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
+                          Text(displayTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                           const SizedBox(height: 4),
-                          Text(
-                            widget.approvalData['location'] ?? "Location",
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey),
-                          ),
+                          Text(budget.project?.name ?? "Unknown Project", style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                          const SizedBox(height: 4),
+                          Text(labelText, style: TextStyle(fontSize: 12, color: AppColors.primaryBlue.withOpacity(0.8))),
                         ],
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          "Sent: ${widget.approvalData['sent'] ?? '13 Oct 2026'}",
-                          style:
-                              const TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "Received: ${widget.approvalData['received'] ?? '12 JAN 2026'}",
-                          style:
-                              const TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
-                    )
                   ],
                 ),
 
-                const SizedBox(height: 10),
-                Text(
-                  widget.approvalData['manager'] ?? "Manager Name",
-                  style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87),
-                ),
+                const SizedBox(height: 15),
+                Text("Manager: ${budget.createdBy?.name ?? 'System'}", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+                
+                if (isRevision && revision.reason.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                    child: Text("Reason: ${revision.reason}", style: TextStyle(color: Colors.orange.shade800, fontStyle: FontStyle.italic)),
+                  )
+                ],
 
                 const SizedBox(height: 20),
 
-                // Table Header
                 const Row(
                   children: [
-                    SizedBox(
-                        width: 50,
-                        child: Text("Sr. No.",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Expanded(
-                        flex: 4,
-                        child: Text("Particulars",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Expanded(
-                        flex: 2,
-                        child: Text("Quantity",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
-                    Expanded(
-                        flex: 2,
-                        child: Text("Amount",
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 13))),
+                    SizedBox(width: 40, child: Text("Sr.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                    Expanded(child: Text("Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                    Text("Amount", textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 const Divider(thickness: 1, color: Colors.grey),
                 const SizedBox(height: 8),
 
-                // Table List
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _particulars.length,
-                  separatorBuilder: (c, i) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final item = _particulars[index];
-                    return Row(
-                      children: [
-                        SizedBox(
-                            width: 50,
-                            child: Text(item['sr']!,
-                                style: const TextStyle(
-                                    fontSize: 13, color: Colors.black87))),
-                        Expanded(
-                            flex: 4,
-                            child: Text(item['name']!,
-                                style: const TextStyle(
-                                    fontSize: 13, color: Colors.black87))),
-                        Expanded(
-                            flex: 2,
-                            child: Text(item['qty']!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontSize: 13, color: Colors.black87))),
-                        Expanded(
-                            flex: 2,
-                            child: Text(item['amt']!,
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                    fontSize: 13, color: Colors.black87))),
-                      ],
-                    );
-                  },
+                if (particularsList.isEmpty)
+                  const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("No category details found.", style: TextStyle(color: Colors.grey))))
+                else
+                  Column(children: particularsList),
+                  
+                const SizedBox(height: 16),
+                const Divider(thickness: 1, color: Colors.grey),
+                const SizedBox(height: 8),
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Total Allocation:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(
+                      currencyFormatter.format(isRevision ? revision.newTotal : budget.totalApproved), 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryBlue)
+                    ),
+                  ],
                 ),
 
-                const SizedBox(height: 100),
+                const SizedBox(height: 60),
 
-                // Remarks
-                const Text("Remarks",
-                    style:
-                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                const Text("Remarks", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _remarksController,
                   maxLines: 1,
                   style: const TextStyle(fontSize: 14),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter remarks';
-                    }
-                    return null;
-                  },
                   decoration: InputDecoration(
                     hintText: "Approval/Reject Remarks",
                     hintStyle: const TextStyle(color: Colors.grey),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 14),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF0D6EFD), width: 1.5)),
-                    errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.red)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0D6EFD))),
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
-                // Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 45,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _showStatusDialog(
-                                  isApproved: true); // Show Approved Popup
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4CAF50),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            elevation: 0,
+                _isProcessing
+                  ? const Center(child: CircularProgressIndicator())
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 45,
+                            child: ElevatedButton(
+                              onPressed: () => _processApproval(true),
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0),
+                              child: const Text("Approve", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
                           ),
-                          child: const Text("Approve",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16)),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: SizedBox(
-                        height: 45,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _showStatusDialog(
-                                  isApproved: false); // Show Rejected Popup
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEF5350),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            elevation: 0,
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: SizedBox(
+                            height: 45,
+                            child: ElevatedButton(
+                              onPressed: () => _processApproval(false),
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0),
+                              child: const Text("Reject", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
                           ),
-                          child: const Text("Reject",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16)),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildParticularRow({required String sr, required String name, required String amountText, bool isHighlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          SizedBox(width: 40, child: Text(sr, style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          Expanded(child: Text(name, style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          Text(amountText, textAlign: TextAlign.right, style: TextStyle(fontSize: 13, fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal, color: isHighlight ? Colors.green : Colors.black87)),
+        ],
       ),
     );
   }
