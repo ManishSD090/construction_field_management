@@ -17,6 +17,7 @@ import 'package:construction_erp/screens/projects/add_sub_contractor.dart';
 import 'package:construction_erp/screens/timeline/timeline_tab.dart';
 import 'package:construction_erp/screens/timeline/create_timeline.dart' as ct;
 import 'package:construction_erp/screens/timeline/create_timeline_version.dart';
+import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/finance_tab.dart';
@@ -267,7 +268,12 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   Widget _buildOverviewTab() {
     return Column(children: [
       Row(children: [
-        _buildProgressCircle(),
+        Column(
+          children: [
+            _buildProgressCircle(),
+            const SizedBox(height: 4),
+          ],
+        ),
         const SizedBox(width: 25),
         Expanded(
             child: Column(children: [
@@ -400,7 +406,41 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                   child: Text("${project.progress ?? 0}%",
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 18)))
-            ]))
+            ])),
+        Consumer(builder: (context, ref, child) {
+          final timelineAsync = ref.watch(timelineControllerProvider);
+          final state = timelineAsync.valueOrNull;
+
+          // Extract timelineId if available
+          final tId = (state != null && state.timelines.isNotEmpty)
+              ? state.timelines.first.id
+              : null;
+
+          return ElevatedButton(
+            onPressed: () {
+              if (tId != null) {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            GanttChartScreen(timelineId: tId)));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text(
+                          'Please create a timeline first to view the Gantt chart.')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    tId != null ? AppColors.primaryBlue : AppColors.lightGrey,
+                minimumSize: const Size(80, 28),
+                shape: const StadiumBorder()),
+            child: const Text("VIEW",
+                style: TextStyle(color: Colors.white, fontSize: 10)),
+          );
+        })
       ]);
 
   Widget _buildAttendanceGauge(int total) => Container(
@@ -591,56 +631,58 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-  if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
-    return null;
-  }
+    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
+        .contains(_selectedTab)) {
+      return null;
+    }
 
-  return FloatingActionButton(
-    onPressed: () {
-      if (_selectedTab == 'Tasks') {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CreateTaskScreen(),
-          ),
-        );
-      } else if (_selectedTab == 'Sub-contractor') {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                AddSubContractorScreen(projectId: project.id),
-          ),
-        );
-      } else if (_selectedTab == 'Timeline') {
-        final tId = ref
-            .read(timelineControllerProvider)
-            .valueOrNull
-            ?.timelines
-            .firstOrNull
-            ?.id;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => tId != null
-                ? CreateTimelineVersionScreen(timelineId: tId)
-                : ct.CreateTimelineScreen(projectId: project.id),
-          ),
-        );
-      } else if (_selectedTab == 'DPR') {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CreateDPRScreen(
-              scrollController: ScrollController(),
+    return FloatingActionButton(
+      onPressed: () {
+        if (_selectedTab == 'Tasks') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateTaskScreen(),
             ),
-          ),
-        );
-      }
-    },
-    backgroundColor: AppColors.primaryBlue,
-    shape: const CircleBorder(),
-    child: const Icon(Icons.add, color: Colors.white),
-  );
-}}
+          );
+        } else if (_selectedTab == 'Sub-contractor') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  AddSubContractorScreen(projectId: project.id),
+            ),
+          );
+        } else if (_selectedTab == 'Timeline') {
+          final tId = ref
+              .read(timelineControllerProvider)
+              .valueOrNull
+              ?.timelines
+              .firstOrNull
+              ?.id;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => tId != null
+                  ? CreateTimelineVersionScreen(timelineId: tId)
+                  : ct.CreateTimelineScreen(projectId: project.id),
+            ),
+          );
+        } else if (_selectedTab == 'DPR') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreateDPRScreen(
+                scrollController: ScrollController(),
+              ),
+            ),
+          );
+        }
+      },
+      backgroundColor: AppColors.primaryBlue,
+      shape: const CircleBorder(),
+      child: const Icon(Icons.add, color: Colors.white),
+    );
+  }
+}
