@@ -1,26 +1,28 @@
-import 'package:construction_erp/controllers/core_providers.dart';
+import 'dart:convert'; // 🚨 Added to fix jsonDecode error
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:construction_erp/core/services/app_colors.dart';
+import 'package:construction_erp/controllers/core_providers.dart';
+import 'package:construction_erp/controllers/dpr/dpr_controller.dart';
 import 'package:construction_erp/models/dpr.dart';
 import 'package:construction_erp/models/enums.dart';
+
 import 'package:construction_erp/screens/dpr/create_wpr_screen.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
+import 'package:construction_erp/screens/dpr/edit_dpr_screen.dart';
 import 'dpr_details.dart';
 
 // --- DATA PROVIDER ---
 final dprListProvider = FutureProvider<List<dynamic>>((ref) async {
   final dioClient = ref.watch(dioClientProvider);
-  // Fetching real DPR data from your backend
   final response = await dioClient.dio.get('/dpr?page=1&limit=20');
   return response.data['data'] as List<dynamic>;
 });
 
 class ProjectDPRTab extends ConsumerStatefulWidget {
   final ValueChanged<int>? onTypeChanged;
-
   const ProjectDPRTab({super.key, this.onTypeChanged});
 
   @override
@@ -29,55 +31,100 @@ class ProjectDPRTab extends ConsumerStatefulWidget {
 
 class _ProjectDPRTabState extends ConsumerState<ProjectDPRTab> {
   int _selectedType = 0; // 0 = Daily, 1 = Weekly
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = {};
+  bool _isDeleting = false;
 
-  void _openCreateReport(BuildContext context) {
-    if (_selectedType == 0) {
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+    setState(() => _isDeleting = true);
+    try {
+      final controller = ref.read(dprControllerProvider.notifier);
+      for (String id in _selectedIds) {
+        await controller.deleteDPR(id);
+      }
+      ref.invalidate(dprListProvider);
+      _toggleSelectionMode();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reports deleted successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
+  Future<void> _editSelected(List<dynamic> allDprs) async {
+    if (_selectedIds.length != 1) return;
+    final String id = _selectedIds.first;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final fullDpr = await ref.read(dprControllerProvider.notifier).getDPRById(id);
+      if (!mounted) return;
+      Navigator.pop(context);
+
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CreateDPRScreen(
-            scrollController: ScrollController(),
-          ),
-        ),
-      );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CreateWPRScreen(
-            scrollController: ScrollController(),
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => EditDPRScreen(dpr: fullDpr)),
+      ).then((_) {
+        _toggleSelectionMode();
+        ref.invalidate(dprListProvider); 
+      });
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load for editing: $e')),
       );
     }
   }
 
-  // Parses raw API JSON into the DailyProgressReport model required by the details screen
   DailyProgressReport _mapToDprModel(Map<String, dynamic> item) {
     DateTime parsedDate = DateTime.now();
-    try {
-      parsedDate = DateTime.parse(item['date']);
-    } catch (_) {}
+    try { parsedDate = DateTime.parse(item['date']); } catch (_) {}
 
     final String statusStr = (item['status'] ?? 'TODO').toString().toUpperCase();
     TaskStatus status = TaskStatus.todo;
-    
-    try {
-      status = TaskStatus.values.byName(statusStr.toLowerCase());
-    } catch (_) {
+    try { status = TaskStatus.values.byName(statusStr.toLowerCase()); } catch (_) {
       if (statusStr == 'COMPLETED' || statusStr == 'APPROVED') status = TaskStatus.completed;
       if (statusStr == 'IN_PROGRESS') status = TaskStatus.inProgress;
     }
 
     return DailyProgressReport(
-      id: item['id'] ?? "temp_${DateTime.now().millisecondsSinceEpoch}",
+      id: item['id'] ?? "",
       reportNo: item['reportNo'] ?? "N/A",
       projectId: item['projectId'] ?? "-",
       projectName: item['project']?['name'] ?? "Unknown Project",
-      
-      // FIX 1: Pass the name into the ID field as a fallback since preparedBy is null, 
-      // the details screen uses `dpr.preparedBy?.name ?? dpr.preparedById`
       preparedById: item['preparedBy']?['name'] ?? item['preparedById'] ?? "-",
-      preparedBy: null, // Fixed: Reverted to null as per your original model
-      
       date: parsedDate,
       weather: item['weather'] ?? "Sunny",
       workDescription: item['workDescription'] ?? "-",
@@ -87,203 +134,264 @@ class _ProjectDPRTabState extends ConsumerState<ProjectDPRTab> {
       status: status,
       createdAt: item['createdAt'] != null ? DateTime.parse(item['createdAt']) : DateTime.now(),
       updatedAt: item['updatedAt'] != null ? DateTime.parse(item['updatedAt']) : DateTime.now(),
-      
-      materialsUsed: item['materialsUsed'],
-      equipmentUsed: item['equipmentUsed'],
-      issuesFound: item['issuesFound'],
-      nextDayTaskName: item['nextDayPlan'],
-      notes: item['notes'],
-      
-      photos: const [],
-      documents: const [],
-      
-      // FIX 2: Safely cast the list of dynamics to a List of Maps
+      materialConsumptions: (item['materialConsumptions'] as List?)
+        ?.map((e) => MaterialConsumption.fromJson(Map<String, dynamic>.from(e)))
+        .toList() ?? [],
+      subContractorName: item['subcontractorDetails']?['name'] ?? item['subContractorName'],
+      equipments: _parseEquipments(item['equipmentUsage'] ?? item['equipmentUsed']),
       siteVisitors: (item['siteVisitors'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          const [],
+              .toList() ?? const [],
     );
-  }
-
-  Color _getStatusColor(String status) {
-    final s = status.toLowerCase();
-    if (s == 'approved' || s == 'completed') return const Color(0xFF4CAF50); // Green
-    if (s == 'submitted' || s == 'todo') return const Color(0xFF1976D2); // Blue
-    if (s == 'review' || s == 'in_progress') return const Color(0xFFF39C12); // Orange
-    return Colors.grey;
-  }
-
-  String _formatStatus(String status) {
-    if (status.toUpperCase() == 'TODO') return 'Submitted';
-    if (status.toUpperCase() == 'COMPLETED') return 'Approved';
-    return status[0].toUpperCase() + status.substring(1).toLowerCase();
   }
 
   @override
   Widget build(BuildContext context) {
     final dprAsyncValue = ref.watch(dprListProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // --- Daily / Weekly Toggle ---
-        Container(
-          height: 42,
-          padding: const EdgeInsets.all(4),
+    return SingleChildScrollView( // 🚨 Added to prevent ListView height errors
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!_isSelectionMode) _buildTopToggle(),
+          const SizedBox(height: 14),
+          _buildHeaderRow(dprAsyncValue),
+          const SizedBox(height: 10),
+          _selectedType == 0 
+            ? _buildDPRList(dprAsyncValue) 
+            : _buildWPRList(),
+          const SizedBox(height: 80), // Space for FAB
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopToggle() {
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          _toggleButton("Daily", 0),
+          _toggleButton("Weekly", 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleButton(String label, int type) {
+    bool isSelected = _selectedType == type;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedType = type);
+          // This notifies the parent screen IMMEDIATELY
+          if (widget.onTypeChanged != null) {
+            widget.onTypeChanged!(type);
+          }
+        },
+        child: Container(
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(22),
+            color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedType = 0);
-                    widget.onTypeChanged?.call(_selectedType);
-                  },
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: _selectedType == 0 ? AppColors.primaryBlue : Colors.transparent,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Text("Daily", style: TextStyle(color: _selectedType == 0 ? Colors.white : AppColors.textDark, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedType = 1);
-                    widget.onTypeChanged?.call(_selectedType);
-                  },
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: _selectedType == 1 ? AppColors.primaryBlue : Colors.transparent,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Text("Weekly", style: TextStyle(color: _selectedType == 1 ? Colors.white : AppColors.textDark, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: Text(label, style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textDark, 
+            fontWeight: FontWeight.w600
+          )),
         ),
+      ),
+    );
+  }
 
-        const SizedBox(height: 14),
-
-        // --- Header Row ---
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            children: [
-              const Text("DPR list", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-              const Spacer(),
-              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.edit, color: Colors.grey, size: 20)),
-              const SizedBox(width: 8),
-              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.alertRed.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.delete, color: AppColors.alertRed, size: 20)),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () {}, // Future filter logic
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  side: const BorderSide(color: AppColors.primaryBlue),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  Widget _buildHeaderRow(AsyncValue<List<dynamic>> asyncVal) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: _isSelectionMode 
+      ? Row(
+          children: [
+            Text("${_selectedIds.length} Selected", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+            const Spacer(),
+            IconButton(
+              icon: Icon(Icons.edit, color: _selectedIds.length == 1 ? AppColors.primaryBlue : Colors.grey.shade400),
+              onPressed: _selectedIds.length == 1 ? () => asyncVal.whenData((dprs) => _editSelected(dprs)) : null,
+            ),
+            _isDeleting 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : IconButton(
+                  icon: Icon(Icons.delete, color: _selectedIds.isNotEmpty ? Colors.red : Colors.grey.shade400),
+                  onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
                 ),
-                icon: const Icon(Icons.tune, size: 16, color: AppColors.textDark),
-                label: const Text("Filter", style: TextStyle(color: AppColors.textDark, fontSize: 13)),
-              ),
-            ],
-          ),
+            IconButton(icon: const Icon(Icons.close), onPressed: _toggleSelectionMode),
+          ],
+        )
+      : Row(
+          children: [
+            Text(_selectedType == 0 ? "DPR list" : "WPR list", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+            const Spacer(),
+            _quickActionButton(Icons.edit, Colors.grey, _toggleSelectionMode),
+            const SizedBox(width: 8),
+            _quickActionButton(Icons.delete, Colors.red, _toggleSelectionMode),
+          ],
         ),
+    );
+  }
 
-        const SizedBox(height: 10),
+  Widget _quickActionButton(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8), 
+        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), 
+        child: Icon(icon, color: color, size: 20)
+      ),
+    );
+  }
 
-        // --- Dynamic DPR List ---
-        _selectedType == 0 
-        ? dprAsyncValue.when(
-            data: (dprs) {
-              if (dprs.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: Text("No DPRs found.", style: TextStyle(color: Colors.grey))),
-                );
-              }
+  Widget _buildDPRList(AsyncValue<List<dynamic>> asyncVal) {
+    return asyncVal.when(
+      data: (dprs) {
+        if (dprs.isEmpty) return const Center(child: Text("No reports found."));
+        return ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: dprs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final item = dprs[index];
+            final id = item['id'];
+            DateTime date = DateTime.tryParse(item['date'] ?? '') ?? DateTime.now();
+            return _dprCard(item, id, date);
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Text("Error: $err"),
+    );
+  }
 
-              return ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: dprs.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final item = dprs[index];
-                  
-                  // Format Data for UI
-                  DateTime date = DateTime.tryParse(item['date'] ?? '') ?? DateTime.now();
-                  String displayDate = DateFormat("dd MMM yyyy").format(date);
-                  String preparerName = item['preparedBy']?['name'] ?? "Unknown User";
-                  String displayStatus = _formatStatus(item['status'] ?? 'TODO');
-                  Color statusColor = _getStatusColor(item['status'] ?? 'TODO');
+  Widget _dprCard(Map<String, dynamic> item, String id, DateTime date) {
+    bool isSelected = _selectedIds.contains(id);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () async {
+        if (_isSelectionMode) {
+          _toggleSelection(id);
+        } else {
+          showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
+          final fullDpr = await ref.read(dprControllerProvider.notifier).getDPRById(id);
+          if (!mounted) return;
+          Navigator.pop(context);
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => DPRDetailsScreen(dpr: fullDpr)));
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryBlue.withOpacity(0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? AppColors.primaryBlue : Colors.grey.shade200),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(DateFormat("dd MMM yyyy").format(date), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text("Prepared by: ${item['preparedBy']?['name'] ?? 'User'}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+            _statusBadge(item['status'] ?? 'TODO'),
+          ],
+        ),
+      ),
+    );
+  }
 
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      final dprModel = _mapToDprModel(item);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => DPRDetailsScreen(dpr: dprModel)),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4))
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(displayDate, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-                              const SizedBox(height: 6),
-                              RichText(
-                                text: TextSpan(
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                  children: [
-                                    const TextSpan(text: "Prepared by: "),
-                                    TextSpan(text: preparerName, style: const TextStyle(color: AppColors.primaryBlue)),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
-                            child: Text(displayStatus, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
-            error: (err, stack) => Center(child: Padding(padding: const EdgeInsets.all(20), child: Text("Error loading DPRs: $err", style: const TextStyle(color: Colors.red)))),
-          )
-        : const Padding(
-            padding: EdgeInsets.symmetric(vertical: 40),
-            child: Center(child: Text("Weekly Reports feature coming soon.", style: TextStyle(color: Colors.grey))),
-          ),
+  Widget _statusBadge(String status) {
+    bool isDone = status.toLowerCase() == 'approved' || status.toLowerCase() == 'completed';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDone ? Colors.green : AppColors.primaryBlue, 
+        borderRadius: BorderRadius.circular(20)
+      ),
+      child: Text(status.toUpperCase() == 'TODO' ? 'Submitted' : status, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildWPRList() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            _wprFilter("FEB"),
+            const SizedBox(width: 12),
+            _wprFilter("Week 1"),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 4,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final weeks = ["Sep 2025 - Week 4", "Sep 2025 - Week 3", "Sep 2025 - Week 2", "Sep 2025 - Week 1"];
+            return _wprCard(weeks[index]);
+          },
+        ),
       ],
     );
+  }
+
+  Widget _wprFilter(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.primaryBlue)),
+      child: Row(children: [
+        Text(label, style: const TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+        const Icon(Icons.keyboard_arrow_down, color: AppColors.primaryBlue)
+      ]),
+    );
+  }
+
+  Widget _wprCard(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey)
+        ]
+      ),
+    );
+  }
+
+  List<DPREquipment> _parseEquipments(dynamic data) {
+    if (data == null) return [];
+    if (data is List) return data.map((e) => DPREquipment.fromUsageJson(Map<String, dynamic>.from(e))).toList();
+    if (data is String && data.startsWith('[')) {
+      try {
+        final List parsed = jsonDecode(data);
+        return parsed.map((e) => DPREquipment.fromUsageJson(Map<String, dynamic>.from(e))).toList();
+      } catch (_) { return []; }
+    }
+    return [];
   }
 }

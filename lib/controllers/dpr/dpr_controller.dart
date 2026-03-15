@@ -25,6 +25,7 @@ class DPRController extends AsyncNotifier<DPRState> {
     return _fetchPage(page: 1, isRefresh: true);
   }
 
+  // --- PRIVATE FETCH LOGIC ---
   Future<DPRState> _fetchPage({
     required int page,
     required bool isRefresh,
@@ -58,15 +59,18 @@ class DPRController extends AsyncNotifier<DPRState> {
         hasMore: hasMore,
       );
     } else {
-      final currentList = state.value?.dprs ?? [];
-      return state.value!.copyWith(
-        dprs: [...currentList, ...newDprs],
+      final currentState = state.value;
+      if (currentState == null) return build();
+      return currentState.copyWith(
+        dprs: [...currentState.dprs, ...newDprs],
         currentPage: currentPage,
         hasMore: hasMore,
         isLoadingMore: false,
       );
     }
   }
+
+  // --- PUBLIC ACTIONS ---
 
   Future<void> refresh({
     String? search,
@@ -83,11 +87,7 @@ class DPRController extends AsyncNotifier<DPRState> {
 
   Future<void> loadNextPage() async {
     final currentState = state.value;
-    if (currentState == null ||
-        !currentState.hasMore ||
-        currentState.isLoadingMore) {
-      return;
-    }
+    if (currentState == null || !currentState.hasMore || currentState.isLoadingMore) return;
 
     state = AsyncValue.data(currentState.copyWith(isLoadingMore: true));
     state = await AsyncValue.guard(() => _fetchPage(
@@ -101,23 +101,21 @@ class DPRController extends AsyncNotifier<DPRState> {
     return DailyProgressReport.fromJson(response.data['data']);
   }
 
-  Future<List<DailyProgressReport>> getDPRsByProject(String projectId) async {
-    final response = await _dioClient.dio.get('$_basePath/project/$projectId');
-    final List<dynamic> dprs = response.data['data']['dprs'] ?? [];
-    return dprs.map((e) => DailyProgressReport.fromJson(e)).toList();
+  Future<DailyProgressReport> createDPR(Map<String, dynamic> payload) async {
+    final response = await _dioClient.dio.post(_basePath, data: payload);
+    final newDpr = DailyProgressReport.fromJson(response.data['data']);
+    await refresh(); // Immediate UI update
+    return newDpr;
   }
 
-  Future<DailyProgressReport> createDPR(Map<String, dynamic> payload) async {
-  final response = await _dioClient.dio.post(_basePath, data: payload);
-  return DailyProgressReport.fromJson(response.data['data']);
-}
-
-  Future<DailyProgressReport> updateDPR(
-    String id,
-    Map<String, dynamic> payload,
-  ) async {
+  Future<DailyProgressReport> updateDPR(String id, Map<String, dynamic> payload) async {
+    // Matches backend PUT /api/v1/dpr/:id
     final response = await _dioClient.dio.put('$_basePath/$id', data: payload);
-    return DailyProgressReport.fromJson(response.data['data']);
+    final updatedDpr = DailyProgressReport.fromJson(response.data['data']);
+    
+    // Refresh to ensure list reflects calculated changes (budget, labor cost, etc.)
+    await refresh();
+    return updatedDpr;
   }
 
   Future<void> deleteDPR(String id) async {
@@ -125,27 +123,20 @@ class DPRController extends AsyncNotifier<DPRState> {
     await refresh();
   }
 
-  Future<DailyProgressReport> approveDPR(
-    String id, {
-    String status = 'COMPLETED',
-    String? comments,
-  }) async {
+  Future<DailyProgressReport> approveDPR(String id, {String status = 'COMPLETED', String? comments}) async {
     final response = await _dioClient.dio.patch(
       '$_basePath/$id/approve',
       data: {
         'status': status,
-        if (comments != null && comments.trim().isNotEmpty)
-          'comments': comments,
+        if (comments != null) 'comments': comments,
       },
     );
-    return DailyProgressReport.fromJson(response.data['data']);
+    final result = DailyProgressReport.fromJson(response.data['data']);
+    await refresh();
+    return result;
   }
 
-  Future<List<DPRPhoto>> getDPRPhotos(String dprId) async {
-    final response = await _dioClient.dio.get('$_photoPath/dpr/$dprId');
-    final List<dynamic> photos = response.data['data']['photos'] ?? [];
-    return photos.map((e) => DPRPhoto.fromJson(e)).toList();
-  }
+  // --- PHOTO LOGIC ---
 
   Future<DPRPhoto> uploadDPRPhoto({
     required String dprId,
@@ -154,7 +145,6 @@ class DPRController extends AsyncNotifier<DPRState> {
     String? description,
   }) async {
     final fileName = file.path.split('/').last;
-
     final formData = FormData.fromMap({
       'dprId': dprId,
       if (title != null) 'title': title,
@@ -165,28 +155,22 @@ class DPRController extends AsyncNotifier<DPRState> {
     final response = await _dioClient.dio.post(
       '$_photoPath/upload',
       data: formData,
-      options: Options(
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      ),
+      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
     );
-
-  Future<void> uploadMultiplePhotos(String dprId, List<File> files) async {
-  for (var file in files) {
-    await uploadDPRPhoto(
-      dprId: dprId,
-      file: file,
-      title: "Site Photo",
-      description: "Uploaded from Mobile App",
-    );
-  }
-}
-
     return DPRPhoto.fromJson(response.data['data']);
   }
 
-  Future<void> uploadMultiplePhotos(String id, List<File> selectedImages) async {}
+  Future<void> uploadMultiplePhotos(String dprId, List<File> files) async {
+    for (var file in files) {
+      await uploadDPRPhoto(
+        dprId: dprId, 
+        file: file, 
+        title: "Site Photo",
+        description: "Uploaded from Mobile App",
+      );
+    }
+    await refresh();
+  }
 }
 
 class DPRState {
@@ -217,16 +201,16 @@ class DPRState {
   }
 }
 
-// Provider to fetch real projects
+// --- EXTERNAL DATA PROVIDERS ---
+
 final projectsProvider = FutureProvider<List<dynamic>>((ref) async {
   final dioClient = ref.watch(dioClientProvider);
   final response = await dioClient.dio.get('/projects');
   return response.data['data'] as List<dynamic>;
 });
 
-// Provider to fetch real materials for consumption logic
 final materialsProvider = FutureProvider<List<dynamic>>((ref) async {
   final dioClient = ref.watch(dioClientProvider);
-  final response = await dioClient.dio.get('/inventory'); // Adjust endpoint if needed
+  final response = await dioClient.dio.get('/inventory');
   return response.data['data'] as List<dynamic>;
 });

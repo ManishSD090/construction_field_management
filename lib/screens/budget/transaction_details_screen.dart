@@ -206,8 +206,9 @@ class _TransactionDetailsScreenState
     bool canConvert = type == BudgetTransactionType.commitment &&
         status == BudgetTransactionStatus.committed;
 
-    if (!canCancel && !canApprove && !canConvert)
+    if (!canCancel && !canApprove && !canConvert) {
       return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,16 +291,20 @@ class _TransactionDetailsScreenState
   Widget _buildHeaderCard() {
     final formatter = NumberFormat("#,##,000.00");
     Color badgeColor = Colors.grey;
-    if (widget.transaction.status == BudgetTransactionStatus.committed)
+    if (widget.transaction.status == BudgetTransactionStatus.committed) {
       badgeColor = Colors.orange;
-    if (widget.transaction.status == BudgetTransactionStatus.disbursed)
+    }
+    if (widget.transaction.status == BudgetTransactionStatus.disbursed) {
       badgeColor = AppColors.successGreen;
-    if (widget.transaction.status == BudgetTransactionStatus.cancelled)
+    }
+    if (widget.transaction.status == BudgetTransactionStatus.cancelled) {
       badgeColor = AppColors.alertRed;
+    }
 
     String iconStr = '₹';
-    if (widget.transaction.transactionType == BudgetTransactionType.transfer)
+    if (widget.transaction.transactionType == BudgetTransactionType.transfer) {
       iconStr = '⇄';
+    }
 
     return Container(
       width: double.infinity,
@@ -422,10 +427,12 @@ class _TransactionDetailsScreenState
   Widget _buildReferenceCard() {
     String refTypeName = widget.transaction.referenceType!.replaceAll('_', ' ');
 
-    if (widget.transaction.referenceType == 'MATERIAL_REQUEST')
+    if (widget.transaction.referenceType == 'MATERIAL_REQUEST') {
       refTypeName = 'Material Request';
-    if (widget.transaction.referenceType == 'PURCHASE_ORDER')
+    }
+    if (widget.transaction.referenceType == 'PURCHASE_ORDER') {
       refTypeName = 'Purchase Order';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -443,8 +450,8 @@ class _TransactionDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(Icons.link, color: Colors.blueGrey),
               SizedBox(width: 8),
               Text("Linked Request",

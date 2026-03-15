@@ -129,9 +129,9 @@ class DashboardController extends AsyncNotifier<DashboardState> {
       _dioClient.dio.get('$_basePath/charts/projects/distribution'),
     ]);
 
-    final adminDashboardRes = results[0] as Response;
-    final trendsRes = results[1] as Response;
-    final distRes = results[2] as Response;
+    final adminDashboardRes = results[0];
+    final trendsRes = results[1];
+    final distRes = results[2];
 
     Map<String, dynamic>? quickActions;
     List<dynamic> initialActivities = [];
@@ -213,7 +213,7 @@ class DashboardController extends AsyncNotifier<DashboardState> {
         hasMoreActivities: hasMore,
         isLoadingMore: false,
       ));
-    } catch (e, st) {
+    } catch (e) {
       state = AsyncValue.data(currentState.copyWith(isLoadingMore: false));
     }
   }

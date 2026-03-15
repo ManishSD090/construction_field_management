@@ -527,12 +527,15 @@ class _TransactionHistoryScreenState
     }
 
     Color badgeColor = Colors.grey;
-    if (tx.status == BudgetTransactionStatus.committed)
+    if (tx.status == BudgetTransactionStatus.committed) {
       badgeColor = Colors.orange;
-    if (tx.status == BudgetTransactionStatus.disbursed)
+    }
+    if (tx.status == BudgetTransactionStatus.disbursed) {
       badgeColor = AppColors.successGreen;
-    if (tx.status == BudgetTransactionStatus.cancelled)
+    }
+    if (tx.status == BudgetTransactionStatus.cancelled) {
       badgeColor = AppColors.alertRed;
+    }
 
     // 1. Build accurate base Category Name (Strictly Main Category only)
     String categoryName = 'UNCATEGORIZED';

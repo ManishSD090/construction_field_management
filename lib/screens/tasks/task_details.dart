@@ -425,10 +425,10 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 const SizedBox(height: 25),
 
                 // Subtasks Section
-                Row(
+                const Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       "Subtasks",
                       style: TextStyle(
                         fontSize: 16,
@@ -436,11 +436,11 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                         color: AppColors.textDark,
                       ),
                     ),
-                    const Spacer(),
-                    const Icon(Icons.info_outline,
+                    Spacer(),
+                    Icon(Icons.info_outline,
                         size: 14, color: AppColors.textGrey),
-                    const SizedBox(width: 4),
-                    const Text(
+                    SizedBox(width: 4),
+                    Text(
                       "Long-press to mark complete",
                       style: TextStyle(fontSize: 11, color: AppColors.textGrey),
                     ),
@@ -458,7 +458,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 else
                   ...task.subtasks!
                       .map((subtask) => _buildSubtaskCard(task, subtask))
-                      .toList(),
+                      ,
 
                 const SizedBox(height: 15),
 
@@ -511,8 +511,8 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                               child: CircularProgressIndicator(
                                   color: AppColors.primaryBlue)),
                         ),
-                        error: (err, stack) => Padding(
-                          padding: const EdgeInsets.all(10.0),
+                        error: (err, stack) => const Padding(
+                          padding: EdgeInsets.all(10.0),
                           child: Center(
                               child: Text("Error loading photos",
                                   style: TextStyle(color: AppColors.alertRed))),

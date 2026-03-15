@@ -312,10 +312,10 @@ class _CreateBudgetScreenState extends ConsumerState<CreateBudgetScreen> {
             ),
 
             // Table Headers
-            Padding(
-              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
+            const Padding(
+              padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
               child: Row(
-                children: const [
+                children: [
                   SizedBox(
                       width: 30,
                       child: Text('Sr.',

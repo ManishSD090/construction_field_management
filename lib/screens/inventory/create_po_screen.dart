@@ -51,7 +51,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   bool _isCustomSupplier = false;
 
   // Multiple Items State
-  List<Map<String, dynamic>> _addedItems = [];
+  final List<Map<String, dynamic>> _addedItems = [];
   String? _selectedMaterialId;
   String? _selectedMaterialRequestId;
   String? _selectedMaterialRequestNo;
@@ -263,9 +263,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                               _itemPriceController.clear();
                             }
 
-                            if (_selectedProjectId == null) {
-                              _selectedProjectId = req.projectId;
-                            }
+                            _selectedProjectId ??= req.projectId;
 
                             // Auto-select budget category if the request already has a commitment
                             if (req.budgetTransactions != null &&
@@ -490,7 +488,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                                   if (val) _selectedSupplierId = null;
                                 });
                               },
-                              activeColor: const Color(0xFF0D6EFD),
+                              activeThumbColor: const Color(0xFF0D6EFD),
                             ),
                           ],
                         ),

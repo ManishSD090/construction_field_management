@@ -262,9 +262,10 @@ class _CreateGRNScreenState extends ConsumerState<CreateGRNScreen> {
                                         );
                                       }).toList(),
                                       onChanged: (value) {
-                                        if (value != null)
+                                        if (value != null) {
                                           setState(
                                               () => _selectedQuality = value);
+                                        }
                                       },
                                     ),
                                   ),

@@ -931,8 +931,9 @@ enum TransactionStatus {
   voided;
 
   static TransactionStatus fromJson(String? value) {
-    if (value == null || value.isEmpty)
+    if (value == null || value.isEmpty) {
       return TransactionStatus.pendingApproval;
+    }
     final camel = _toCamel(value);
     return TransactionStatus.values.firstWhere(
       (e) => e.name == camel,

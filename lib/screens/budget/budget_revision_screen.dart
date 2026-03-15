@@ -429,7 +429,7 @@ class _CreateRevisionScreenState extends ConsumerState<CreateRevisionScreen> {
             child: Column(
               children: [
                 DropdownButtonFormField<BudgetRevisionType>(
-                  value: _revisionType,
+                  initialValue: _revisionType,
                   decoration: const InputDecoration(
                       labelText: "Revision Type", border: OutlineInputBorder()),
                   items: BudgetRevisionType.values

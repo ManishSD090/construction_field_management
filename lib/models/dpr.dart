@@ -1,322 +1,45 @@
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/models/user.dart';
 
-class DailyProgressReport {
+// 🚨 NEW CLASSES FOR MATERIAL TRACKING
+class MaterialDetail {
+  final String name;
+  MaterialDetail({required this.name});
+  factory MaterialDetail.fromJson(Map<String, dynamic> json) =>
+      MaterialDetail(name: (json['name'] ?? '') as String);
+  Map<String, dynamic> toJson() => {'name': name};
+}
+
+class MaterialConsumption {
   final String id;
-  final String reportNo;
-  final String projectId;
+  final double quantity;
+  final String unit;
+  final MaterialDetail? material;
 
-  final String? projectName;
-  final String? projectManagerId;
-  final User? projectManager;
-  final String? siteEngineerId;
-  final User? siteEngineer;
-
-  final String preparedById;
-  final User? preparedBy;
-
-  final DateTime date;
-
-  final String? weather;
-  final String? temperature;
-  final String? humidity;
-
-  final String workDescription;
-
-  // Backend uses siteVisitors as array
-  final List<Map<String, dynamic>> siteVisitors;
-
-  final String? completedWork;
-  final String? pendingWork;
-  final String? challenges;
-  final bool? supervisorPresent;
-
-  final int? workersPresent;
-  final int? workersTotal;
-  final int? staffPresent;
-  final int? staffTotal;
-  final int? totalWorkers;
-
-  final List<DPRTask> tasksCompleted;
-  final List<DPRMaterial> materials;
-  final List<DPREquipment> equipments;
-
-  final String? subContractorName;
-  final String? subContractorNotes;
-
-  final String? nextDayTaskName;
-  final String? nextDayNotes;
-
-  final String? equipmentUsed;
-  final String? materialsUsed;
-  final String? materialsReceived;
-  final String? materialsRequired;
-
-  final String? safetyObservations;
-  final String? incidents;
-  final String? qualityChecks;
-  final String? issuesFound;
-  final String? notes;
-
-  final String? approvedById;
-  final User? approvedBy;
-  final DateTime? approvedAt;
-
-  final TaskStatus status;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  final List<DPRPhoto> photos;
-  final List<DPRDocument> documents;
-
-  DailyProgressReport({
+  MaterialConsumption({
     required this.id,
-    required this.reportNo,
-    required this.projectId,
-    this.projectName,
-    this.projectManagerId,
-    this.projectManager,
-    this.siteEngineerId,
-    this.siteEngineer,
-    required this.preparedById,
-    this.preparedBy,
-    required this.date,
-    this.weather,
-    this.temperature,
-    this.humidity,
-    required this.workDescription,
-    this.siteVisitors = const [],
-    this.completedWork,
-    this.pendingWork,
-    this.challenges,
-    this.totalWorkers,
-    this.supervisorPresent,
-    this.workersPresent,
-    this.workersTotal,
-    this.staffPresent,
-    this.staffTotal,
-    this.tasksCompleted = const [],
-    this.materials = const [],
-    this.equipments = const [],
-    this.subContractorName,
-    this.subContractorNotes,
-    this.nextDayTaskName,
-    this.nextDayNotes,
-    this.equipmentUsed,
-    this.materialsUsed,
-    this.materialsReceived,
-    this.materialsRequired,
-    this.safetyObservations,
-    this.incidents,
-    this.qualityChecks,
-    this.issuesFound,
-    this.notes,
-    this.approvedById,
-    this.approvedBy,
-    this.approvedAt,
-    required this.status,
-    required this.createdAt,
-    required this.updatedAt,
-    this.photos = const [],
-    this.documents = const [],
+    required this.quantity,
+    required this.unit,
+    this.material,
   });
 
-  factory DailyProgressReport.fromJson(Map<String, dynamic> json) {
-    return DailyProgressReport(
+  factory MaterialConsumption.fromJson(Map<String, dynamic> json) {
+    return MaterialConsumption(
       id: (json['id'] ?? '') as String,
-      reportNo: (json['reportNo'] ?? '') as String,
-      projectId: (json['projectId'] ?? '') as String,
-
-      projectName: json['projectName'] as String? ??
-          (json['project'] is Map ? json['project']['name'] as String? : null),
-
-      projectManagerId: json['projectManagerId'] as String?,
-      projectManager: json['projectManager'] != null
-          ? User.fromJson(json['projectManager'])
+      quantity: (json['quantity'] ?? 0).toDouble(),
+      unit: (json['unit'] ?? '') as String,
+      material: json['material'] != null
+          ? MaterialDetail.fromJson(Map<String, dynamic>.from(json['material']))
           : null,
-
-      siteEngineerId: json['siteEngineerId'] as String?,
-      siteEngineer: json['siteEngineer'] != null
-          ? User.fromJson(json['siteEngineer'])
-          : null,
-
-      preparedById: (json['preparedById'] ?? '') as String,
-      preparedBy:
-          json['preparedBy'] != null ? User.fromJson(json['preparedBy']) : null,
-
-      date: DateTime.parse(json['date']),
-
-      weather: json['weather'] as String?,
-      temperature: json['temperature'] as String?,
-      humidity: json['humidity'] as String?,
-
-      workDescription: (json['workDescription'] ?? '') as String,
-
-      siteVisitors: json['siteVisitors'] is List
-          ? List<Map<String, dynamic>>.from(
-              (json['siteVisitors'] as List).map(
-                (e) => Map<String, dynamic>.from(e as Map),
-              ),
-            )
-          : [],
-
-      completedWork: json['completedWork'] as String?,
-      pendingWork: json['pendingWork'] as String?,
-      challenges: json['challenges'] as String?,
-      totalWorkers: _toInt(json['totalWorkers']),
-      supervisorPresent: json['supervisorPresent'] as bool?,
-
-      workersPresent: _toInt(json['workersPresent']),
-      workersTotal: _toInt(json['workersTotal']),
-      staffPresent: _toInt(json['staffPresent']),
-      staffTotal: _toInt(json['staffTotal']),
-
-      tasksCompleted: json['tasksCompleted'] is List
-          ? (json['tasksCompleted'] as List)
-              .map((e) => DPRTask.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-          : [],
-
-      materials: json['materials'] is List
-          ? (json['materials'] as List)
-              .map((e) => DPRMaterial.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-          : [],
-
-      // backend may send "equipments" OR "equipmentUsage"
-      equipments: json['equipments'] is List
-          ? (json['equipments'] as List)
-              .map((e) => DPREquipment.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-          : json['equipmentUsage'] is List
-              ? (json['equipmentUsage'] as List)
-                  .map((e) =>
-                      DPREquipment.fromUsageJson(Map<String, dynamic>.from(e)))
-                  .toList()
-              : [],
-
-      subContractorName: json['subContractorName'] as String? ??
-          (json['subcontractorDetails'] is Map
-              ? json['subcontractorDetails']['name'] as String?
-              : null),
-
-      subContractorNotes: json['subContractorNotes'] as String? ??
-          (json['subcontractorDetails'] is Map
-              ? json['subcontractorDetails']['notes'] as String?
-              : null),
-
-      nextDayTaskName: json['nextDayTaskName'] as String? ??
-          (json['nextDayPlanning'] is Map
-              ? json['nextDayPlanning']['taskName'] as String?
-              : null),
-
-      nextDayNotes: json['nextDayNotes'] as String? ??
-          (json['nextDayPlanning'] is Map
-              ? json['nextDayPlanning']['description'] as String?
-              : null),
-
-      equipmentUsed: json['equipmentUsed'] as String?,
-      materialsUsed: json['materialsUsed'] as String?,
-      materialsReceived: json['materialsReceived'] as String?,
-      materialsRequired: json['materialsRequired'] as String?,
-
-      safetyObservations: json['safetyObservations'] as String?,
-      incidents: json['incidents'] as String?,
-      qualityChecks: json['qualityChecks'] as String?,
-      issuesFound: json['issuesFound'] as String?,
-      notes: json['notes'] as String?,
-
-      approvedById: json['approvedById'] as String?,
-      approvedBy:
-          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
-
-      approvedAt: json['approvedAt'] != null
-          ? DateTime.parse(json['approvedAt'])
-          : null,
-
-      status: TaskStatus.fromJson(json['status'] as String?),
-
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-
-      photos: json['photos'] is List
-          ? (json['photos'] as List)
-              .map((e) => DPRPhoto.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-          : [],
-
-      documents: json['documents'] is List
-          ? (json['documents'] as List)
-              .map((e) => DPRDocument.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-          : [],
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'reportNo': reportNo,
-      'projectId': projectId,
-      'projectName': projectName,
-      'projectManagerId': projectManagerId,
-      'projectManager': projectManager?.toJson(),
-      'siteEngineerId': siteEngineerId,
-      'siteEngineer': siteEngineer?.toJson(),
-      'preparedById': preparedById,
-      'preparedBy': preparedBy?.toJson(),
-      'date': date.toIso8601String(),
-      'weather': weather,
-      'temperature': temperature,
-      'humidity': humidity,
-      'workDescription': workDescription,
-      'siteVisitors': siteVisitors,
-      'completedWork': completedWork,
-      'pendingWork': pendingWork,
-      'challenges': challenges,
-      'totalWorkers': totalWorkers,
-      'supervisorPresent': supervisorPresent,
-      'workersPresent': workersPresent,
-      'workersTotal': workersTotal,
-      'staffPresent': staffPresent,
-      'staffTotal': staffTotal,
-      'tasksCompleted': tasksCompleted.map((e) => e.toJson()).toList(),
-      'materials': materials.map((e) => e.toJson()).toList(),
-      'equipments': equipments.map((e) => e.toJson()).toList(),
-      'subContractorName': subContractorName,
-      'subContractorNotes': subContractorNotes,
-      'nextDayTaskName': nextDayTaskName,
-      'nextDayNotes': nextDayNotes,
-      'equipmentUsed': equipmentUsed,
-      'materialsUsed': materialsUsed,
-      'materialsReceived': materialsReceived,
-      'materialsRequired': materialsRequired,
-      'safetyObservations': safetyObservations,
-      'incidents': incidents,
-      'qualityChecks': qualityChecks,
-      'issuesFound': issuesFound,
-      'notes': notes,
-      'approvedById': approvedById,
-      'approvedBy': approvedBy?.toJson(),
-      'approvedAt': approvedAt?.toIso8601String(),
-      'status': status.toJson(),
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'photos': photos.map((e) => e.toJson()).toList(),
-      'documents': documents.map((e) => e.toJson()).toList(),
-    };
-  }
-
-  @override
-  String toString() =>
-      'DailyProgressReport(id: $id, reportNo: $reportNo, projectId: $projectId)';
-
-  static int? _toInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    return int.tryParse(value.toString());
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'quantity': quantity,
+        'unit': unit,
+        'material': material?.toJson(),
+      };
 }
 
 class DPRTask {
@@ -548,4 +271,262 @@ class DPRPhoto {
 
   @override
   String toString() => 'DPRPhoto(id: $id, dprId: $dprId)';
+}
+
+class DailyProgressReport {
+  final String id;
+  final String reportNo;
+  final String projectId;
+
+  final String? projectName;
+  final String? projectManagerId;
+  final User? projectManager;
+  final String? siteEngineerId;
+  final User? siteEngineer;
+
+  final String preparedById;
+  final User? preparedBy;
+
+  final DateTime date;
+
+  final String? weather;
+  final String? temperature;
+  final String? humidity;
+
+  final String workDescription;
+
+  final List<Map<String, dynamic>> siteVisitors;
+
+  final String? completedWork;
+  final String? pendingWork;
+  final String? challenges;
+  final bool? supervisorPresent;
+
+  final int? workersPresent;
+  final int? workersTotal;
+  final int? staffPresent;
+  final int? staffTotal;
+  final int? totalWorkers;
+
+  final List<DPRTask> tasksCompleted;
+  final List<DPRMaterial> materials;
+  final List<DPREquipment> equipments;
+
+  // 🚨 NEW INTEGRATED FIELDS (Correctly exposed as getters/properties)
+  final Map<String, dynamic>? attendanceSummary;
+  final List<MaterialConsumption>? materialConsumptions;
+
+  final String? subContractorName;
+  final String? subContractorNotes;
+
+  final String? nextDayTaskName;
+  final String? nextDayNotes;
+
+  final String? equipmentUsed;
+  final String? materialsUsed;
+  final String? materialsReceived;
+  final String? materialsRequired;
+
+  final String? safetyObservations;
+  final String? incidents;
+  final String? qualityChecks;
+  final String? issuesFound;
+  final String? notes;
+
+  final String? approvedById;
+  final User? approvedBy;
+  final DateTime? approvedAt;
+
+  final TaskStatus status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  final List<DPRPhoto> photos;
+  final List<DPRDocument> documents;
+
+  DailyProgressReport({
+    required this.id,
+    required this.reportNo,
+    required this.projectId,
+    this.projectName,
+    this.projectManagerId,
+    this.projectManager,
+    this.siteEngineerId,
+    this.siteEngineer,
+    required this.preparedById,
+    this.preparedBy,
+    required this.date,
+    this.weather,
+    this.temperature,
+    this.humidity,
+    required this.workDescription,
+    this.siteVisitors = const [],
+    this.completedWork,
+    this.pendingWork,
+    this.challenges,
+    this.totalWorkers,
+    this.supervisorPresent,
+    this.workersPresent,
+    this.workersTotal,
+    this.staffPresent,
+    this.staffTotal,
+    this.tasksCompleted = const [],
+    this.materials = const [],
+    this.equipments = const [],
+    this.attendanceSummary, 
+    this.materialConsumptions,
+    this.subContractorName,
+    this.subContractorNotes,
+    this.nextDayTaskName,
+    this.nextDayNotes,
+    this.equipmentUsed,
+    this.materialsUsed,
+    this.materialsReceived,
+    this.materialsRequired,
+    this.safetyObservations,
+    this.incidents,
+    this.qualityChecks,
+    this.issuesFound,
+    this.notes,
+    this.approvedById,
+    this.approvedBy,
+    this.approvedAt,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.photos = const [],
+    this.documents = const [],
+  });
+
+  factory DailyProgressReport.fromJson(Map<String, dynamic> json) {
+    return DailyProgressReport(
+      id: (json['id'] ?? '') as String,
+      reportNo: (json['reportNo'] ?? '') as String,
+      projectId: (json['projectId'] ?? '') as String,
+      projectName: json['projectName'] as String? ??
+          (json['project'] is Map ? json['project']['name'] as String? : null),
+      projectManagerId: json['projectManagerId'] as String?,
+      projectManager: json['projectManager'] != null
+          ? User.fromJson(json['projectManager'])
+          : null,
+      siteEngineerId: json['siteEngineerId'] as String?,
+      siteEngineer: json['siteEngineer'] != null
+          ? User.fromJson(json['siteEngineer'])
+          : null,
+      preparedById: (json['preparedById'] ?? '') as String,
+      preparedBy:
+          json['preparedBy'] != null ? User.fromJson(json['preparedBy']) : null,
+      date: DateTime.parse(json['date']),
+      weather: json['weather'] as String?,
+      temperature: json['temperature'] as String?,
+      humidity: json['humidity'] as String?,
+      workDescription: (json['workDescription'] ?? '') as String,
+      siteVisitors: json['siteVisitors'] is List
+          ? List<Map<String, dynamic>>.from(
+              (json['siteVisitors'] as List).map(
+                (e) => Map<String, dynamic>.from(e as Map),
+              ),
+            )
+          : [],
+      completedWork: json['completedWork'] as String?,
+      pendingWork: json['pendingWork'] as String?,
+      challenges: json['challenges'] as String?,
+      totalWorkers: _toInt(json['totalWorkers']),
+      supervisorPresent: json['supervisorPresent'] as bool?,
+      workersPresent: _toInt(json['workersPresent']),
+      workersTotal: _toInt(json['workersTotal']),
+      staffPresent: _toInt(json['staffPresent']),
+      staffTotal: _toInt(json['staffTotal']),
+
+      // 🚨 MAPPING NEW FIELDS
+      attendanceSummary: json['attendanceSummary'],
+      materialConsumptions: json['materialConsumptions'] != null
+          ? (json['materialConsumptions'] as List)
+              .map((e) => MaterialConsumption.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : null,
+
+      tasksCompleted: json['tasksCompleted'] is List
+          ? (json['tasksCompleted'] as List)
+              .map((e) => DPRTask.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+      materials: json['materials'] is List
+          ? (json['materials'] as List)
+              .map((e) => DPRMaterial.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+      equipments: json['equipments'] is List
+          ? (json['equipments'] as List)
+              .map((e) => DPREquipment.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : json['equipmentUsage'] is List
+              ? (json['equipmentUsage'] as List)
+                  .map((e) =>
+                      DPREquipment.fromUsageJson(Map<String, dynamic>.from(e)))
+                  .toList()
+              : [],
+      subContractorName: json['subContractorName'] as String? ??
+          (json['subcontractorDetails'] is Map
+              ? json['subcontractorDetails']['name'] as String?
+              : null),
+      subContractorNotes: json['subContractorNotes'] as String? ??
+          (json['subcontractorDetails'] is Map
+              ? json['subcontractorDetails']['notes'] as String?
+              : null),
+      nextDayTaskName: json['nextDayTaskName'] as String? ??
+          (json['nextDayPlanning'] is Map
+              ? json['nextDayPlanning']['taskName'] as String?
+              : null),
+      nextDayNotes: json['nextDayNotes'] as String? ??
+          (json['nextDayPlanning'] is Map
+              ? json['nextDayPlanning']['description'] as String?
+              : null),
+      equipmentUsed: json['equipmentUsed'] as String?,
+      materialsUsed: json['materialsUsed'] as String?,
+      materialsReceived: json['materialsReceived'] as String?,
+      materialsRequired: json['materialsRequired'] as String?,
+      safetyObservations: json['safetyObservations'] as String?,
+      incidents: json['incidents'] as String?,
+      qualityChecks: json['qualityChecks'] as String?,
+      issuesFound: json['issuesFound'] as String?,
+      notes: json['notes'] as String?,
+      approvedById: json['approvedById'] as String?,
+      approvedBy:
+          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
+      approvedAt: json['approvedAt'] != null
+          ? DateTime.parse(json['approvedAt'])
+          : null,
+      status: TaskStatus.fromJson(json['status'] as String?),
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+      photos: json['photos'] is List
+          ? (json['photos'] as List)
+              .map((e) => DPRPhoto.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+      documents: json['documents'] is List
+          ? (json['documents'] as List)
+              .map((e) => DPRDocument.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'reportNo': reportNo,
+      'projectId': projectId,
+      'attendanceSummary': attendanceSummary,
+      'materialConsumptions': materialConsumptions?.map((e) => e.toJson()).toList(),
+    };
+  }
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    return int.tryParse(value.toString());
+  }
 }

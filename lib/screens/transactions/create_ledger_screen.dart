@@ -179,7 +179,7 @@ class _CreateTransactionScreenState
 
           _buildLabel("Select Project"),
           DropdownButtonFormField<String>(
-            value: _selectedProjectId,
+            initialValue: _selectedProjectId,
             decoration: _inputDeco("Select Project"),
             items: projects
                 .map((p) => DropdownMenuItem(value: p.id, child: Text(p.name)))
@@ -331,13 +331,13 @@ class _CreateTransactionScreenState
           title: const Text("Deduct from Project Budget",
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
           value: _isBudgetSyncEnabled,
-          activeColor: AppColors.primaryBlue,
+          activeThumbColor: AppColors.primaryBlue,
           onChanged: (val) => setState(() => _isBudgetSyncEnabled = val),
         ),
         if (_isBudgetSyncEnabled) ...[
           _buildLabel("Budget Category"),
           DropdownButtonFormField<BudgetCategoryAllocation>(
-            value: _selectedBudgetCategory,
+            initialValue: _selectedBudgetCategory,
             isExpanded: true,
             decoration: _inputDeco("Select Category"),
             items: _availableBudgetCategories

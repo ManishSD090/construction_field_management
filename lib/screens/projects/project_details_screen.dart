@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/enums.dart';
@@ -21,6 +20,7 @@ import 'package:construction_erp/screens/timeline/create_timeline_version.dart';
 import 'package:construction_erp/screens/projects/gantt_chart_screen.dart';
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
+import 'package:construction_erp/screens/dpr/create_wpr_screen.dart'; // Import for Weekly Progress Report
 import 'package:construction_erp/screens/budget/finance_tab.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
 
@@ -39,7 +39,7 @@ class ProjectDetailsScreen extends ConsumerStatefulWidget {
 class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     with TickerProviderStateMixin {
   String _selectedTab = 'Overview';
-  final int _selectedReportType = 0;
+  int _selectedReportType = 0;
   late Project project;
   bool _isHeaderVisible = true;
   bool _isLoading = false;
@@ -312,7 +312,13 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       case 'Sub-contractor':
         return ProjectSubContractorsList(projectId: project.id);
       case 'DPR':
-        return const ProjectDPRTab();
+        return ProjectDPRTab(
+          onTypeChanged: (index) {
+            setState(() {
+              _selectedReportType = index; // index 0 = Daily, 1 = Weekly
+            });
+          },
+        );
       case 'Timeline':
         return _buildTimelineTab();
       case 'Overview':
@@ -773,28 +779,27 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
               .firstOrNull
               ?.id;
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => tId != null
-                  ? CreateTimelineVersionScreen(timelineId: tId)
-                  : ct.CreateTimelineScreen(projectId: project.id),
-            ),
-          );
-        } else if (_selectedTab == 'DPR') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateDPRScreen(
-                scrollController: ScrollController(),
-              ),
-            ),
-          );
-        }
-      },
-      backgroundColor: AppColors.primaryBlue,
-      shape: const CircleBorder(),
-      child: const Icon(Icons.add, color: Colors.white),
-    );
-  }
-}
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => tId != null
+                ? CreateTimelineVersionScreen(timelineId: tId)
+                : ct.CreateTimelineScreen(projectId: project.id),
+          ),
+        );
+      } else if (_selectedTab == 'DPR') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _selectedReportType == 0
+                ? CreateDPRScreen(scrollController: ScrollController()) // If Daily
+                : CreateWPRScreen(scrollController: ScrollController()), // If Weekly
+          ),
+        );
+      }
+    },
+    backgroundColor: AppColors.primaryBlue,
+    shape: const CircleBorder(),
+    child: const Icon(Icons.add, color: Colors.white),
+  );
+}}
