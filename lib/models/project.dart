@@ -11,8 +11,8 @@ class Project {
   final String? description;
 
   final String location;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final double geofenceRadius;
 
   final double estimatedBudget;
@@ -46,8 +46,8 @@ class Project {
     required this.name,
     this.description,
     required this.location,
-    required this.latitude,
-    required this.longitude,
+    this.latitude,
+    this.longitude,
     this.geofenceRadius = 200,
     required this.estimatedBudget,
     this.actualBudget,
@@ -67,6 +67,56 @@ class Project {
     this.client,
     this.settings,
   });
+
+  Project copyWith({
+    String? id,
+    String? projectId,
+    String? companyId,
+    String? clientId,
+    String? name,
+    String? location,
+    DateTime? startDate,
+    DateTime? estimatedEndDate,
+    DateTime? actualEndDate,
+    double? estimatedBudget,
+    double? actualBudget,
+    double? contractValue,
+    double? advanceReceived,
+    ProjectStatus? status,
+    Priority? priority,
+    int? progress,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    User? createdBy,
+    ProjectStats? stats,
+    Client? client,
+    ProjectSettings? settings,
+  }) {
+    return Project(
+      id: id ?? this.id,
+      projectId: projectId ?? this.projectId,
+      companyId: companyId ?? this.companyId,
+      clientId: clientId ?? this.clientId,
+      name: name ?? this.name,
+      location: location ?? this.location,
+      startDate: startDate ?? this.startDate,
+      estimatedEndDate: estimatedEndDate ?? this.estimatedEndDate,
+      actualEndDate: actualEndDate ?? this.actualEndDate,
+      estimatedBudget: estimatedBudget ?? this.estimatedBudget,
+      actualBudget: actualBudget ?? this.actualBudget,
+      contractValue: contractValue ?? this.contractValue,
+      advanceReceived: advanceReceived ?? this.advanceReceived,
+      status: status ?? this.status,
+      priority: priority ?? this.priority,
+      progress: progress ?? this.progress,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      createdBy: createdBy ?? this.createdBy,
+      stats: stats ?? this.stats,
+      client: client ?? this.client,
+      settings: settings ?? this.settings,
+    );
+  }
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(

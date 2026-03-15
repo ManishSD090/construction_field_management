@@ -7,6 +7,7 @@ import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
 import 'package:construction_erp/controllers/timeline/timeline_controller.dart';
+import 'package:dio/dio.dart';
 
 // Screen Imports
 import 'package:construction_erp/screens/projects/edit_project.dart';
@@ -23,7 +24,7 @@ import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/finance_tab.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
 
-// ✅ Attendance Imports from your working version
+// Attendance Imports
 import 'package:construction_erp/screens/payroll/payroll_details_screen.dart';
 import 'package:construction_erp/screens/attendance/mark_attendance_screen.dart';
 
@@ -41,7 +42,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   final int _selectedReportType = 0;
   late Project project;
   bool _isHeaderVisible = true;
-  bool _isDeleting = false;
+  bool _isLoading = false;
   bool _isInit = false;
 
   @override
@@ -110,75 +111,161 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   }
 
   Future<void> _performDeleteProject() async {
-    setState(() => _isDeleting = true);
-    try {
-      await ref
-          .read(projectControllerProvider.notifier)
-          .deleteProject(project.id);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Error: $e")));
+    setState(() => _isLoading = true);
+
+    await ref
+        .read(projectControllerProvider.notifier)
+        .deleteProject(project.id);
+
+    final state = ref.read(projectControllerProvider);
+
+    if (mounted) {
+      if (state.hasError) {
+        String errorMessage = "Failed to delete project.";
+
+        if (state.error is DioException) {
+          final dioError = state.error as DioException;
+          if (dioError.response?.data != null &&
+              dioError.response?.data is Map) {
+            errorMessage = dioError.response!.data['message'] ?? errorMessage;
+          }
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.alertRed,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Project deleted successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
       }
-    } finally {
-      if (mounted) setState(() => _isDeleting = false);
+
+      setState(() => _isLoading = false);
     }
+  }
+
+  // ================== UPDATE STATUS LOGIC ==================
+  Future<void> _updateProjectStatus(ProjectStatus newStatus) async {
+    if (project.status == newStatus) return;
+
+    setState(() => _isLoading = true);
+
+    await ref
+        .read(projectControllerProvider.notifier)
+        .updateProject(project.id, {'status': newStatus.toJson()});
+
+    final state = ref.read(projectControllerProvider);
+
+    if (mounted) {
+      if (state.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Failed to update project status"),
+            backgroundColor: AppColors.alertRed,
+          ),
+        );
+      } else {
+        setState(() {
+          project = project.copyWith(status: newStatus);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Status updated successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Color _getStatusColor(ProjectStatus status) {
+    final statusName = status.name.toLowerCase();
+    if (statusName == 'ongoing') return const Color(0xFFF9A825);
+    if (statusName == 'completed') return AppColors.successGreen;
+    if (statusName == 'cancelled' || statusName == 'delayed') {
+      return AppColors.alertRed;
+    }
+    if (statusName == 'on_hold' || statusName == 'onhold') return Colors.purple;
+    return AppColors.primaryBlue; // Default for Planning
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryBlue,
-        elevation: 0,
-        title: const Text("Project details",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context)),
-      ),
-      floatingActionButton: _buildFab(),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    child: _isHeaderVisible
-                        ? Container(
-                            color: Colors.white,
-                            padding: const EdgeInsets.all(20),
-                            child: Column(children: [
-                              _buildHeaderSection(),
-                              const SizedBox(height: 25),
-                              _buildMetricsRow()
-                            ]),
-                          )
-                        : const SizedBox.shrink(),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            backgroundColor: AppColors.primaryBlue,
+            elevation: 0,
+            title: const Text("Project details",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
+            leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context)),
+          ),
+          floatingActionButton: _buildFab(),
+          body: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: _isHeaderVisible
+                            ? Container(
+                                color: Colors.white,
+                                padding: const EdgeInsets.all(20),
+                                child: Column(children: [
+                                  _buildHeaderSection(),
+                                  const SizedBox(height: 25),
+                                  _buildMetricsRow()
+                                ]),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      _buildDividerArrow(),
+                      Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                        child: Column(children: [
+                          _buildTabBar(),
+                          const SizedBox(height: 25),
+                          _buildTabContent()
+                        ]),
+                      ),
+                    ],
                   ),
-                  _buildDividerArrow(),
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                    child: Column(children: [
-                      _buildTabBar(),
-                      const SizedBox(height: 25),
-                      _buildTabContent()
-                    ]),
-                  ),
-                ],
+                ),
+              ),
+              if (_selectedTab == 'Attendance')
+                _buildFixedMarkAttendanceButton(),
+            ],
+          ),
+        ),
+        if (_isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.3),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
               ),
             ),
           ),
-          // ✅ Working Fixed Attendance Button logic
-          if (_selectedTab == 'Attendance') _buildFixedMarkAttendanceButton(),
-        ],
-      ),
+      ],
     );
   }
 
@@ -235,7 +322,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     }
   }
 
-  // ✅ Your WORKING Attendance UI integrated here
   Widget _buildAttendanceTabUI() {
     return Column(children: [
       Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -291,11 +377,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
 
   // ================== HELPER WIDGETS (Unified) ==================
   Widget _buildHeaderSection() {
-    Color statusColor = project.status == ProjectStatus.ongoing
-        ? const Color(0xFFF9A825)
-        : (project.status == ProjectStatus.completed
-            ? AppColors.successGreen
-            : AppColors.alertRed);
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Expanded(
           flex: 3,
@@ -330,17 +411,48 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
             _richText("Priority: ", project.priority.name.toUpperCase(), true,
                 color: AppColors.alertRed),
             const SizedBox(height: 10),
-            Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text(project.status.name.toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold)))
+            PopupMenuButton<ProjectStatus>(
+              initialValue: project.status,
+              onSelected: _updateProjectStatus,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              itemBuilder: (context) => ProjectStatus.values.map((status) {
+                return PopupMenuItem(
+                  value: status,
+                  child: Text(
+                    status.toDisplayString(),
+                    style: TextStyle(
+                      fontWeight: status == project.status
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: status == project.status
+                          ? AppColors.primaryBlue
+                          : Colors.black,
+                    ),
+                  ),
+                );
+              }).toList(),
+              child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: _getStatusColor(project.status),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(project.status.toDisplayString(),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down,
+                          color: Colors.white, size: 14),
+                    ],
+                  )),
+            )
           ])),
     ]);
   }

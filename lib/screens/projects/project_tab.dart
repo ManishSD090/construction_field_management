@@ -1,3 +1,4 @@
+import 'package:construction_erp/models/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/routes.dart';
@@ -239,7 +240,7 @@ class _ProjectCard extends StatelessWidget {
                   children: [
                     _buildPriorityTag(project.priority.name),
                     const SizedBox(height: 4),
-                    _buildStatusChip(project.status.name),
+                    _buildStatusChip(project.status),
                     const SizedBox(height: 8),
                     Text(
                       "End: ${project.estimatedEndDate.day} ${_getMonth(project.estimatedEndDate.month)} ${project.estimatedEndDate.year}",
@@ -323,16 +324,30 @@ class _ProjectCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip(String status) {
+  Widget _buildStatusChip(ProjectStatus status) {
+    // Helper to get the dynamic color based on status
+    Color getStatusColor(ProjectStatus status) {
+      final statusName = status.name.toLowerCase();
+      if (statusName == 'ongoing') return const Color(0xFFF9A825);
+      if (statusName == 'completed') return AppColors.successGreen;
+      if (statusName == 'cancelled' || statusName == 'delayed') {
+        return AppColors.alertRed;
+      }
+      if (statusName == 'on_hold' || statusName == 'onhold') {
+        return Colors.purple;
+      }
+      return AppColors.primaryBlue; // Default for Planning
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: 16, vertical: 4), // Slimmer chip
       decoration: BoxDecoration(
-        color: AppColors.statusYellow,
+        color: getStatusColor(status), // Applies the dynamic color here
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status.toUpperCase(),
+        status.toDisplayString(),
         style: const TextStyle(
           color: AppColors.white,
           fontSize: 11, // Reduced from 14
