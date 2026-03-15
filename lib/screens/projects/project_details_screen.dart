@@ -308,7 +308,9 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       case 'Inventory':
         return ProjectInventoryDashboardScreen(projectId: project.id);
       case 'Tasks':
-        return const ProjectTasksTab();
+        return ProjectTasksTab(
+          projectId: project.id,
+        );
       case 'Sub-contractor':
         return ProjectSubContractorsList(projectId: project.id);
       case 'DPR':
@@ -743,8 +745,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
-        .contains(_selectedTab)) {
+    if (!['Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
       return null;
     }
 
