@@ -5,7 +5,6 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/finance/financial_controller.dart';
 import 'package:construction_erp/models/budget.dart';
 import 'package:construction_erp/models/enums.dart';
-import 'package:construction_erp/models/transaction.dart';
 
 import 'package:construction_erp/screens/budget/add_record_screen.dart';
 // Import the new details screen

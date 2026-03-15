@@ -313,12 +313,13 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
         return ProjectSubContractorsList(projectId: project.id);
       case 'DPR':
         return ProjectDPRTab(
+          projectId: project.id, // 🚨 Pass the current project's ID
           onTypeChanged: (index) {
             setState(() {
-              _selectedReportType = index; // index 0 = Daily, 1 = Weekly
+              _selectedReportType = index; 
             });
           },
-        );
+      );
       case 'Timeline':
         return _buildTimelineTab();
       case 'Overview':
@@ -792,8 +793,11 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           context,
           MaterialPageRoute(
             builder: (context) => _selectedReportType == 0
-                ? CreateDPRScreen(scrollController: ScrollController()) // If Daily
-                : CreateWPRScreen(scrollController: ScrollController()), // If Weekly
+                ? CreateDPRScreen(scrollController: ScrollController()) // Daily
+                : CreateWPRScreen(
+                    scrollController: ScrollController(),
+                    projectId: project.id, // 🚨 ADD THIS LINE HERE
+                  ),
           ),
         );
       }
