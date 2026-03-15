@@ -205,18 +205,18 @@ class _LedgerDetailsScreenState extends ConsumerState<LedgerDetailsScreen> {
           color: Colors.green.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.green.withOpacity(0.1))),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(children: [
+          Row(children: [
             Icon(Icons.sync, size: 16, color: Colors.green),
             SizedBox(width: 8),
             Text("Budget Sync Enabled",
                 style:
                     TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
           ]),
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
               "This expense will automatically update the project budget upon approval.",
               style: TextStyle(fontSize: 12, color: Colors.grey)),
         ],

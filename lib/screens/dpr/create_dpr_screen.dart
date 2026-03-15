@@ -11,6 +11,8 @@ import 'package:construction_erp/controllers/dpr/dpr_controller.dart';
 import 'package:construction_erp/screens/dpr/dpr_details.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/controllers/inventory/inventory_controller.dart';
+import 'package:construction_erp/models/task.dart';
+import 'package:construction_erp/controllers/task/task_controller.dart';
 
 // --- DATA PROVIDERS WITH GRACEFUL FALLBACKS ---
 final projectsProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -21,6 +23,15 @@ final projectsProvider = FutureProvider<List<dynamic>>((ref) async {
   } catch (e) {
     return [{'id': 'p1', 'name': 'Fallback Project A'}];
   }
+});
+
+final tasksProvider = FutureProvider.family<List<Task>, String?>((ref, projectId) async {
+  // If no project is selected yet, return an empty list immediately
+  if (projectId == null || projectId.isEmpty) return [];
+
+  // Use your actual TaskController to do the heavy lifting!
+  final taskController = ref.read(taskControllerProvider.notifier);
+  return await taskController.getAllTasksForProject(projectId);
 });
 
 final materialsProvider = FutureProvider<List<dynamic>>((ref) async {
@@ -230,6 +241,7 @@ class _CreateDPRScreenState extends ConsumerState<CreateDPRScreen> {
       },
       
       'nextDayPlanning': {
+        'taskName': _nextDayTask ?? '',   // <-- ADD THIS LINE
         'description': _nextDayNotes.text.trim(),
         'workers': _workers + _staff,
       },
@@ -248,10 +260,12 @@ class _CreateDPRScreenState extends ConsumerState<CreateDPRScreen> {
 
     setState(() => _isSubmitting = true);
 
-    try {
-      final payload = {"body": _buildPayload()};
-      final createdDpr = await ref.read(dprControllerProvider.notifier).createDPR(payload);
-
+   try {
+        // Send the payload directly without the "body" wrapper!
+        final payload = _buildPayload(); 
+        
+        final createdDpr = await ref.read(dprControllerProvider.notifier).createDPR(payload);
+        
       if (_selectedImages.isNotEmpty) {
         for (var imageFile in _selectedImages) {
           await ref.read(dprControllerProvider.notifier).uploadDPRPhoto(
@@ -282,6 +296,7 @@ class _CreateDPRScreenState extends ConsumerState<CreateDPRScreen> {
     final usersAsync = ref.watch(usersProvider);
     final equipmentAsync = ref.watch(equipmentProvider);
     final vendorsAsync = ref.watch(vendorsProvider);
+    final tasksAsync = ref.watch(tasksProvider(_selectedProjectId));
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -388,12 +403,47 @@ class _CreateDPRScreenState extends ConsumerState<CreateDPRScreen> {
               _sectionTitle("Tasks completed"),
               Row(
                 children: [
-                  Expanded(flex: 4, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_label("Task Name", pad: 6), _dropdown(value: _completedTask, hint: "Task Name", items: const ["Excavation", "Slab", "Brickwork", "Plumbing", "Electrical"], onChanged: (v) => setState(() => _completedTask = v))])),
+                  Expanded(
+                    flex: 4, 
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start, 
+                      children: [
+                        _label("Task Name", pad: 6), 
+                        // REPLACED HARDCODED DROPDOWN HERE:
+                        tasksAsync.when(
+                          data: (List<Task> tasks) {
+                            if (_selectedProjectId == null) {
+                              return _dropdown(value: null, hint: "Select a project first", items: [], onChanged: (v) {});
+                            }
+
+                            // Explicitly mapping as <String> and using 'title' instead of 'name'
+                            final List<String> validTasks = tasks
+                                .where((t) => t.title.trim().isNotEmpty) 
+                                .map<String>((t) => t.title.trim())
+                                .toSet()
+                                .toList();
+
+                            if (validTasks.isEmpty) {
+                              return _dropdown(value: null, hint: "No tasks found for this project", items: [], onChanged: (v) {});
+                            }
+
+                            return _dropdown(
+                              value: _completedTask,
+                              hint: "Select Task",
+                              items: validTasks,
+                              onChanged: (v) => setState(() => _completedTask = v),
+                            );
+                          },
+                          loading: () => const LinearProgressIndicator(),
+                          error: (_, __) => _dropdown(value: null, hint: "API Error", items: [], onChanged: (v) {}),
+                        )
+                      ]
+                    )
+                  ),
                   const SizedBox(width: 10),
                   Expanded(flex: 2, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_label("%", pad: 6), _textField(_completedTaskPercent, hint: "%")])),
                 ],
               ),
-              const SizedBox(height: 12),
 
               Column(
                 children: List.generate(_completedSubtasks.length, (i) {
@@ -564,8 +614,34 @@ class _CreateDPRScreenState extends ConsumerState<CreateDPRScreen> {
               const SizedBox(height: 20),
               _sectionTitle("Next Day Planning"),
               _label("Task Name"),
-              _dropdown(value: _nextDayTask, hint: "Select Task", items: const ["Shuttering", "Concreting", "Curing", "Excavation"], onChanged: (v) => setState(() => _nextDayTask = v)),
-              
+              tasksAsync.when(
+                data: (List<Task> tasks) {
+                  if (_selectedProjectId == null) {
+                    return _dropdown(value: null, hint: "Select a project first", items: [], onChanged: (v) {});
+                  }
+
+                  // Explicitly mapping as <String> and using 'title' instead of 'name'
+                  final List<String> validTasks = tasks
+                      .where((t) => t.title.trim().isNotEmpty) 
+                      .map<String>((t) => t.title.trim())
+                      .toSet()
+                      .toList();
+
+                  if (validTasks.isEmpty) {
+                    return _dropdown(value: null, hint: "No tasks found for this project", items: [], onChanged: (v) {});
+                  }
+
+                  return _dropdown(
+                    value: _nextDayTask,
+                    hint: "Select Task",
+                    items: validTasks,
+                    onChanged: (v) => setState(() => _nextDayTask = v),
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (_, __) => _dropdown(value: null, hint: "API Error", items: [], onChanged: (v) {}),
+              ),
+
               const SizedBox(height: 12),
               _label("Notes"),
               _textArea(_nextDayNotes, hint: "Enter notes"),

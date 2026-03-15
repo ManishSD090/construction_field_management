@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
-import 'package:construction_erp/models/enums.dart';
 
 // Import BOTH controllers here in the UI layer
 import 'package:construction_erp/controllers/approval/approval_controller.dart';

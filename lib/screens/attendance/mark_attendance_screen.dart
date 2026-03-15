@@ -186,7 +186,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
         final allAvailableWorkers = await ref.read(workerControllerProvider.future);
         setState(() {
           for (var item in result) {
-            String id = item is Worker ? item.id! : item.toString();
+            String id = item is Worker ? item.id : item.toString();
             if (!_workers.any((w) => w.id == id)) {
               try {
                 final workerData = allAvailableWorkers.firstWhere((w) => w.id == id);

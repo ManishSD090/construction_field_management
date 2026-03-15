@@ -142,13 +142,13 @@ class _PayrollDetailsScreenState extends State<PayrollDetailsScreen> {
 
   Widget _buildTotalFooter() {
     return const  Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: const  Row(
+      padding: EdgeInsets.only(bottom: 10),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text("Total Payroll:", 
+          Text("Total Payroll:", 
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-          const Text("₹1,21,600", 
+          Text("₹1,21,600", 
               style: TextStyle(fontSize: 20, color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
         ],
       ),

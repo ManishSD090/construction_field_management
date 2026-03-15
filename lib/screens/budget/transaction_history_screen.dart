@@ -5,7 +5,6 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/finance/financial_controller.dart';
 import 'package:construction_erp/models/budget.dart';
 import 'package:construction_erp/models/enums.dart';
-import 'package:construction_erp/models/transaction.dart';
 
 import 'package:construction_erp/screens/budget/add_record_screen.dart';
 // Import the new details screen
@@ -527,12 +526,15 @@ class _TransactionHistoryScreenState
     }
 
     Color badgeColor = Colors.grey;
-    if (tx.status == BudgetTransactionStatus.committed)
+    if (tx.status == BudgetTransactionStatus.committed) {
       badgeColor = Colors.orange;
-    if (tx.status == BudgetTransactionStatus.disbursed)
+    }
+    if (tx.status == BudgetTransactionStatus.disbursed) {
       badgeColor = AppColors.successGreen;
-    if (tx.status == BudgetTransactionStatus.cancelled)
+    }
+    if (tx.status == BudgetTransactionStatus.cancelled) {
       badgeColor = AppColors.alertRed;
+    }
 
     // 1. Build accurate base Category Name (Strictly Main Category only)
     String categoryName = 'UNCATEGORIZED';

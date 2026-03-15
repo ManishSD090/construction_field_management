@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart'; 
@@ -241,14 +240,14 @@ class _AddWorkerScreenState extends ConsumerState<AddWorkerScreen> {
           leading: _isSelectionEnabled ? Checkbox(
             value: isSelected,
             activeColor: AppColors.primaryBlue,
-            onChanged: (val) => setState(() => val! ? _selectedWorkerIds.add(worker.id!) : _selectedWorkerIds.remove(worker.id!)),
+            onChanged: (val) => setState(() => val! ? _selectedWorkerIds.add(worker.id) : _selectedWorkerIds.remove(worker.id)),
           ) : null,
           title: Text(worker.name ?? ''),
           subtitle: Text(worker.workerId ?? ''),
           trailing: Text("₹${worker.dailyWageRate.toInt()}"),
           onTap: () {
-            if (_isSelectionEnabled && worker.id != null) {
-              setState(() => isSelected ? _selectedWorkerIds.remove(worker.id!) : _selectedWorkerIds.add(worker.id!));
+            if (_isSelectionEnabled) {
+              setState(() => isSelected ? _selectedWorkerIds.remove(worker.id) : _selectedWorkerIds.add(worker.id));
             }
           },
         );

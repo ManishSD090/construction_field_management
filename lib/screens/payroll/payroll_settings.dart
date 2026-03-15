@@ -15,7 +15,7 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
   bool _isEditingStaff = false;
 
   // List for Workers
-  List<String> _shifts = ['1.0', '0.75', '0.5'];
+  final List<String> _shifts = ['1.0', '0.75', '0.5'];
 
   // Mock List for Staff
   final List<Map<String, String>> _staffRoles = [

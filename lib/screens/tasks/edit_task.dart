@@ -762,7 +762,7 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
               else
                 ...task.subtasks!.map((subtask) {
                   return _buildEditableSubtaskCard(task, subtask);
-                }).toList(),
+                }),
 
               const SizedBox(height: 20),
 
@@ -794,8 +794,8 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
                             child: CircularProgressIndicator(
                                 color: AppColors.primaryBlue)),
                       ),
-                      error: (err, stack) => Padding(
-                        padding: const EdgeInsets.all(10.0),
+                      error: (err, stack) => const Padding(
+                        padding: EdgeInsets.all(10.0),
                         child: Center(
                             child: Text("Error loading photos",
                                 style: TextStyle(color: AppColors.alertRed))),

@@ -438,7 +438,7 @@ class TaskController extends AsyncNotifier<TaskState> {
   /// Removes a worker's assignment from a subtask
   Future<void> removeSubtaskAssignment(
       String assignmentId, String taskId) async {
-    await _dioClient.dio.delete('/worker/subtask-assignments/$assignmentId');
+    await _dioClient.dio.delete('/workers/subtask-assignments/$assignmentId');
 
     // Refresh the task details to reflect the removed assignment
     ref.invalidate(taskDetailsProvider(taskId));
@@ -474,6 +474,38 @@ class TaskController extends AsyncNotifier<TaskState> {
     } catch (e) {
       // Handle error (e.g., if assignment fails, you might want to alert the user)
       rethrow;
+    }
+  }
+
+  /// Fetches Subcontractor Workers (useful for assigning them to subtasks)
+  Future<List<dynamic>> getSubcontractorWorkers(String projectId) async {
+    // We can use your existing for-attendance endpoint which also filters by projectId
+    // and returns the subcontractor worker details we need.
+    final response = await _dioClient.dio
+        .get('/subcontractors/workers/for-attendance', queryParameters: {
+      'projectId': projectId,
+    });
+
+    return response.data['data'];
+  }
+
+  /// Fetches a flat list of tasks for dropdowns (bypasses pagination state)
+  Future<List<Task>> getAllTasksForProject(String projectId) async {
+    try {
+      final response = await _dioClient.dio.get(
+        _basePath, 
+        queryParameters: {
+          'projectId': projectId,
+          'limit': 100, // High limit to ensure we get all tasks for the dropdown
+          // 'status': 'IN_PROGRESS', // Optional: Only fetch active tasks!
+        }
+      );
+      
+      final List<dynamic> listJson = response.data['data'];
+      return listJson.map((json) => Task.fromJson(json)).toList();
+    } catch (e) {
+      print("Error fetching tasks for dropdown: $e");
+      return [];
     }
   }
 }

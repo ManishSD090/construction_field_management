@@ -8,7 +8,6 @@ import 'package:construction_erp/controllers/project/project_controller.dart';
 import 'package:construction_erp/controllers/finance/financial_controller.dart'; // Ensure this path matches your project
 import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/budget.dart';
-import 'package:construction_erp/models/procurement.dart';
 import 'package:construction_erp/models/material.dart' as erp_mat;
 
 class CreatePOScreen extends ConsumerStatefulWidget {
@@ -51,7 +50,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
   bool _isCustomSupplier = false;
 
   // Multiple Items State
-  List<Map<String, dynamic>> _addedItems = [];
+  final List<Map<String, dynamic>> _addedItems = [];
   String? _selectedMaterialId;
   String? _selectedMaterialRequestId;
   String? _selectedMaterialRequestNo;
@@ -263,9 +262,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                               _itemPriceController.clear();
                             }
 
-                            if (_selectedProjectId == null) {
-                              _selectedProjectId = req.projectId;
-                            }
+                            _selectedProjectId ??= req.projectId;
 
                             // Auto-select budget category if the request already has a commitment
                             if (req.budgetTransactions != null &&
@@ -490,7 +487,7 @@ class _CreatePOScreenState extends ConsumerState<CreatePOScreen> {
                                   if (val) _selectedSupplierId = null;
                                 });
                               },
-                              activeColor: const Color(0xFF0D6EFD),
+                              activeThumbColor: const Color(0xFF0D6EFD),
                             ),
                           ],
                         ),

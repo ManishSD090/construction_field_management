@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert'; // 🚨 Added for JSON encoding
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -104,7 +103,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                   const Text("Name", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<Worker>(
-                    value: localSelectedWorker,
+                    initialValue: localSelectedWorker,
                     decoration: InputDecoration(
                       hintText: staffFromDB.isEmpty ? "No staff found in DB" : "Select staff member",
                       hintStyle: TextStyle(color: AppColors.primaryBlue.withOpacity(0.5), fontSize: 13),
@@ -134,7 +133,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
                   const Text("Role Name", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: localSelectedRole, 
+                    initialValue: localSelectedRole, 
                     decoration: InputDecoration(
                       hintText: "Select Role",
                       hintStyle: TextStyle(color: AppColors.primaryBlue.withOpacity(0.5), fontSize: 13),
@@ -364,7 +363,7 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
               value: isSelected,
               activeColor: AppColors.primaryBlue,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-              onChanged: (val) => setState(() => val! ? _selectedStaffIds.add(staff.id!) : _selectedStaffIds.remove(staff.id!)),
+              onChanged: (val) => setState(() => val! ? _selectedStaffIds.add(staff.id) : _selectedStaffIds.remove(staff.id)),
             ) : null,
             title: Text(staff.name ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             subtitle: Padding(
@@ -380,8 +379,8 @@ class _AddStaffScreenState extends ConsumerState<AddStaffScreen> {
             ),
             trailing: Text("₹${staff.dailyWageRate.toInt()}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             onTap: () {
-              if (_isSelectionEnabled && staff.id != null) {
-                setState(() => isSelected ? _selectedStaffIds.remove(staff.id!) : _selectedStaffIds.add(staff.id!));
+              if (_isSelectionEnabled) {
+                setState(() => isSelected ? _selectedStaffIds.remove(staff.id) : _selectedStaffIds.add(staff.id));
               }
             },
           ),

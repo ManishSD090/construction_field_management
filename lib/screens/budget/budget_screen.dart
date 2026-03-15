@@ -740,7 +740,7 @@ class _TransferFundsDialogState extends ConsumerState<TransferFundsDialog> {
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(height: 6),
             DropdownButtonFormField<int>(
-              value: _fromCategoryIndex,
+              initialValue: _fromCategoryIndex,
               isExpanded: true,
               decoration: const InputDecoration(
                   border: OutlineInputBorder(),
@@ -833,7 +833,7 @@ class _TransferFundsDialogState extends ConsumerState<TransferFundsDialog> {
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(height: 6),
             DropdownButtonFormField<int>(
-              value: _toCategoryIndex,
+              initialValue: _toCategoryIndex,
               isExpanded: true,
               decoration: const InputDecoration(
                   border: OutlineInputBorder(),
@@ -1104,11 +1104,11 @@ class _EditBudgetScreenState extends ConsumerState<EditBudgetScreen> {
       barrierDismissible: false,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(30),
+        child: const Padding(
+          padding: EdgeInsets.all(30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text("Changes Saved",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               SizedBox(height: 20),
@@ -1145,11 +1145,11 @@ class _EditBudgetScreenState extends ConsumerState<EditBudgetScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(
+          const Padding(
+            padding: EdgeInsets.only(
                 left: 16.0, right: 16.0, top: 16.0, bottom: 8.0),
             child: Row(
-              children: const [
+              children: [
                 SizedBox(
                     width: 30,
                     child: Text("Sr.",

@@ -1,7 +1,6 @@
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/budget.dart';
-import 'package:construction_erp/models/enums.dart';
 
 class Material {
   final String id;
