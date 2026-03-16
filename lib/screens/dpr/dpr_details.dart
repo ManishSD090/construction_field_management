@@ -1,5 +1,8 @@
-import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+
 import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/dpr.dart';
@@ -40,44 +43,36 @@ class DPRDetailsScreen extends StatelessWidget {
           children: [
             _headerSection(),
             const SizedBox(height: 20),
-            
             _sectionTitle("Description"),
             _descriptionBox(),
             const SizedBox(height: 24),
-
             _tasksSection(),
             const SizedBox(height: 24),
-
             _attendanceSection(),
             const SizedBox(height: 24),
-
             _materialsSection(),
             const SizedBox(height: 24),
-
             _equipmentsSection(),
             const SizedBox(height: 24),
-
             _sectionTitle("Photos"),
             _photosSection(),
             const SizedBox(height: 24),
-
             _sectionTitle("Documents"),
             _documentsSection(),
             const SizedBox(height: 24),
-
             _sectionTitle("Issues"),
             _textSection(dpr.challenges ?? dpr.issuesFound),
             const SizedBox(height: 24),
-
             _sectionTitle("Tasks"),
             _textSection(dpr.nextDayTaskName ?? "No tasks planned."),
             const SizedBox(height: 12),
             const Divider(color: Colors.grey, thickness: 0.5),
-            
             const SizedBox(height: 12),
             _sectionTitle("Notes"),
-            _textSection(dpr.nextDayNotes ?? dpr.notes ?? "No plans provided for the next day."),
-            const SizedBox(height: 40), 
+            _textSection(dpr.nextDayNotes ??
+                dpr.notes ??
+                "No plans provided for the next day."),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -89,7 +84,7 @@ class DPRDetailsScreen extends StatelessWidget {
   Widget _headerSection() {
     final dateLabel = DateFormat("dd MMM yyyy").format(dpr.date).toUpperCase();
     final weather = dpr.weather ?? "Sunny";
-    
+
     String visitors = "None";
     if (dpr.siteVisitors.isNotEmpty) {
       try {
@@ -104,7 +99,11 @@ class DPRDetailsScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(dateLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+            Text(dateLabel,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textDark)),
             const Icon(Icons.edit_square, color: Colors.grey, size: 20),
           ],
         ),
@@ -113,20 +112,32 @@ class DPRDetailsScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Text(dpr.projectName ?? "Project Name", 
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryBlue),
+              child: Text(
+                dpr.projectName ?? "Project Name",
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryBlue),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text("Mumbai | ID-${dpr.reportNo.length > 4 ? dpr.reportNo.substring(dpr.reportNo.length - 4) : dpr.reportNo}", 
-              style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+            Text(
+                "Mumbai | ID-${dpr.reportNo.length > 4 ? dpr.reportNo.substring(dpr.reportNo.length - 4) : dpr.reportNo}",
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Site Visitor: $visitors", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+            Text("Site Visitor: $visitors",
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark)),
             _weatherChip(weather),
           ],
         ),
@@ -135,10 +146,10 @@ class DPRDetailsScreen extends StatelessWidget {
   }
 
   Widget _descriptionBox() {
-    final desc = (dpr.workDescription.trim().isEmpty) 
-        ? "No description provided." 
+    final desc = (dpr.workDescription.trim().isEmpty)
+        ? "No description provided."
         : dpr.workDescription;
-        
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -149,14 +160,15 @@ class DPRDetailsScreen extends StatelessWidget {
       ),
       child: Text(
         desc,
-        style: const TextStyle(fontSize: 13, color: AppColors.textDark, height: 1.4),
+        style: const TextStyle(
+            fontSize: 13, color: AppColors.textDark, height: 1.4),
       ),
     );
   }
 
   Widget _tasksSection() {
     final completed = dpr.completedWork ?? "No tasks recorded";
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,15 +185,29 @@ class DPRDetailsScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Expanded(child: Text("Task: $name", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark))),
-          Text(subtext, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryBlue)),
+          Expanded(
+              child: Text("Task: $name",
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textDark))),
+          Text(subtext,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryBlue)),
           const SizedBox(width: 15),
           Container(
             width: 80,
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-            child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            decoration: BoxDecoration(
+                color: color, borderRadius: BorderRadius.circular(12)),
+            child: Text(status,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -192,10 +218,10 @@ class DPRDetailsScreen extends StatelessWidget {
     final int workers = dpr.workersPresent ?? 0;
     final int staff = dpr.staffPresent ?? 0;
     final int total = dpr.totalWorkers ?? (workers + staff);
-    
+
     String subWorkerCount = "0 workers";
     if (dpr.subContractorName != null) {
-      subWorkerCount = "4 workers"; 
+      subWorkerCount = "4 workers";
     }
 
     return Column(
@@ -212,31 +238,32 @@ class DPRDetailsScreen extends StatelessWidget {
   }
 
   Widget _materialsSection() {
-  final consumptions = dpr.materialConsumptions ?? [];
-  
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _sectionTitle("Materials"),
-      const Divider(height: 1, thickness: 1),
-      const SizedBox(height: 12),
-      // If no data, show a placeholder instead of just the column headers
-      if (consumptions.isEmpty)
-        const Text("No materials recorded", style: TextStyle(color: Colors.grey, fontSize: 13))
-      else
-        ...consumptions.map((c) => _listRow(
-          c.material?.name ?? "Material", 
-          "${c.quantity} ${c.unit}", 
-          isValueBlue: true
-        )),
-    ],
-  );
-}
+    final consumptions = dpr.materialConsumptions ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle("Materials"),
+        const Divider(height: 1, thickness: 1),
+        const SizedBox(height: 12),
+        // If no data, show a placeholder instead of just the column headers
+        if (consumptions.isEmpty)
+          const Text("No materials recorded",
+              style: TextStyle(color: Colors.grey, fontSize: 13))
+        else
+          ...consumptions.map((c) => _listRow(
+              c.material?.name ?? "Material", "${c.quantity} ${c.unit}",
+              isValueBlue: true)),
+      ],
+    );
+  }
 
   Widget _equipmentsSection() {
     List<dynamic> eqList = [];
     if (dpr.equipmentUsed != null && dpr.equipmentUsed!.startsWith('[')) {
-      try { eqList = jsonDecode(dpr.equipmentUsed!); } catch (_) {}
+      try {
+        eqList = jsonDecode(dpr.equipmentUsed!);
+      } catch (_) {}
     } else if (dpr.equipments.isNotEmpty) {
       eqList = dpr.equipments;
     }
@@ -248,7 +275,7 @@ class DPRDetailsScreen extends StatelessWidget {
         const Divider(height: 1, thickness: 1),
         const SizedBox(height: 12),
         if (eqList.isEmpty)
-           _listRow("Name", "Hrs used  Fuel", isValueBlue: true)
+          _listRow("Name", "Hrs used  Fuel", isValueBlue: true)
         else
           ...eqList.map((e) {
             String name = "Equipment";
@@ -263,10 +290,23 @@ class DPRDetailsScreen extends StatelessWidget {
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark))),
-                Text("$hours Hrs used", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryBlue)),
+                Expanded(
+                    child: Text(name,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textDark))),
+                Text("$hours Hrs used",
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlue)),
                 const SizedBox(width: 20),
-                const Text("Fuel", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryBlue)),
+                const Text("Fuel",
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlue)),
               ],
             );
           }),
@@ -279,9 +319,9 @@ class DPRDetailsScreen extends StatelessWidget {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      children: photos.isEmpty 
-        ? List.generate(3, (index) => _emptyBox())
-        : photos.take(6).map((p) => _imageBox(p.imageUrl)).toList(),
+      children: photos.isEmpty
+          ? List.generate(3, (index) => _emptyBox())
+          : photos.take(6).map((p) => _imageBox(p.imageUrl)).toList(),
     );
   }
 
@@ -290,9 +330,9 @@ class DPRDetailsScreen extends StatelessWidget {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      children: docs.isEmpty 
-        ? List.generate(3, (index) => _emptyBox())
-        : docs.map((d) => _emptyBox()).toList(),
+      children: docs.isEmpty
+          ? List.generate(3, (index) => _emptyBox())
+          : docs.map((d) => _emptyBox()).toList(),
     );
   }
 
@@ -300,19 +340,33 @@ class DPRDetailsScreen extends StatelessWidget {
 
   Widget _textSection(String? text) {
     return Text(
-      (text == null || text.trim().isEmpty || text == "null") ? "No details provided." : text,
-      style: const TextStyle(fontSize: 13, color: AppColors.textDark, height: 1.4),
+      (text == null || text.trim().isEmpty || text == "null")
+          ? "No details provided."
+          : text,
+      style:
+          const TextStyle(fontSize: 13, color: AppColors.textDark, height: 1.4),
     );
   }
 
-  Widget _listRow(String title, String value, {bool isValueBlue = false, bool isBold = false}) {
+  Widget _listRow(String title, String value,
+      {bool isValueBlue = false, bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.w900 : FontWeight.w600, color: AppColors.textDark)),
-          Text(value, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.w900 : FontWeight.w700, color: isValueBlue ? AppColors.primaryBlue : AppColors.textDark)),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isBold ? FontWeight.w900 : FontWeight.w600,
+                  color: AppColors.textDark)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
+                  color: isValueBlue
+                      ? AppColors.primaryBlue
+                      : AppColors.textDark)),
         ],
       ),
     );
@@ -326,9 +380,19 @@ class DPRDetailsScreen extends StatelessWidget {
         child: RichText(
           text: TextSpan(
             children: [
-              TextSpan(text: parts[0], style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+              TextSpan(
+                  text: parts[0],
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textDark)),
               const TextSpan(text: " "),
-              TextSpan(text: parts.skip(1).join(' '), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryBlue)),
+              TextSpan(
+                  text: parts.skip(1).join(' '),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryBlue)),
             ],
           ),
         ),
@@ -336,30 +400,53 @@ class DPRDetailsScreen extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+      child: Text(t,
+          style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textDark)),
     );
   }
 
   Widget _weatherChip(String weather) {
     return Row(
       children: [
-        Icon(weather.toLowerCase().contains('sunny') ? Icons.wb_sunny_outlined : Icons.cloud_outlined, size: 16, color: AppColors.primaryBlue),
+        Icon(
+            weather.toLowerCase().contains('sunny')
+                ? Icons.wb_sunny_outlined
+                : Icons.cloud_outlined,
+            size: 16,
+            color: AppColors.primaryBlue),
         const SizedBox(width: 4),
-        Text(weather, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryBlue)),
+        Text(weather,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryBlue)),
       ],
     );
   }
 
   Widget _emptyBox() {
     return Container(
-      height: 70, width: 90,
-      decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+      height: 70,
+      width: 90,
+      decoration: BoxDecoration(
+          color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
     );
   }
 
   Widget _imageBox(String url) {
+    if (kDebugMode &&
+        !kIsWeb &&
+        Platform.isAndroid &&
+        url.contains('localhost')) {
+      // url = url.replaceAll('localhost', '10.0.2.2');
+      url = url.replaceAll('localhost', '192.168.1.10');
+    }
     return Container(
-      height: 70, width: 90,
+      height: 70,
+      width: 90,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
@@ -375,7 +462,12 @@ class DPRDetailsScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -4))
+        ],
       ),
       child: SizedBox(
         height: 48,
@@ -384,12 +476,14 @@ class DPRDetailsScreen extends StatelessWidget {
           onPressed: isApproved ? null : () {},
           style: ElevatedButton.styleFrom(
             backgroundColor: isApproved ? Colors.grey : const Color(0xFF17A589),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             elevation: 0,
           ),
           child: Text(
             isApproved ? "Approved" : "Send For Approval",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
           ),
         ),
       ),

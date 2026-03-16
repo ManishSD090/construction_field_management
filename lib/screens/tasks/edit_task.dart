@@ -969,7 +969,8 @@ class _EditTaskScreenState extends ConsumerState<EditTaskScreen> {
         !kIsWeb &&
         Platform.isAndroid &&
         imageUrl.contains('localhost')) {
-      imageUrl = imageUrl.replaceAll('localhost', '10.0.2.2');
+      // imageUrl = imageUrl.replaceAll('localhost', '10.0.2.2');
+      imageUrl = imageUrl.replaceAll('localhost', '192.168.1.10');
     }
 
     return GestureDetector(

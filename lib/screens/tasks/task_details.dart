@@ -457,8 +457,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   )
                 else
                   ...task.subtasks!
-                      .map((subtask) => _buildSubtaskCard(task, subtask))
-                      ,
+                      .map((subtask) => _buildSubtaskCard(task, subtask)),
 
                 const SizedBox(height: 15),
 
@@ -764,7 +763,8 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
         !kIsWeb &&
         Platform.isAndroid &&
         imageUrl.contains('localhost')) {
-      imageUrl = imageUrl.replaceAll('localhost', '10.0.2.2');
+      // imageUrl = imageUrl.replaceAll('localhost', '10.0.2.2');
+      imageUrl = imageUrl.replaceAll('localhost', '192.168.1.10');
     }
 
     return GestureDetector(

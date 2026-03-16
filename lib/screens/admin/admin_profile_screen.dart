@@ -1,6 +1,7 @@
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/screens/admin/approvals_screen.dart';
+import 'package:construction_erp/screens/sub_contractor/sub_contractor_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +16,7 @@ import 'package:construction_erp/models/company.dart';
 import 'manage_users_menu.dart';
 import 'personal_info_screen.dart';
 import 'company_details_screen.dart';
+import 'package:construction_erp/screens/sub_contractor/sub_contractor_details.dart';
 
 class AdminProfileScreen extends ConsumerWidget {
   const AdminProfileScreen({super.key});
