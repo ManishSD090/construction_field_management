@@ -422,16 +422,16 @@ class _ProjectInventoryScreenState
 
   Widget _buildEquipmentGrid(List equipmentList) {
     if (equipmentList.isEmpty) {
-      return const Center(child: Text("No equipment on site."));
+      return const Center(child: Text("No equipment on this site."));
     }
     return GridView.builder(
-      // Added padding below to ensure FAB doesn't block the last elements
+      // Added bottom padding (88.0) to ensure the FAB does not cover the last row of items
       padding: const EdgeInsets.only(
           left: 16.0, right: 16.0, top: 16.0, bottom: 88.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio:
-            1.55, // Adjusted to accommodate 2 lines for equipment name
+            1.15, // Decreased from 1.55 to give more vertical height
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -471,8 +471,8 @@ class _ProjectInventoryScreenState
               context,
               MaterialPageRoute(
                 builder: (context) => ItemDetailsScreen(
+                  isGlobalContext: true,
                   isMaterial: false,
-                  isGlobalContext: false,
                   itemId: equip.id ?? "",
                   itemName: equip.name,
                 ),
@@ -495,18 +495,22 @@ class _ProjectInventoryScreenState
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment
+                  .spaceBetween, // Ensures elements are spaced perfectly
               children: [
-                Text(
-                  equip.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: Colors.black87),
+                Expanded(
+                  // Expanded ensures the text takes remaining height without overflowing bounds
+                  child: Text(
+                    equip.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.black87),
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

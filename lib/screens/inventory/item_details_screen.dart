@@ -80,7 +80,6 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-select project safely in initState rather than build()
     if (!widget.isGlobalContext && widget.projectId != null) {
       _selectedReqProjectId = widget.projectId;
     }
@@ -265,7 +264,7 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
           .read(procurementControllerProvider.notifier)
           .createMaterialRequest(payload);
       if (mounted) {
-        Navigator.pop(context); // Close modal on success
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Material Request Created'),
@@ -275,15 +274,12 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
     } catch (e) {
       if (mounted) {
         setModalState(() => _isSubmittingReq = false);
-
-        // Extract exact backend error (e.g. Budget check failures)
         String errorMessage = 'Failed to create request';
         if (e is DioException && e.response?.data != null) {
           errorMessage = e.response!.data['message'] ?? errorMessage;
         } else {
           errorMessage = '$errorMessage: $e';
         }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(errorMessage),
@@ -405,6 +401,674 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
         );
       }
     }
+  }
+
+  // --- Edit Modals ---
+
+  void _showEditMaterialModal(BuildContext context, erp_mat.Material mat) {
+    final nameCtrl = TextEditingController(text: mat.name);
+    final codeCtrl = TextEditingController(text: mat.materialCode ?? '');
+    final unitCtrl = TextEditingController(text: mat.unit ?? '');
+    final priceCtrl =
+        TextEditingController(text: mat.unitPrice?.toString() ?? '');
+    final minStockCtrl =
+        TextEditingController(text: mat.minimumStock?.toString() ?? '');
+    final supplierCtrl = TextEditingController(text: mat.supplier ?? '');
+    final supplierContactCtrl =
+        TextEditingController(text: mat.supplierContact ?? '');
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            top: 24,
+            left: 24,
+            right: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Edit Material",
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildTextField("Name *", controller: nameCtrl),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildTextField("Code", controller: codeCtrl)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: _buildTextField("Unit *", controller: unitCtrl)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildTextField("Unit Price (₹)",
+                            controller: priceCtrl, isNumber: true)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: _buildTextField("Min Stock",
+                            controller: minStockCtrl, isNumber: true)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField("Supplier", controller: supplierCtrl),
+                const SizedBox(height: 12),
+                _buildTextField("Supplier Contact",
+                    controller: supplierContactCtrl),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            if (nameCtrl.text.isEmpty ||
+                                unitCtrl.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Name and Unit are required'),
+                                    backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => isSaving = true);
+
+                            final payload = {
+                              'name': nameCtrl.text.trim(),
+                              'unit': unitCtrl.text.trim(),
+                              'materialCode': codeCtrl.text.trim(),
+                              'minimumStock':
+                                  double.tryParse(minStockCtrl.text) ?? 0.0,
+                              'unitPrice':
+                                  double.tryParse(priceCtrl.text) ?? 0.0,
+                              'supplier': supplierCtrl.text.trim(),
+                              'supplierContact':
+                                  supplierContactCtrl.text.trim(),
+                            };
+
+                            try {
+                              await ref
+                                  .read(inventoryControllerProvider.notifier)
+                                  .updateMaterialMaster(mat.id, payload);
+                              if (mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content:
+                                          Text('Material updated successfully'),
+                                      backgroundColor: Color(0xFF00B48A)),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text('Failed to update: $e'),
+                                      backgroundColor: Colors.red),
+                                );
+                              }
+                            } finally {
+                              if (mounted)
+                                setModalState(() => isSaving = false);
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text("Save Changes",
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditEquipmentModal(BuildContext context, Equipment eq) {
+    // Identity & Info Controllers
+    final nameCtrl = TextEditingController(text: eq.name);
+    final codeCtrl = TextEditingController(text: eq.code ?? '');
+    final typeCtrl = TextEditingController(text: eq.type);
+    final modelCtrl = TextEditingController(text: eq.model ?? '');
+    final manufacturerCtrl = TextEditingController(text: eq.manufacturer ?? '');
+    final yearCtrl = TextEditingController(text: eq.year?.toString() ?? '');
+    final serialCtrl = TextEditingController(text: eq.serialNumber ?? '');
+    final regCtrl = TextEditingController(text: eq.registrationNumber ?? '');
+    final conditionCtrl = TextEditingController(text: eq.condition ?? '');
+
+    // Financial & Fuel Controllers
+    final fuelConsCtrl =
+        TextEditingController(text: eq.fuelConsumption?.toString() ?? '');
+    final rentalProviderCtrl =
+        TextEditingController(text: eq.rentalProvider ?? '');
+    final rentalRateCtrl =
+        TextEditingController(text: eq.rentalRate?.toString() ?? '');
+    final purchaseCostCtrl =
+        TextEditingController(text: eq.purchaseCost?.toString() ?? '');
+
+    // Dropdowns & Dates State
+    String selectedStatus = eq.status.name.toUpperCase();
+    String selectedOwnership = eq.ownershipType.name.toUpperCase();
+    String? selectedFuelType = eq.fuelType?.name.toUpperCase();
+    DateTime? purchaseDate = eq.purchaseDate;
+    DateTime? lastServiceDate = eq.lastServiceDate;
+    DateTime? nextServiceDate = eq.nextServiceDate;
+
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            top: 24,
+            left: 24,
+            right: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          height: MediaQuery.of(context).size.height *
+              0.85, // Fill more screen space for scrolling
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Edit Equipment",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Basic Information",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey)),
+                      const Divider(),
+                      _buildTextField("Name *", controller: nameCtrl),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildTextField("Code/Tag",
+                                  controller: codeCtrl)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildTextField("Type *",
+                                  controller: typeCtrl)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildTextField("Manufacturer",
+                                  controller: manufacturerCtrl)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildTextField("Model",
+                                  controller: modelCtrl)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildTextField("Serial Number",
+                                  controller: serialCtrl)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildTextField("Reg Number",
+                                  controller: regCtrl)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildTextField("Year",
+                                  controller: yearCtrl, isNumber: true)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildTextField("Condition",
+                                  controller: conditionCtrl)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Status Dropdown
+                      const Text("Status",
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.black87)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF0D6EFD)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: selectedStatus,
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: Color(0xFF0D6EFD)),
+                            items: [
+                              'AVAILABLE',
+                              'IN_USE',
+                              'MAINTENANCE',
+                              'REPAIR',
+                              'DECOMMISSIONED'
+                            ]
+                                .map((status) => DropdownMenuItem(
+                                    value: status, child: Text(status)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null)
+                                setModalState(() => selectedStatus = val);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      const Text("Fuel & Maintenance",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey)),
+                      const Divider(),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Fuel Type",
+                                    style: TextStyle(
+                                        fontSize: 13, color: Colors.black87)),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                        color: const Color(0xFF0D6EFD)),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String?>(
+                                      isExpanded: true,
+                                      value: selectedFuelType,
+                                      hint: const Text("Select"),
+                                      icon: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                          color: Color(0xFF0D6EFD)),
+                                      items: [
+                                        'DIESEL',
+                                        'PETROL',
+                                        'ELECTRIC',
+                                        'HYBRID',
+                                        'CNG',
+                                        'LPG',
+                                        'OTHER'
+                                      ]
+                                          .map((t) => DropdownMenuItem(
+                                              value: t, child: Text(t)))
+                                          .toList(),
+                                      onChanged: (val) {
+                                        setModalState(
+                                            () => selectedFuelType = val);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _buildTextField("Fuel Cons. (L/Hr)",
+                                  controller: fuelConsCtrl, isNumber: true)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Last Service Date",
+                                    style: TextStyle(
+                                        fontSize: 13, color: Colors.black87)),
+                                const SizedBox(height: 4),
+                                InkWell(
+                                  onTap: () => _selectDate(
+                                      context,
+                                      (date) => setModalState(
+                                          () => lastServiceDate = date)),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: const Color(0xFF0D6EFD)),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(lastServiceDate == null
+                                        ? 'Select Date'
+                                        : DateFormat('dd MMM yyyy')
+                                            .format(lastServiceDate!)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Next Service Date",
+                                    style: TextStyle(
+                                        fontSize: 13, color: Colors.black87)),
+                                const SizedBox(height: 4),
+                                InkWell(
+                                  onTap: () => _selectDate(
+                                      context,
+                                      (date) => setModalState(
+                                          () => nextServiceDate = date)),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: const Color(0xFF0D6EFD)),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(nextServiceDate == null
+                                        ? 'Select Date'
+                                        : DateFormat('dd MMM yyyy')
+                                            .format(nextServiceDate!)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      const Text("Ownership & Financial",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey)),
+                      const Divider(),
+                      const Text("Ownership Type",
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.black87)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF0D6EFD)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: selectedOwnership,
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: Color(0xFF0D6EFD)),
+                            items: ['OWNED', 'RENTED']
+                                .map((o) =>
+                                    DropdownMenuItem(value: o, child: Text(o)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null)
+                                setModalState(() => selectedOwnership = val);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      if (selectedOwnership == 'RENTED') ...[
+                        _buildTextField("Rental Provider",
+                            controller: rentalProviderCtrl),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _buildTextField("Rental Rate (₹)",
+                                    controller: rentalRateCtrl,
+                                    isNumber: true)),
+                            const SizedBox(width: 12),
+                          ],
+                        ),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _buildTextField("Purchase Cost (₹)",
+                                    controller: purchaseCostCtrl,
+                                    isNumber: true)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text("Purchase Date",
+                                      style: TextStyle(
+                                          fontSize: 13, color: Colors.black87)),
+                                  const SizedBox(height: 4),
+                                  InkWell(
+                                    onTap: () => _selectDate(
+                                        context,
+                                        (date) => setModalState(
+                                            () => purchaseDate = date),
+                                        lastDate: DateTime.now()),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: const Color(0xFF0D6EFD)),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(purchaseDate == null
+                                          ? 'Select Date'
+                                          : DateFormat('dd MMM yyyy')
+                                              .format(purchaseDate!)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  if (nameCtrl.text.isEmpty ||
+                                      typeCtrl.text.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Name and Type are required'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                    return;
+                                  }
+
+                                  setModalState(() => isSaving = true);
+
+                                  final payload = <String, dynamic>{
+                                    'name': nameCtrl.text.trim(),
+                                    'code': codeCtrl.text.trim(),
+                                    'type': typeCtrl.text.trim(),
+                                    'model': modelCtrl.text.trim(),
+                                    'manufacturer':
+                                        manufacturerCtrl.text.trim(),
+                                    'year': int.tryParse(yearCtrl.text),
+                                    'serialNumber': serialCtrl.text.trim(),
+                                    'registrationNumber': regCtrl.text.trim(),
+                                    'condition': conditionCtrl.text.trim(),
+                                    'status': selectedStatus,
+                                    'ownershipType': selectedOwnership,
+                                  };
+
+                                  if (fuelConsCtrl.text.trim().isNotEmpty) {
+                                    payload['fuelConsumption'] =
+                                        double.tryParse(fuelConsCtrl.text);
+                                  }
+                                  if (selectedFuelType != null) {
+                                    payload['fuelType'] = selectedFuelType;
+                                  }
+                                  if (lastServiceDate != null) {
+                                    payload['lastServiceDate'] =
+                                        lastServiceDate!
+                                            .toUtc()
+                                            .toIso8601String();
+                                  }
+                                  if (nextServiceDate != null) {
+                                    payload['nextServiceDate'] =
+                                        nextServiceDate!
+                                            .toUtc()
+                                            .toIso8601String();
+                                  }
+
+                                  if (selectedOwnership == 'RENTED') {
+                                    payload['rentalProvider'] =
+                                        rentalProviderCtrl.text.trim();
+                                    payload['rentalRate'] =
+                                        double.tryParse(rentalRateCtrl.text) ??
+                                            0.0;
+                                  } else {
+                                    payload['purchaseCost'] = double.tryParse(
+                                            purchaseCostCtrl.text) ??
+                                        0.0;
+                                    if (purchaseDate != null) {
+                                      payload['purchaseDate'] = purchaseDate!
+                                          .toUtc()
+                                          .toIso8601String();
+                                    }
+                                  }
+
+                                  try {
+                                    await ref
+                                        .read(inventoryControllerProvider
+                                            .notifier)
+                                        .updateEquipment(eq.id, payload);
+                                    if (mounted) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Equipment updated successfully'),
+                                            backgroundColor: Color(0xFF00B48A)),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content:
+                                                Text('Failed to update: $e'),
+                                            backgroundColor: Colors.red),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted)
+                                      setModalState(() => isSaving = false);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6EFD),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
+                              : const Text("Save Changes",
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 16)),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -555,11 +1219,23 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                    color: Colors.grey[100], shape: BoxShape.circle),
-                child: const Icon(Icons.edit, size: 16, color: Colors.grey),
+              InkWell(
+                onTap: () {
+                  if (widget.isMaterial && matData != null) {
+                    _showEditMaterialModal(context, matData);
+                  } else if (!widget.isMaterial && eqData != null) {
+                    _showEditEquipmentModal(context, eqData);
+                  }
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      shape: BoxShape.circle),
+                  child: const Icon(Icons.edit,
+                      size: 16, color: Color(0xFF0D6EFD)),
+                ),
               )
             ],
           ),
@@ -656,11 +1332,23 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
             children: [
               const Text("Vendor Info",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                    color: Colors.grey[100], shape: BoxShape.circle),
-                child: const Icon(Icons.edit, size: 16, color: Colors.grey),
+              InkWell(
+                onTap: () {
+                  if (widget.isMaterial && matData != null) {
+                    _showEditMaterialModal(context, matData);
+                  } else if (!widget.isMaterial && eqData != null) {
+                    _showEditEquipmentModal(context, eqData);
+                  }
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      shape: BoxShape.circle),
+                  child: const Icon(Icons.edit,
+                      size: 16, color: Color(0xFF0D6EFD)),
+                ),
               )
             ],
           ),
@@ -690,7 +1378,7 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
     );
   }
 
-  // --- Modals / Popups ---
+  // --- Utility Modals / Popups ---
 
   void _showAddStockModal(BuildContext context, String unit) {
     showDialog(
@@ -842,7 +1530,6 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
 
   void _showRequestModal(
       BuildContext context, List<Project> projectList, String unit) {
-    // Reset state when opening modal
     _isSubmittingReq = false;
 
     showDialog(
@@ -905,7 +1592,7 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                                     _selectedReqProjectId = val;
                                   });
                                 }
-                              : null, // Disabled if already in a project context
+                              : null,
                         ),
                       ),
                     ),
@@ -930,9 +1617,7 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                               const SizedBox(height: 4),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical:
-                                        2), // Tighter vertical padding to match TextField height
+                                    horizontal: 12, vertical: 2),
                                 decoration: BoxDecoration(
                                   border: Border.all(
                                       color: const Color(0xFF0D6EFD)),
@@ -1395,9 +2080,8 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
               : TextInputType.text,
           decoration: InputDecoration(
             suffixText: suffixText,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12), // Adjusted to match dropdown heights nicely
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF0D6EFD)),

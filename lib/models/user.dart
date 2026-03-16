@@ -1,6 +1,7 @@
 import 'package:construction_erp/models/role.dart';
 import 'package:construction_erp/models/company.dart';
 import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/models/project.dart'; // Make sure this path matches your project structure
 
 class User {
   final String id;
@@ -53,10 +54,11 @@ class User {
   final User? createdBy;
 
   final UserSettings? settings;
-
   final List<String>? permissions;
-
   final UserStats? stats;
+
+  // NEW: Added projectAssignments field
+  final List<ProjectAssignment>? projectAssignments;
 
   User({
     required this.id,
@@ -101,6 +103,7 @@ class User {
     this.settings,
     this.permissions,
     this.stats,
+    this.projectAssignments, // NEW
   });
 
   User copyWith({
@@ -146,6 +149,7 @@ class User {
     UserSettings? settings,
     List<String>? permissions,
     UserStats? stats,
+    List<ProjectAssignment>? projectAssignments, // NEW
   }) {
     return User(
       id: id ?? this.id,
@@ -191,16 +195,15 @@ class User {
       settings: settings ?? this.settings,
       permissions: permissions ?? this.permissions,
       stats: stats ?? this.stats,
+      projectAssignments: projectAssignments ?? this.projectAssignments, // NEW
     );
   }
 
   factory User.fromJson(Map<String, dynamic> json) {
     List<String>? extractPermissions() {
-      // 1. Check inside 'role' object (Most likely based on your API)
       if (json['role'] != null && json['role']['permissions'] != null) {
         return List<String>.from(json['role']['permissions']);
       }
-      // 2. Fallback: Check at root level (Just in case API changes)
       if (json['permissions'] != null) {
         return List<String>.from(json['permissions']);
       }
@@ -270,6 +273,12 @@ class User {
           : null,
       permissions: extractPermissions(),
       stats: json['stats'] != null ? UserStats.fromJson(json['stats']) : null,
+      // NEW: Parse projectAssignments
+      projectAssignments: json['projectAssignments'] != null
+          ? (json['projectAssignments'] as List)
+              .map((e) => ProjectAssignment.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -315,10 +324,14 @@ class User {
       'createdBy': createdBy?.toJson(),
       'settings': settings?.toJson(),
       'permissions': permissions,
+      'stats': stats?.toJson(),
+      // NEW: Serialize projectAssignments
+      'projectAssignments': projectAssignments?.map((e) => e.toJson()).toList(),
     };
   }
 }
 
+// ... existing code ...
 class UserSettings {
   final String? id;
   final String userId;
@@ -378,8 +391,8 @@ class UserSettings {
 }
 
 class UserState {
-  final User? currentUser; // For Dashboard/Profile
-  final List<User> userList; // For Directory/Admin
+  final User? currentUser;
+  final List<User> userList;
   final int currentPage;
   final bool hasMore;
   final bool isLoadingMore;
@@ -426,10 +439,6 @@ class UserStats {
 
   factory UserStats.fromJson(Map<String, dynamic> json) {
     return UserStats(
-      // Mapping from your Node.js backend keys:
-      // projects -> _count.projectAssignments
-      // tasks -> _count.assignedTasks
-      // attendanceLast30Days -> _count.attendances
       projects: json['projects'] as int? ?? 0,
       tasks: json['tasks'] as int? ?? 0,
       attendanceLast30Days: json['attendanceLast30Days'] as int? ?? 0,
@@ -462,5 +471,64 @@ class UserStats {
       unreadNotifications: unreadNotifications ?? this.unreadNotifications,
       upcomingLeaves: upcomingLeaves ?? this.upcomingLeaves,
     );
+  }
+}
+
+// NEW: Added ProjectAssignment class based on the API response structure
+class ProjectAssignment {
+  final String id;
+  final String userId;
+  final String projectId;
+  final String roleId;
+  final String? designation;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool? isPrimary;
+  final Project? project;
+  final Role? role;
+
+  ProjectAssignment({
+    required this.id,
+    required this.userId,
+    required this.projectId,
+    required this.roleId,
+    this.designation,
+    this.startDate,
+    this.endDate,
+    this.isPrimary,
+    this.project,
+    this.role,
+  });
+
+  factory ProjectAssignment.fromJson(Map<String, dynamic> json) {
+    return ProjectAssignment(
+      id: json['id']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
+      projectId: json['projectId']?.toString() ?? '',
+      roleId: json['roleId']?.toString() ?? '',
+      designation: json['designation']?.toString(),
+      startDate:
+          json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
+      isPrimary: json['isPrimary'] as bool?,
+      project:
+          json['project'] != null ? Project.fromJson(json['project']) : null,
+      role: json['role'] != null ? Role.fromJson(json['role']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'projectId': projectId,
+      'roleId': roleId,
+      'designation': designation,
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'isPrimary': isPrimary,
+      'project': project?.toJson(),
+      'role': role?.toJson(),
+    };
   }
 }

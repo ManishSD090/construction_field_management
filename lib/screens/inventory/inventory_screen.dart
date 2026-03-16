@@ -418,7 +418,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio:
-            1.55, // Adjusted to accommodate 2 lines for equipment name
+            1.15, // Decreased from 1.55 to give more vertical height
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -481,20 +481,23 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ],
             ),
             child: Column(
-               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment
+                  .spaceBetween, // Ensures elements are spaced perfectly
               children: [
-                Text(
-                  equip.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: Colors.black87),
+                Expanded(
+                  // Expanded ensures the text takes remaining height without overflowing bounds
+                  child: Text(
+                    equip.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.black87),
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

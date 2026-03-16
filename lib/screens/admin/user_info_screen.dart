@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 // Controllers
 import 'package:construction_erp/controllers/admin/user_controller.dart';
 import 'package:construction_erp/controllers/admin/role_controller.dart';
-// Import the Project Controller created in the previous step
 import 'package:construction_erp/controllers/project/project_controller.dart';
 
 // Models
@@ -117,11 +116,8 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
 
   /// Opens bottom sheet to assign user to a project
   void _showAssignProjectSheet(User user) {
-    // Form state for the sheet
     String? selectedProjectId;
-    // Auto-fill role from user info
     String? selectedRoleId = user.role?.id;
-    // Auto-fill designation from user info
     final designationCtrl = TextEditingController(text: user.designation ?? '');
     DateTime selectedDate = DateTime.now();
     bool isLoading = false;
@@ -136,7 +132,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
         maxChildSize: 0.95,
         builder: (_, scrollController) => Consumer(
           builder: (context, ref, child) {
-            // Fetch data reactively inside the sheet
             final projectAsync = ref.watch(projectControllerProvider);
             final rolesAsync = ref.watch(roleControllerProvider);
 
@@ -166,7 +161,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 1. Select Project (Fetched via ProjectController)
+                    // 1. Select Project
                     const Text("Select Project",
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
@@ -217,8 +212,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                                   child: Text(r.name),
                                 ))
                             .toList(),
-                        onChanged:
-                            null, // Disabled: role locked to user profile
+                        onChanged: null,
                       ),
                       loading: () => const LinearProgressIndicator(),
                       error: (e, _) => Text("Error loading roles: $e"),
@@ -231,8 +225,7 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: designationCtrl,
-                      enabled:
-                          false, // Disabled: designation locked to user profile
+                      enabled: false,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: "e.g. Site Supervisor",
@@ -292,7 +285,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                             : () async {
                                 setSheetState(() => isLoading = true);
                                 try {
-                                  // Construct payload based on backend requirements
                                   final assignmentPayload = [
                                     {
                                       'userId': user.id,
@@ -307,7 +299,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                                     }
                                   ];
 
-                                  // Call the ProjectController
                                   await ref
                                       .read(projectControllerProvider.notifier)
                                       .assignTeam(selectedProjectId!,
@@ -333,10 +324,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                                     );
                                   }
                                 } finally {
-                                  // Check if the sheet is still mounted before updating state
-                                  // Note: setSheetState is safe to call only if the StatefulBuilder is active
-                                  // But since we might pop, we catch errors or use mounted check if we converted to widget
-                                  // Here we just stop loading if still present
                                   try {
                                     setSheetState(() => isLoading = false);
                                   } catch (_) {}
@@ -486,11 +473,16 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
                     _buildEditableRow("Aadhar Number", _aadharController),
                   ],
                 ),
+                const SizedBox(height: 24),
+
+                // NEW: Project Assignments Section Added Here
+                if (!_isEditing) _buildProjectAssignmentsCard(user),
+                if (!_isEditing) const SizedBox(height: 24),
+
                 if (_isEditing) ...[
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 8),
                   _buildSaveButton(user.id),
                 ],
-                const SizedBox(height: 24),
                 if (!_isEditing) _buildAuditCard(user),
               ],
             ),
@@ -531,7 +523,6 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
         ),
         if (!_isEditing) ...[
           const SizedBox(height: 16),
-          // Actions Row
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -626,6 +617,115 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
     );
   }
 
+  // NEW METHOD: UI for showing list of projects
+  Widget _buildProjectAssignmentsCard(User user) {
+    final assignments = user.projectAssignments ?? [];
+
+    if (assignments.isEmpty) {
+      return _buildReferenceStyleCard(
+        title: "Project Assignments",
+        rows: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(
+              "No projects assigned yet.",
+              style:
+                  TextStyle(color: Colors.black54, fontStyle: FontStyle.italic),
+            ),
+          )
+        ],
+      );
+    }
+
+    final List<Widget> assignmentWidgets = assignments.map((assignment) {
+      final projectName = assignment.project?.name ?? 'Unknown Project';
+      final designation = assignment.designation ?? 'No Designation';
+      final roleName = assignment.role?.name ?? '';
+
+      String dateStr = 'Unknown Date';
+      if (assignment.startDate != null) {
+        dateStr = DateFormat('MMM dd, yyyy').format(assignment.startDate!);
+      }
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFEEEEEE)),
+          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFFF8F9FA),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    projectName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                if (assignment.isPrimary == true)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: const Text(
+                      "Primary",
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.work_outline, size: 14, color: Colors.black54),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "$designation ${roleName.isNotEmpty ? '• $roleName' : ''}",
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined,
+                    size: 14, color: Colors.black54),
+                const SizedBox(width: 8),
+                Text(
+                  "Started: $dateStr",
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }).toList();
+
+    return _buildReferenceStyleCard(
+      title: "Project Assignments (${assignments.length})",
+      rows: assignmentWidgets,
+    );
+  }
+
   Widget _buildAuditCard(User user) {
     return Container(
       width: double.infinity,
@@ -644,8 +744,10 @@ class _UserInfoScreenState extends ConsumerState<UserInfoScreen> {
           const SizedBox(height: 8),
           Text("Invited by: ${user.createdBy?.name ?? 'System'}",
               style: const TextStyle(fontSize: 13, color: Colors.black54)),
-          Text("Created: ${user.createdAt?.toLocal().toString().split(' ')[0]}",
-              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          if (user.createdAt != null)
+            Text(
+                "Created: ${DateFormat('MMM dd, yyyy').format(user.createdAt!)}",
+                style: const TextStyle(fontSize: 13, color: Colors.black54)),
         ],
       ),
     );
