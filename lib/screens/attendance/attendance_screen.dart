@@ -20,7 +20,7 @@ import 'package:construction_erp/screens/timeline/create_timeline_version.dart';
 import 'package:construction_erp/screens/dpr/dpr_tab.dart';
 import 'package:construction_erp/screens/dpr/create_dpr_screen.dart';
 import 'package:construction_erp/screens/budget/transaction_history_screen.dart';
-import 'package:construction_erp/screens/budget/create_request_screen.dart';
+// import 'package:construction_erp/screens/budget/create_request_screen.dart';
 import 'package:construction_erp/screens/projects/project_inventory_dashboard.dart';
 
 // ✅ FIXED IMPORTS based on your exact folder structure
@@ -194,7 +194,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const MarkAttendanceScreen())),
+                  builder: (context) =>
+                      MarkAttendanceScreen(projectId: project.id))),
           style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0D6EFD),
               shape: RoundedRectangleBorder(
@@ -224,7 +225,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       case 'Sub-contractor':
         return ProjectSubContractorsList(projectId: project.id);
       case 'DPR':
-        return const ProjectDPRTab();
+        return ProjectDPRTab(projectId: project.id);
       case 'Timeline':
         return _buildTimelineTab();
       case 'Overview':
@@ -306,33 +307,43 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]),
       const SizedBox(height: 16),
       InkWell(
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const TransactionHistoryScreen())),
-          child: const Text("View Transactions",
-              style: TextStyle(
-                  color: AppColors.primaryBlue,
-                  decoration: TextDecoration.underline))),
-      if (!_isHeaderVisible)
-        Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const CreateRequestScreen())),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                        padding: const EdgeInsets.symmetric(vertical: 16)),
-                    child: const Text("Create Request",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)))))
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TransactionHistoryScreen(
+              projectId: project.id, // Passing the project ID
+              budgetId:
+                  "default_budget", // Replace with project.budgetId if available
+            ),
+          ),
+        ),
+        child: const Text(
+          "View Transactions",
+          style: TextStyle(
+            color: AppColors.primaryBlue,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+      ),
+      //   if (!_isHeaderVisible)
+      //     Padding(
+      //         padding: const EdgeInsets.only(top: 20),
+      //         child: SizedBox(
+      //             width: double.infinity,
+      //             child: ElevatedButton(
+      //                 onPressed: () => Navigator.push(
+      //                     context,
+      //                     MaterialPageRoute(
+      //                         builder: (context) => const CreateRequestScreen())),
+      //                 style: ElevatedButton.styleFrom(
+      //                     backgroundColor: AppColors.primaryBlue,
+      //                     shape: RoundedRectangleBorder(
+      //                         borderRadius: BorderRadius.circular(30)),
+      //                     padding: const EdgeInsets.symmetric(vertical: 16)),
+      //                 child: const Text("Create Request",
+      //                     style: TextStyle(
+      //                         color: Colors.white,
+      //                         fontWeight: FontWeight.bold)))))
     ]);
   }
 
@@ -526,7 +537,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
             style:
                 TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: c))
       ]));
-      
+
   Widget _buildPayrollSummaryCard() => Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -538,7 +549,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text("Overall Payroll: ₹21,600",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          
           InkWell(
               onTap: () => Navigator.push(
                   context,
@@ -686,7 +696,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
+    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
+        .contains(_selectedTab)) {
       return null;
     }
     return FloatingActionButton(
@@ -696,13 +707,14 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                 context,
                 MaterialPageRoute(
                     builder: (context) => const CreateTaskScreen()));
-          } else if (_selectedTab == 'Sub-contractor')
+          } else if (_selectedTab == 'Sub-contractor') {
+            // Added missing {
             Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
                         AddSubContractorScreen(projectId: project.id)));
-          else if (_selectedTab == 'Timeline') {
+          } else if (_selectedTab == 'Timeline') {
             final tId = ref
                 .read(timelineControllerProvider)
                 .valueOrNull
@@ -715,15 +727,16 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                     builder: (context) => tId != null
                         ? CreateTimelineVersionScreen(timelineId: tId)
                         : ct.CreateTimelineScreen(projectId: project.id)));
-          } else if (_selectedTab == 'DPR')
-           Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateDPRScreen(
-                scrollController: ScrollController(),
+          } else if (_selectedTab == 'DPR') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateDPRScreen(
+                  scrollController: ScrollController(),
+                ),
               ),
-            ),
-          );
+            );
+          }
         },
         backgroundColor: AppColors.primaryBlue,
         shape: const CircleBorder(),

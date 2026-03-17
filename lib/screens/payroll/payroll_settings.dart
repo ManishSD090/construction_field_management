@@ -1,149 +1,184 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
+import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
+import 'package:construction_erp/controllers/worker/worker_controller.dart';
+import 'package:construction_erp/models/worker.dart';
 
-class PayrollSettingsScreen extends StatefulWidget {
+class PayrollSettingsScreen extends ConsumerStatefulWidget {
   const PayrollSettingsScreen({super.key});
 
   @override
-  State<PayrollSettingsScreen> createState() => _PayrollSettingsScreenState();
+  ConsumerState<PayrollSettingsScreen> createState() =>
+      _PayrollSettingsScreenState();
 }
 
-class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
+class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
   String _selectedRole = 'Workers';
-  
-  // --- NEW: Editing State ---
   bool _isEditingStaff = false;
+  bool _isLoading = true;
+  bool _isSaving = false;
 
-  // List for Workers
-  final List<String> _shifts = ['1.0', '0.75', '0.5'];
+  List<dynamic> _shifts = [];
+  List<Worker> _staffList = [];
 
-  // Mock List for Staff
-  final List<Map<String, String>> _staffRoles = [
-    {"role": "Site Engineer", "salary": "60,000"},
-    {"role": "Site Engineer", "salary": "60,000"},
-    {"role": "Site Engineer", "salary": "60,000"},
-    {"role": "Site Engineer", "salary": "60,000"},
-    {"role": "Site Engineer", "salary": "60,000"},
-    {"role": "Site Engineer", "salary": "60,000"},
-  ];
+  final TextEditingController _globalWorkerRateController =
+      TextEditingController(text: "500");
+  final Map<String, TextEditingController> _staffSalaryControllers = {};
 
-  // ===================== DIALOGS =====================
+  final String _projectId = "ca0ee39d-f2e9-46d2-8cec-d3a8bb44b755";
 
-  // --- Create Shift Dialog (Unchanged) ---
-  void _showCreateShiftDialog() {
-    final TextEditingController shiftController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back, size: 20),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      "Create Shift!",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                ],
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                "*1.0 is considered as Full Day",
-                style: TextStyle(color: AppColors.primaryBlue, fontSize: 12, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 15),
-              SizedBox(
-                height: 45,
-                child: TextField(
-                  controller: shiftController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.blue.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (shiftController.text.isNotEmpty) {
-                    setState(() {
-                      _shifts.add(shiftController.text);
-                    });
-                    Navigator.pop(context);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  minimumSize: const Size(140, 40),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  "Create Shift",
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSettingsData());
   }
 
-  // --- NEW: Delete Role Confirmation Dialog ---
-  void _showDeleteConfirmationDialog(int index) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Delete Role"),
-          content: Text(
-              "Are you sure you want to delete the role of '${_staffRoles[index]['role']}' and its salary setting?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _staffRoles.removeAt(index);
-                });
-                Navigator.pop(context); // Close dialog
-              },
-              child: const Text("Delete",
-                  style:
-                      TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
-    );
+  @override
+  void dispose() {
+    _globalWorkerRateController.dispose();
+    for (var controller in _staffSalaryControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
-  // ===================== BUILDER =====================
+  Future<void> _loadSettingsData() async {
+    setState(() => _isLoading = true);
+    try {
+      final payrollCtrl = ref.read(payrollControllerProvider);
+      final workerCtrl = ref.read(workerControllerProvider.notifier);
+
+      final prefs = await SharedPreferences.getInstance();
+      final savedRate = prefs.getString('default_worker_rate');
+      if (savedRate != null) {
+        _globalWorkerRateController.text = savedRate;
+      }
+
+      final shifts = await payrollCtrl.getShiftTypes();
+      final staff = await workerCtrl.fetchSystemStaff();
+
+      _staffSalaryControllers.clear();
+      for (var s in staff) {
+        _staffSalaryControllers[s.id!] = TextEditingController(
+            text: (s.dailyWageRate ?? 0).toInt().toString());
+      }
+
+      if (mounted) {
+        setState(() {
+          _shifts = shifts;
+          _staffList = staff;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading settings: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveWorkerSettings() async {
+    setState(() => _isSaving = true);
+    try {
+      final rateText = _globalWorkerRateController.text;
+      final rate = double.tryParse(rateText) ?? 500.0;
+
+      final allWorkers = await ref
+          .read(workerControllerProvider.notifier)
+          .fetchWorkersForAttendance();
+
+      final laborWorkers = allWorkers.where((w) {
+        final d = w.designation?.toLowerCase() ?? '';
+        return d == 'worker' || d == '';
+      }).toList();
+
+      for (var w in laborWorkers) {
+        if (w.id != null) {
+          await ref.read(payrollControllerProvider).createLabourRate(
+                workerType: 'SITE_STAFF',
+                workerId: w.id!,
+                rate: rate,
+                effectiveFrom: DateTime.now(),
+              );
+          await Future.delayed(const Duration(milliseconds: 50));
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('default_worker_rate', rateText);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Worker rates updated successfully!"),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _saveStaffSettings() async {
+    setState(() => _isSaving = true);
+    try {
+      final payrollCtrl = ref.read(payrollControllerProvider);
+      final prefs = await SharedPreferences.getInstance();
+
+      // 1. Update Backend
+      for (var staff in _staffList) {
+        if (staff.id == null) continue;
+        final controller = _staffSalaryControllers[staff.id!];
+        double newRate = double.tryParse(controller?.text ?? '0') ??
+            (staff.dailyWageRate ?? 0).toDouble();
+
+        await payrollCtrl.createLabourRate(
+          workerType: 'SITE_STAFF',
+          workerId: staff.id!,
+          rate: newRate,
+          effectiveFrom: DateTime.now(),
+        );
+      }
+
+      // 2. Update Local Project Roster to ensure Attendance screen sees it immediately
+      final rosterKey = 'project_roster_$_projectId';
+      final rosterString = prefs.getString(rosterKey);
+      if (rosterString != null) {
+        List<dynamic> roster = jsonDecode(rosterString);
+        for (var item in roster) {
+          if (_staffSalaryControllers.containsKey(item['id'])) {
+            item['baseRate'] =
+                double.tryParse(_staffSalaryControllers[item['id']]!.text) ??
+                    0.0;
+          }
+        }
+        await prefs.setString(rosterKey, jsonEncode(roster));
+      }
+
+      if (mounted) {
+        setState(() => _isEditingStaff = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Staff monthly salaries updated!"),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  // --- UI BUILDING ---
 
   @override
   Widget build(BuildContext context) {
@@ -151,60 +186,50 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: AppColors.primaryBlue,
-        elevation: 0,
-        centerTitle: true,
         title: const Text("Payroll Settings",
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context)),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildRoleToggle(),
-          Expanded(
-            child: _selectedRole == 'Workers' 
-                ? _buildWorkersContent() 
-                : _buildStaffContent(),
-          ),
-          // Conditionally hide the Save button when editing staff list
-          if (_selectedRole == 'Workers' || (_selectedRole == 'Staff' && !_isEditingStaff)) 
-            _buildSaveButton(),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildRoleToggle(),
+                Expanded(
+                  child: _selectedRole == 'Workers'
+                      ? _buildWorkersContent()
+                      : _buildStaffContent(),
+                ),
+                if (_selectedRole == 'Workers') _buildSaveButton(),
+              ],
+            ),
     );
   }
 
-  // --- Toggle Buttons ---
   Widget _buildRoleToggle() {
     return Container(
       margin: const EdgeInsets.all(20),
       height: 48,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(25),
-      ),
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(25)),
       child: Row(
         children: ['Workers', 'Staff'].map((role) {
           bool isSelected = _selectedRole == role;
           return Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedRole = role;
-                  // Reset edit state when switching tabs
-                  if (role == 'Workers') _isEditingStaff = false;
-                });
-              },
+              onTap: () => setState(() {
+                _selectedRole = role;
+                _isEditingStaff = false;
+              }),
               child: Container(
                 alignment: Alignment.center,
-                margin: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primaryBlue : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    color:
+                        isSelected ? AppColors.primaryBlue : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20)),
                 child: Text(role,
                     style: TextStyle(
                         color: isSelected ? Colors.white : Colors.grey,
@@ -217,7 +242,6 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
     );
   }
 
-  // ===================== WORKERS CONTENT (Unchanged) =====================
   Widget _buildWorkersContent() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -238,19 +262,18 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
   Widget _buildLabourRateInput() {
     return Row(
       children: [
-        const Text("Labour Rate  ",
+        const Text("Default Rate  ",
             style: TextStyle(fontWeight: FontWeight.w500)),
         Container(
           width: 120,
           height: 40,
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.primaryBlue),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Row(
+              border: Border.all(color: AppColors.primaryBlue),
+              borderRadius: BorderRadius.circular(8)),
+          child: Row(
             children: [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0),
+              const Padding(
+                padding: EdgeInsets.only(left: 8.0),
                 child: Text("₹",
                     style: TextStyle(
                         color: AppColors.primaryBlue,
@@ -258,10 +281,14 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
               ),
               Expanded(
                 child: TextField(
+                  controller: _globalWorkerRateController,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
               ),
@@ -277,145 +304,98 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        ..._shifts.map((shift) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.primaryBlue),
-                borderRadius: BorderRadius.circular(10),
+        ..._shifts.map((shift) => GestureDetector(
+              onLongPress: () =>
+                  _confirmDeleteShift(shift['id'], "x${shift['multiplier']}"),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    border: Border.all(color: AppColors.primaryBlue),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Text("x${shift['multiplier']}",
+                    style: const TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.bold)),
               ),
-              child: Text(shift,
-                  style: const TextStyle(
-                      color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
             )),
         GestureDetector(
-          onTap: _showCreateShiftDialog,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primaryBlue, style: BorderStyle.solid),
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.blue.withOpacity(0.05),
-            ),
-            child: const Icon(Icons.add, color: AppColors.primaryBlue, size: 20),
-          ),
-        ),
+            onTap: _showCreateShiftDialog,
+            child: const Icon(Icons.add_circle,
+                color: AppColors.primaryBlue, size: 36)),
       ],
     );
   }
 
-  // ===================== STAFF CONTENT (Updated for Editing Flow) =====================
   Widget _buildStaffContent() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row (Switches between Edit Icon and Done Button)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Role and Salary/Month", 
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
-              
-              _isEditingStaff 
-                // While Editing: Show Done Button
-                ? ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isEditingStaff = false;
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D6EFD), // Blue
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      minimumSize: const Size(60, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      elevation: 0,
-                    ),
-                    child: const Text("Done", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                  )
-                // Default State: Show Edit Icon
-                : GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isEditingStaff = true;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(6)
-                      ),
-                      child: const Icon(Icons.edit, size: 16, color: Colors.grey),
-                    ),
-                  )
+              const Text("Staff Monthly Salaries",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              _isEditingStaff
+                  ? IconButton(
+                      icon: const Icon(Icons.check_circle,
+                          color: Colors.green, size: 28),
+                      onPressed: _isSaving ? null : _saveStaffSettings)
+                  : IconButton(
+                      icon:
+                          const Icon(Icons.edit, color: Colors.blue, size: 24),
+                      onPressed: () => setState(() => _isEditingStaff = true)),
             ],
           ),
-          const SizedBox(height: 15),
-          
-          // Staff List
           Expanded(
-            child: ListView.separated(
-              itemCount: _staffRoles.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+            child: ListView.builder(
+              itemCount: _staffList.length,
               itemBuilder: (context, index) {
-                // If editing, use a controller to manage the editable text
-                final salaryController = TextEditingController(text: "₹ ${_staffRoles[index]['salary']}/-");
-
+                final staff = _staffList[index];
+                final controller = _staffSalaryControllers[staff.id];
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Adjusted vertical padding
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      // --- NEW: Conditionally show the delete icon ---
-                      if (_isEditingStaff)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 12.0),
-                          child: GestureDetector(
-                            onTap: () => _showDeleteConfirmationDialog(index),
-                            child: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 22),
-                          ),
-                        ),
-                      
                       Expanded(
-                        child: Text(
-                          _staffRoles[index]['role']!, 
-                          style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black54)
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(staff.name ?? '',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            Text(staff.designation ?? '',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey)),
+                          ],
                         ),
                       ),
-
-                      // --- NEW: Conditionally swap Text with an editable TextField ---
                       _isEditingStaff
-                        ? SizedBox(
-                            width: 120, // Constrain the input width
-                            child: TextField(
-                              controller: salaryController,
-                              textAlign: TextAlign.right,
-                              keyboardType: TextInputType.number,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-                              decoration: InputDecoration(
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade300)),
-                                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF0D6EFD))),
-                              ),
-                              onSubmitted: (newValue) {
-                                // Simple update logic: remove symbols to just store the number
-                                String cleanedValue = newValue.replaceAll('₹', '').replaceAll('/', '').replaceAll('-', '').trim();
-                                _staffRoles[index]['salary'] = cleanedValue;
-                              },
-                            ),
-                          )
-                        : Text(
-                            "₹ ${_staffRoles[index]['salary']}/-", 
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
-                          ),
+                          ? SizedBox(
+                              width: 110,
+                              child: TextField(
+                                  controller: controller,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.right,
+                                  decoration: const InputDecoration(
+                                    prefixText: "₹ ",
+                                    suffixText: "/mo",
+                                    isDense: true,
+                                  )))
+                          : Text("₹${controller?.text ?? '0'}/mo",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryBlue)),
                     ],
                   ),
                 );
@@ -427,20 +407,78 @@ class _PayrollSettingsScreenState extends State<PayrollSettingsScreen> {
     );
   }
 
-  // --- Save Button ---
+  void _confirmDeleteShift(String id, String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Shift"),
+        content: Text("Are you sure you want to delete '$name'?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              await ref.read(payrollControllerProvider).deleteShiftType(id);
+              await _loadSettingsData();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateShiftDialog() {
+    final multiplierController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Add Multiplier"),
+        content: TextField(
+          controller: multiplierController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(hintText: "e.g. 1.5"),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (multiplierController.text.isNotEmpty) {
+                Navigator.pop(context);
+                setState(() => _isLoading = true);
+                await ref.read(payrollControllerProvider).createShiftType(
+                    name: "x${multiplierController.text}",
+                    multiplier: double.parse(multiplierController.text));
+                _loadSettingsData();
+              }
+            },
+            child: const Text("Create"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSaveButton() {
     return Padding(
       padding: const EdgeInsets.all(25.0),
       child: ElevatedButton(
-        onPressed: () => Navigator.pop(context),
+        onPressed: _isSaving ? null : _saveWorkerSettings,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF00B69B), // Success Green
-          minimumSize: const Size(double.infinity, 54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        child: const Text("Save Changes",
-            style: TextStyle(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            backgroundColor: const Color(0xFF00B69B),
+            minimumSize: const Size(double.infinity, 54),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30))),
+        child: _isSaving
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text("Save Worker Settings",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }

@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/models/worker.dart';
 import 'package:dio/dio.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:intl/intl.dart';
 
 final workerControllerProvider =
     AsyncNotifierProvider<WorkerController, List<Worker>>(() {
@@ -30,16 +31,18 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
 
     // 2. Many apps save the user object in SharedPreferences instead of SecureStorage
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Attempt to read from common SharedPreferences keys
-    final companyIdFromPrefs = prefs.getString('companyId') ?? prefs.getString('company_id');
-    
+    final companyIdFromPrefs =
+        prefs.getString('companyId') ?? prefs.getString('company_id');
+
     if (companyIdFromPrefs != null) {
       companyId = companyIdFromPrefs;
     } else {
-       // 🚨 TEMPORARY FALLBACK 🚨
-       print("⚠️ WARNING: USING HARDCODED COMPANY ID. PLEASE LOCATE YOUR AUTH PROVIDER.");
-       companyId = "72ad085f-2d70-41a9-ba58-2529a13a5798"; 
+      // 🚨 TEMPORARY FALLBACK 🚨
+      print(
+          "⚠️ WARNING: USING HARDCODED COMPANY ID. PLEASE LOCATE YOUR AUTH PROVIDER.");
+      companyId = "72ad085f-2d70-41a9-ba58-2529a13a5798";
     }
 
     return {
@@ -81,7 +84,7 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
 
       final List<dynamic> data = response.data['data'] ?? [];
       final workers = data.map((json) => Worker.fromJson(json)).toList();
-      
+
       state = AsyncValue.data(workers);
       return workers;
     } catch (e, stack) {
@@ -102,11 +105,15 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
     final dio = ref.read(dioClientProvider).dio;
     final auth = await _getAuthData();
 
-    await dio.post(
+    // 🚨 FIX: Convert the date to a plain YYYY-MM-DD string.
+    // This prevents the backend from shifting the date due to timezone offsets.
+    String dateOnly = DateFormat('yyyy-MM-dd').format(date);
+
+    final response = await dio.post(
       '$_basePath/attendance/bulk',
       data: {
         'projectId': projectId,
-        'date': date.toIso8601String(),
+        'date': dateOnly, // ✅ Sent as "2026-03-14"
         'attendanceData': attendanceData,
         'companyId': auth['companyId'],
       },
@@ -117,6 +124,14 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
         },
       ),
     );
+
+    final responseData = response.data;
+    // Handle partial success
+    if (responseData['summary'] != null &&
+        responseData['summary']['successful'] == 0) {
+      throw Exception(responseData['errors']?[0]?['error'] ?? 'Failed to save');
+    }
+
     ref.invalidateSelf();
   }
 
@@ -147,10 +162,12 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
     });
 
     if (profilePath != null) {
-      formData.files.add(MapEntry('profilePicture', await MultipartFile.fromFile(profilePath, filename: 'profile.jpg')));
+      formData.files.add(MapEntry('profilePicture',
+          await MultipartFile.fromFile(profilePath, filename: 'profile.jpg')));
     }
     if (aadharPath != null) {
-      formData.files.add(MapEntry('aadharCopy', await MultipartFile.fromFile(aadharPath, filename: 'aadhar.jpg')));
+      formData.files.add(MapEntry('aadharCopy',
+          await MultipartFile.fromFile(aadharPath, filename: 'aadhar.jpg')));
     }
 
     await dio.post(
@@ -196,18 +213,18 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
     try {
       final dio = ref.read(dioClientProvider).dio;
       final auth = await _getAuthData();
-      
+
       // Format date to YYYY-MM-DD
       final dateString = date.toIso8601String().split('T')[0];
 
       final response = await dio.get(
-        '$_basePath/attendance', 
+        '$_basePath/attendance',
         queryParameters: {
           'projectId': projectId,
           'startDate': dateString,
           'endDate': dateString,
           // 🚨 ADDED THIS LINE: The backend crashes if this isn't in the URL 🚨
-          if (auth['companyId'] != null) 'companyId': auth['companyId'], 
+          if (auth['companyId'] != null) 'companyId': auth['companyId'],
         },
         options: Options(
           headers: {
@@ -223,6 +240,7 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
       return [];
     }
   }
+
   // ==========================================================================
   // 6. FETCH SYSTEM STAFF (From User / Employee Table)
   // ==========================================================================
@@ -234,9 +252,10 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
       // Hit the user/employee endpoint
       // 🚨 NOTE: Check your Node.js routes file. This might be '/users' or '/employees'
       final response = await dio.get(
-        '/users', 
+        '/users',
         queryParameters: {
-          'limit': 100, // Fetch up to 100 people so the dropdown is fully populated
+          'limit':
+              100, // Fetch up to 100 people so the dropdown is fully populated
           'status': 'active' // Only get active employees
         },
         options: Options(
@@ -248,17 +267,23 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
       );
 
       final List<dynamic> data = response.data['data'] ?? [];
-      
-      return data.map<Worker>((json) => Worker(
-        id: json['id'],
-        name: json['name'] ?? 'Unknown',
-        // Safely grab employeeId, fallback to a slice of their database ID
-        workerId: json['employeeId'] ?? json['id'].toString().substring(0, 8), 
-        // Grab their designation, fallback to their Role Name, fallback to 'Staff'
-        designation: json['designation'] ?? json['role']?['name'] ?? 'Staff',
-        dailyWageRate: 600.0, 
-      )).toList();
-      
+
+// Change the mapping logic to be null-safe
+      return data.map<Worker>((json) {
+        // Ensure the ID is never null
+        final String safeId = json['id']?.toString() ??
+            DateTime.now().millisecondsSinceEpoch.toString();
+
+        return Worker(
+          id: safeId,
+          name: json['name']?.toString() ?? 'Unknown',
+          workerId: json['employeeId']?.toString() ?? safeId.substring(0, 8),
+          designation: json['designation']?.toString() ??
+              json['role']?['name'] ??
+              'Staff',
+          dailyWageRate: (json['salary'] as num?)?.toDouble() ?? 0.0,
+        );
+      }).toList();
     } catch (e) {
       print("FETCH STAFF ERROR: $e");
       return [];

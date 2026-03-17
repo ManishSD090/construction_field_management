@@ -279,10 +279,12 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       child: SizedBox(
         height: 54,
         child: ElevatedButton(
+          // 🔥 FIX: Pass the dynamic project.id here!
           onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const MarkAttendanceScreen())),
+                  builder: (context) =>
+                      MarkAttendanceScreen(projectId: project.id))),
           style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0D6EFD),
               shape: RoundedRectangleBorder(
@@ -752,7 +754,9 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]));
 
   Widget? _buildFab() {
-    if (!['Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
+    // 1. Check if the current tab should have a FAB
+    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
+        .contains(_selectedTab)) {
       return null;
     }
 
@@ -761,9 +765,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
         if (_selectedTab == 'Tasks') {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const CreateTaskScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const CreateTaskScreen()),
           );
         } else if (_selectedTab == 'Sub-contractor') {
           Navigator.push(
@@ -780,31 +782,28 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
               ?.timelines
               .firstOrNull
               ?.id;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => tId != null
-                ? CreateTimelineVersionScreen(timelineId: tId)
-                : ct.CreateTimelineScreen(projectId: project.id),
-          ),
-        );
-      } else if (_selectedTab == 'DPR') {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => _selectedReportType == 0
-                ? CreateDPRScreen(scrollController: ScrollController()) // Daily
-                : CreateWPRScreen(
-                    scrollController: ScrollController(),
-                    projectId: project.id, // 🚨 ADD THIS LINE HERE
-                  ),
-          ),
-        );
-      }
-    },
-    backgroundColor: AppColors.primaryBlue,
-    shape: const CircleBorder(),
-    child: const Icon(Icons.add, color: Colors.white),
-  );
-}}
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => tId != null
+                  ? CreateTimelineVersionScreen(timelineId: tId)
+                  : ct.CreateTimelineScreen(projectId: project.id),
+            ),
+          );
+        } else if (_selectedTab == 'DPR') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreateDPRScreen(
+                scrollController: ScrollController(),
+              ),
+            ),
+          );
+        }
+      },
+      backgroundColor: AppColors.primaryBlue,
+      shape: const CircleBorder(),
+      child: const Icon(Icons.add, color: Colors.white),
+    );
+  }
+} // Final closing brace for the State class
