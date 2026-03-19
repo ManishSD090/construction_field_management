@@ -11,6 +11,7 @@ import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/models/user.dart';
 import 'package:construction_erp/models/company.dart';
+import 'package:construction_erp/screens/sub_contractor/sub_contractor_list.dart';
 
 // Screens
 import 'manage_users_menu.dart';
@@ -45,8 +46,9 @@ class AdminProfileScreen extends ConsumerWidget {
       ),
       body: authState.when(
         data: (user) {
-          if (user == null)
+          if (user == null) {
             return const Center(child: Text("No session found"));
+          }
           return _buildProfileBody(context, ref, user);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -221,7 +223,7 @@ class AdminProfileScreen extends ConsumerWidget {
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const SubcontractorListScreen())),
+                    builder: (context) =>  const SubcontractorListScreen())),
           ),
         ],
       ),

@@ -340,6 +340,7 @@ class DailyProgressReport {
   final TaskStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? nextDayPlan;
 
   final List<DPRPhoto> photos;
   final List<DPRDocument> documents;
@@ -359,6 +360,7 @@ class DailyProgressReport {
     this.weather,
     this.temperature,
     this.humidity,
+    this.nextDayPlan,
     required this.workDescription,
     this.siteVisitors = const [],
     this.completedWork,
@@ -481,7 +483,7 @@ class DailyProgressReport {
       nextDayNotes: json['nextDayNotes'] as String? ??
           (json['nextDayPlanning'] is Map
               ? json['nextDayPlanning']['description'] as String?
-              : null),
+              : json['nextDayPlan'] as String?), // 🚨 This catches your backend's "nextDayPlan" key!
       equipmentUsed: json['equipmentUsed'] as String?,
       materialsUsed: json['materialsUsed'] as String?,
       materialsReceived: json['materialsReceived'] as String?,

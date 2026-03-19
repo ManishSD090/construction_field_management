@@ -185,7 +185,7 @@ class _ManageWorkersScreenState extends ConsumerState<ManageWorkersScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: selectedWageType,
+                            initialValue: selectedWageType,
                             decoration: InputDecoration(
                               labelText: "Wage Type",
                               border: OutlineInputBorder(
@@ -276,8 +276,9 @@ class _ManageWorkersScreenState extends ConsumerState<ManageWorkersScreen> {
                                       );
                                     }
                                   } finally {
-                                    if (context.mounted)
+                                    if (context.mounted) {
                                       setModalState(() => isSubmitting = false);
+                                    }
                                   }
                                 }
                               },

@@ -151,7 +151,7 @@ class DPRController extends AsyncNotifier<DPRState> {
       if (description != null) 'description': description,
       'file': await MultipartFile.fromFile(file.path, filename: fileName),
     });
-
+    
     final response = await _dioClient.dio.post(
       '$_photoPath/upload',
       data: formData,

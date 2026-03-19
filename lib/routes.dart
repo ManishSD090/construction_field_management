@@ -97,8 +97,7 @@ class AppRoutes {
 
     // DPR
     createDPR: (context) =>
-        CreateDPRScreen(scrollController: ScrollController()),
-
+    CreateDPRScreen(scrollController: ScrollController(), projectId: ''),
     dprDetails: (context) {
       final args =
           ModalRoute.of(context)!.settings.arguments as DailyProgressReport;

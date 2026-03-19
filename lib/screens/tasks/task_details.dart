@@ -136,8 +136,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
         if (s.worker != null) return "Site Staff: ${s.worker.name}";
       } catch (_) {}
       try {
-        if (s.contractorWorker != null)
+        if (s.contractorWorker != null) {
           return "Subcontractor: ${s.contractorWorker.name}";
+        }
       } catch (_) {}
 
       return "Unassigned";

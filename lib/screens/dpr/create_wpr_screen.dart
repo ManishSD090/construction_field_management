@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/wpr/wpr_controller.dart';
-import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/screens/dpr//dpr_tab.dart'; // Add this line!
 
 class CreateWPRScreen extends ConsumerStatefulWidget {
   final ScrollController scrollController;
-  final String projectId; // Added to fetch correct preview data
+  final String projectId;
 
   const CreateWPRScreen({
-    super.key, 
+    super.key,
     required this.scrollController,
     required this.projectId,
   });
@@ -22,23 +22,34 @@ class CreateWPRScreen extends ConsumerStatefulWidget {
 class _CreateWPRScreenState extends ConsumerState<CreateWPRScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoadingPreview = false;
+  bool _isSubmitting = false;
 
   final TextEditingController _weekController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _nextWeekNotesController = TextEditingController();
 
-  String? _selectedNextWeekTask;
+  // Dynamic list for Next Week Planning
+  final List<_NextWeekTaskRow> _nextWeekTasks = [_NextWeekTaskRow()];
+  
   Map<String, dynamic>? _previewData;
+  DateTime? _weekStart;
+  DateTime? _weekEnd;
 
   @override
   void dispose() {
     _weekController.dispose();
     _descriptionController.dispose();
-    _nextWeekNotesController.dispose();
+    for (var task in _nextWeekTasks) { task.dispose(); }
     super.dispose();
   }
 
-  // --- LOGIC: Fetch Aggregated Data for the Selected Week ---
+  void _addNextWeekTask() => setState(() => _nextWeekTasks.add(_NextWeekTaskRow()));
+  void _removeNextWeekTask(int index) => setState(() { 
+    if (_nextWeekTasks.length > 1) { 
+      _nextWeekTasks[index].dispose(); 
+      _nextWeekTasks.removeAt(index); 
+    } 
+  });
+
   Future<void> _handleWeekSelection() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -51,27 +62,79 @@ class _CreateWPRScreenState extends ConsumerState<CreateWPRScreen> {
     if (picked != null) {
       final startOfWeek = picked.subtract(Duration(days: picked.weekday - 1));
       final endOfWeek = startOfWeek.add(const Duration(days: 6));
-      
+
       setState(() {
+        _weekStart = startOfWeek;
+        _weekEnd = endOfWeek;
         _weekController.text = "${DateFormat("dd MMM").format(startOfWeek)} - ${DateFormat("dd MMM yyyy").format(endOfWeek)}";
         _isLoadingPreview = true;
       });
 
       try {
-        // Fetch real aggregated data from backend
-        final data = await ref.read(wprControllerProvider.notifier)
-            .getWeeklyPreview(widget.projectId, startOfWeek);
+        final response = await ref.read(wprControllerProvider.notifier).getWeeklyPreview(widget.projectId, startOfWeek);
         
         setState(() {
-          _previewData = data;
+          if (response['hasData'] == true) {
+            _previewData = response['data'];
+            // Keep description intentionally blank
+            _descriptionController.text = ''; 
+
+            // Pre-fill next week tasks dynamically based on backend preview
+            _nextWeekTasks.clear();
+            final planning = _previewData?['nextWeekPlanning'] as List?;
+            if (planning != null && planning.isNotEmpty) {
+              for (var p in planning) {
+                 final row = _NextWeekTaskRow();
+                 row.taskName = p['task']?.toString();
+                 row.notesController.text = p['description']?.toString() ?? '';
+                 _nextWeekTasks.add(row);
+              }
+            } else {
+              _nextWeekTasks.add(_NextWeekTaskRow());
+            }
+          } else {
+            _previewData = null; 
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No DPRs found for this week.")));
+          }
           _isLoadingPreview = false;
         });
       } catch (e) {
         setState(() => _isLoadingPreview = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error fetching weekly data: $e")));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error fetching weekly data: $e")));
       }
+    }
+  }
+
+  Future<void> _submitWPR() async {
+    if (!_formKey.currentState!.validate() || _previewData == null || _weekStart == null) return;
+    
+    setState(() => _isSubmitting = true);
+    
+    try {
+      final payload = {
+        'projectId': widget.projectId,
+        'weekStartDate': _weekStart!.toIso8601String(),
+        'weekEndDate': _weekEnd!.toIso8601String(),
+        'description': _descriptionController.text.trim(),
+        'previewData': _previewData,
+        'nextWeekPlanning': _nextWeekTasks.where((t) => t.taskName != null && t.taskName!.isNotEmpty).map((t) => {
+           'task': t.taskName,
+           'description': t.notesController.text.trim(),
+        }).toList(),
+      };
+
+      await ref.read(wprControllerProvider.notifier).createWPR(payload);
+      
+      if (!mounted) return;
+      ref.invalidate(wprListProvider(widget.projectId));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('WPR Created Successfully!'), backgroundColor: Colors.green));
+      Navigator.of(context).pop(); 
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to submit WPR: $e"), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -84,91 +147,128 @@ class _CreateWPRScreenState extends ConsumerState<CreateWPRScreen> {
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: AppColors.textDark), onPressed: () => Navigator.pop(context)),
         title: const Text("Create WPR", style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w700, fontSize: 18)),
       ),
-      body: _isLoadingPreview 
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-            controller: widget.scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _label("WPR Week"),
-                  _dateField(),
-                  const SizedBox(height: 20),
+      body: SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _label("WPR Week"),
+              _dateField(),
+              const SizedBox(height: 20),
 
-                  _label("Weather"),
-                  _weatherWeeklyRow(),
-                  const SizedBox(height: 20),
+              if (_isLoadingPreview)
+                const Center(child: Padding(padding: EdgeInsets.all(40.0), child: CircularProgressIndicator()))
+              else if (_previewData != null) ...[
+                
+                _label("Weather"),
+                _weatherWeeklyRow(),
+                const SizedBox(height: 20),
 
-                  _label("Description"),
-                  _textArea(_descriptionController, hint: "Enter the weekly summary..."),
-                  const SizedBox(height: 24),
+                _label("Description"),
+                _textArea(_descriptionController, hint: "Enter the weekly summary..."),
+                const SizedBox(height: 24),
 
-                  _sectionHeader("Attendance", trailing: "${_previewData?['presentCount'] ?? '0'}/30 Present"),
-                  _attendanceChartCard(),
-                  const SizedBox(height: 24),
+                _sectionHeader("Attendance", trailing: "${_previewData!['attendance']?['summary']?['totalPresent'] ?? '0'} Present"),
+                _attendanceChartCard(),
+                const SizedBox(height: 24),
 
+                if ((_previewData!['subcontractors'] as List?)?.isNotEmpty ?? false) ...[
                   _sectionHeader("Sub Contractor Names"),
-                  _subContractorListCard(),
+                  ...(_previewData!['subcontractors'] as List).map((sub) => _subContractorListCard(sub)),
                   const SizedBox(height: 24),
-
-                  _sectionHeader("Progress"),
-                  _progressIndicatorCard(),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader("Tasks", subTitle: "subtasks"),
-                  _tasksListCard(),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader("Materials"),
-                  _materialsListCard(),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader("Equipments"),
-                  _equipmentsListCard(),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader("Budget"),
-                  _budgetSummaryCard(),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader("Photos"),
-                  _placeholderGrid(),
-                  const SizedBox(height: 24),
-
-                  const Text("Next Week Planning", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  _label("Task Name"),
-                  _dropdown(
-                    value: _selectedNextWeekTask,
-                    hint: "Select Task",
-                    items: ["Foundation Pouring", "Excavation", "Brickwork"],
-                    onChanged: (v) => setState(() => _selectedNextWeekTask = v),
-                  ),
-                  const SizedBox(height: 12),
-                  _label("Notes"),
-                  _textArea(_nextWeekNotesController, hint: "Enter planning notes..."),
-
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity, height: 50,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
-                      child: const Text("Submit WPR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
                 ],
-              ),
-            ),
+
+                _sectionHeader("Progress"),
+                _progressIndicatorCard(),
+                const SizedBox(height: 24),
+
+                if ((_previewData!['tasks'] as List?)?.isNotEmpty ?? false) ...[
+                  _sectionHeader("Tasks"),
+                  ...(_previewData!['tasks'] as List).map((t) => _tasksListCard(t)),
+                  const SizedBox(height: 24),
+                ],
+
+                if ((_previewData!['materials']?['consumed'] as List?)?.isNotEmpty ?? false) ...[
+                  _sectionHeader("Materials Consumed"),
+                  ...(_previewData!['materials']['consumed'] as List).map((m) => _materialsListCard(m)),
+                  const SizedBox(height: 24),
+                ],
+
+                if ((_previewData!['equipment'] as List?)?.isNotEmpty ?? false) ...[
+                  _sectionHeader("Equipments Used"),
+                  ...(_previewData!['equipment'] as List).map((e) => _equipmentsListCard(e)),
+                  const SizedBox(height: 24),
+                ],
+
+                if ((_previewData!['photos'] as List?)?.isNotEmpty ?? false) ...[
+                  _sectionHeader("Photos"),
+                  _photoGrid(),
+                  const SizedBox(height: 24),
+                ],
+
+                const Text("Next Week Planning", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                
+                ..._nextWeekTasks.asMap().entries.map((entry) {
+                  int idx = entry.key;
+                  var row = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _label("Task Name")),
+                            if (idx > 0) 
+                              InkWell(
+                                onTap: () => _removeNextWeekTask(idx),
+                                child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: AppColors.alertRed.withOpacity(0.1), shape: BoxShape.circle), child: const Icon(Icons.remove, color: AppColors.alertRed, size: 18)),
+                              ),
+                          ],
+                        ),
+                        // For flexibility, keeping this a dropdown based on preview data. Alternatively, change to TextField.
+                        _dropdown(
+                          value: row.taskName,
+                          hint: "Select Task",
+                          items: ((_previewData!['nextWeekPlanning'] as List?) ?? []).map((t) => t['task']?.toString() ?? "Task").toSet().toList(),
+                          onChanged: (v) => setState(() => row.taskName = v),
+                        ),
+                        const SizedBox(height: 12),
+                        _label("Notes"),
+                        _textArea(row.notesController, hint: "Enter planning notes..."),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
+                  );
+                }),
+                
+                _addDashedButton(_addNextWeekTask),
+
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity, height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submitWPR,
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
+                    child: _isSubmitting 
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text("Submit WPR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ]
+            ],
           ),
+        ),
+      ),
     );
   }
 
-  // --- REFINED UI COMPONENTS ---
+  // --- UI COMPONENTS BOUND TO REAL DATA ---
 
   Widget _dateField() {
     return InkWell(
@@ -185,73 +285,199 @@ class _CreateWPRScreenState extends ConsumerState<CreateWPRScreen> {
   }
 
   Widget _weatherWeeklyRow() {
-    final days = ["01", "02", "03", "04", "05", "06", "07"];
+    final List weatherDays = _previewData!['weather'] ?? [];
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade300)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: days.map((day) => Column(children: [
-          Text(day, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        children: weatherDays.map((w) => Column(children: [
+          Text(w['day'] ?? "", style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Icon(Icons.wb_sunny_outlined, size: 18, color: AppColors.primaryBlue),
+          Text(w['code'] ?? "-", style: const TextStyle(fontSize: 18)),
         ])).toList(),
       ),
     );
   }
 
   Widget _attendanceChartCard() {
-    final List<dynamic> bars = _previewData?['attendanceHistory'] ?? [
-      {'workers': 10.0, 'staff': 5.0}, {'workers': 15.0, 'staff': 8.0}, {'workers': 12.0, 'staff': 6.0},
-      {'workers': 20.0, 'staff': 10.0}, {'workers': 18.0, 'staff': 7.0}, {'workers': 14.0, 'staff': 5.0}, {'workers': 16.0, 'staff': 9.0}
-    ];
+    final List daily = _previewData!['attendance']?['daily'] ?? [];
+    final summary = _previewData!['attendance']?['summary'] ?? {};
+    
+    double maxCount = 10.0; 
+    for (var day in daily) {
+      if (((day['total'] ?? 0) as num) > maxCount) maxCount = ((day['total'] ?? 0) as num).toDouble();
+    }
 
     return Container(
       padding: const EdgeInsets.all(16), decoration: _cardDeco(),
       child: Column(children: [
-        SizedBox(height: 120, child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, crossAxisAlignment: CrossAxisAlignment.end,
-          children: bars.map((b) => Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-            Container(width: 10, height: (b['workers'] as num).toDouble() * 2, color: AppColors.primaryBlue),
-            Container(width: 10, height: (b['staff'] as num).toDouble() * 2, color: const Color(0xFF1ABC9C)),
-          ])).toList())),
-        const SizedBox(height: 12),
+        SizedBox(
+          height: 120, 
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: daily.map((b) {
+              double wHeight = (((b['workers'] ?? 0) as num) / maxCount) * 100;
+              double sHeight = (((b['staff'] ?? 0) as num) / maxCount) * 100;
+              
+              if (wHeight == 0 && sHeight == 0) {
+                 return Column(
+                   mainAxisAlignment: MainAxisAlignment.end, 
+                   children: [
+                     const SizedBox(height: 100), 
+                     const SizedBox(height: 4),
+                     Text(b['date']?.toString() ?? "", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                   ]
+                 );
+              }
+
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.end, 
+                children: [
+                  if (wHeight > 0) Container(width: 12, height: wHeight, color: AppColors.primaryBlue),
+                  if (sHeight > 0) Container(width: 12, height: sHeight, color: const Color(0xFF1ABC9C)),
+                  const SizedBox(height: 4),
+                  Text(b['date']?.toString() ?? "", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ]
+              );
+            }).toList()
+          )
+        ),
+        const SizedBox(height: 16),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _LegendDot(color: AppColors.primaryBlue, label: "${_previewData?['avgWorkers'] ?? 28} Workers (avg)"),
+          _LegendDot(color: AppColors.primaryBlue, label: "${summary['avgWorkers'] ?? 0} Workers (avg)"),
           const SizedBox(width: 15),
-          _LegendDot(color: const Color(0xFF1ABC9C), label: "${_previewData?['avgStaff'] ?? 7} Staff (avg)"),
+          _LegendDot(color: const Color(0xFF1ABC9C), label: "${summary['avgStaff'] ?? 0} Staff (avg)"),
         ])
       ]),
     );
   }
 
-  Widget _budgetSummaryCard() {
+  Widget _subContractorListCard(dynamic sub) {
     return Container(
-      padding: const EdgeInsets.all(12), decoration: _cardDeco(),
-      child: Column(children: [
-        _RowInfo(label: "Labour", value: "₹${_previewData?['totalLaborCost'] ?? '1,20,000'}", valueColor: AppColors.primaryBlue),
-        _RowInfo(label: "Material", value: "₹${_previewData?['totalMaterialCost'] ?? '40,000'}", valueColor: AppColors.primaryBlue),
-        _RowInfo(label: "Equipment", value: "₹${_previewData?['totalEquipmentCost'] ?? '25,000'}", valueColor: AppColors.primaryBlue),
-        const Divider(),
-        _RowInfo(label: "Total", value: "₹${_previewData?['totalBudgetUsed'] ?? '1,85,000'}", valueColor: AppColors.primaryBlue, isBold: true),
-      ]),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12), decoration: _cardDeco(), 
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _RowInfo(label: sub['name'] ?? "Unknown", value: sub['dates'] ?? "No dates recorded"),
+          const SizedBox(height: 4),
+          Text(sub['specialization'] ?? "General Work", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ]
+      )
     );
   }
 
-  // --- SHARED UI HELPERS ---
-  Widget _subContractorListCard() => Container(padding: const EdgeInsets.all(12), decoration: _cardDeco(), child: const _RowInfo(label: "Sub-Contractor", value: "Mocked Workers"));
-  Widget _progressIndicatorCard() => Container(padding: const EdgeInsets.all(16), decoration: _cardDeco(), child: const _RowInfo(label: "Overall Progress", value: "29.5%", valueColor: AppColors.primaryBlue));
-  Widget _tasksListCard() => Container(padding: const EdgeInsets.all(12), decoration: _cardDeco(), child: const _TaskRow(name: "Mock Task", count: "1/1", status: "Completed", color: Colors.green));
-  Widget _materialsListCard() => Container(padding: const EdgeInsets.all(12), decoration: _cardDeco(), child: const _RowInfo(label: "Mock Material", value: "10 Units", valueColor: AppColors.primaryBlue));
-  Widget _equipmentsListCard() => Container(padding: const EdgeInsets.all(12), decoration: _cardDeco(), child: const _EquipRow(name: "Mock Equip", hours: "5 Hrs", fuel: "10L"));
-  Widget _placeholderGrid() => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: List.generate(3, (index) => Container(height: 70, width: 100, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)))));
+  Widget _progressIndicatorCard() {
+    final prog = _previewData!['progress'] ?? {};
+    return Container(
+      padding: const EdgeInsets.all(16), decoration: _cardDeco(), 
+      child: Column(
+        children: [
+          _RowInfo(label: "Total Added This Week", value: prog['todayAdded']?.toString() ?? "0%", valueColor: Colors.green),
+          const Divider(),
+          _RowInfo(label: "Overall Progress", value: prog['currentOverall']?.toString() ?? "0%", valueColor: AppColors.primaryBlue),
+        ],
+      )
+    );
+  }
+
+  Widget _tasksListCard(dynamic task) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12), decoration: _cardDeco(), 
+      child: _TaskRow(
+        name: task['name']?.toString() ?? "Task", 
+        status: task['status']?.toString() ?? "Pending", 
+        color: task['status'] == 'Completed' ? Colors.green : AppColors.primaryBlue
+      )
+    );
+  }
+
+  Widget _materialsListCard(dynamic mat) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12), decoration: _cardDeco(), 
+      child: _RowInfo(label: mat['name']?.toString() ?? "Material", value: mat['quantity']?.toString() ?? "0", valueColor: AppColors.primaryBlue)
+    );
+  }
+
+  Widget _equipmentsListCard(dynamic eq) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12), decoration: _cardDeco(), 
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(eq['name']?.toString() ?? "Equipment", style: const TextStyle(fontSize: 13))), 
+          Text(eq['hrsUsed']?.toString() ?? "0 Hrs", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryBlue))
+        ]
+      )
+    );
+  }
+
+  String _fixUrl(String url) => url.replaceAll('localhost', '172.16.9.36');
+
+  Widget _photoGrid() {
+    final List photos = _previewData!['photos'] ?? [];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal, 
+      child: Row(
+        children: photos.map((p) => Padding(
+          padding: const EdgeInsets.only(right: 12), 
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8), 
+            child: Image.network(
+              _fixUrl(p['thumbnail'] ?? ""), 
+              height: 70, width: 100, fit: BoxFit.cover, 
+              errorBuilder: (_,__,___) => Container(height: 70, width: 100, color: Colors.grey.shade200, child: const Icon(Icons.broken_image, color: Colors.grey))
+            )
+          )
+        )).toList()
+      )
+    );
+  }
+
+  // --- STYLING HELPERS ---
+  Widget _addDashedButton(VoidCallback onTap) {
+    return Row(
+      children: [
+        Expanded(child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10), child: const DottedBox(height: 44, child: Icon(Icons.add_circle_outline, color: AppColors.primaryBlue, size: 22)))),
+      ],
+    );
+  }
+
   BoxDecoration _cardDeco() => BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200));
   Widget _label(String t) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)));
   Widget _sectionHeader(String title, {String? subTitle, String? trailing}) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)), if (subTitle != null) ...[const SizedBox(width: 5), Text(subTitle, style: const TextStyle(fontSize: 12, color: AppColors.primaryBlue, fontWeight: FontWeight.w600))], const Spacer(), if (trailing != null) Text(trailing, style: const TextStyle(fontSize: 12, color: AppColors.primaryBlue, fontWeight: FontWeight.bold))]));
   Widget _textArea(TextEditingController c, {required String hint}) => TextFormField(controller: c, minLines: 2, maxLines: 4, decoration: InputDecoration(hintText: hint, contentPadding: const EdgeInsets.all(12), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primaryBlue))));
-  Widget _dropdown({required String? value, required String hint, required List<String> items, required ValueChanged<String?> onChanged}) => Container(padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5))), child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: value, isExpanded: true, hint: Text(hint), items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: onChanged)));
+  
+  Widget _dropdown({required String? value, required String hint, required List<String> items, required ValueChanged<String?> onChanged}) {
+    // Allows custom input if backend tasks aren't sufficient
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12), 
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primaryBlue.withOpacity(0.5))), 
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: items.contains(value) ? value : null, 
+          isExpanded: true, 
+          hint: Text(hint), 
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(), 
+          onChanged: onChanged
+        )
+      )
+    );
+  }
 }
 
 // Support Classes
+class _NextWeekTaskRow {
+  String? taskName;
+  final TextEditingController notesController = TextEditingController();
+  void dispose() => notesController.dispose();
+}
+
 class _RowInfo extends StatelessWidget {
   final String label, value;
   final Color? valueColor;
@@ -261,16 +487,10 @@ class _RowInfo extends StatelessWidget {
 }
 
 class _TaskRow extends StatelessWidget {
-  final String name, count, status;
+  final String name, status;
   final Color color;
-  const _TaskRow({required this.name, required this.count, required this.status, required this.color});
-  @override Widget build(BuildContext context) => Row(children: [Expanded(child: Text(name, style: const TextStyle(fontSize: 13))), Text(count, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)), const SizedBox(width: 10), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)), child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))]);
-}
-
-class _EquipRow extends StatelessWidget {
-  final String name, hours, fuel;
-  const _EquipRow({required this.name, required this.hours, required this.fuel});
-  @override Widget build(BuildContext context) => Row(children: [Expanded(child: Text(name, style: const TextStyle(fontSize: 13))), Text(hours, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)), const SizedBox(width: 15), Text(fuel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryBlue))]);
+  const _TaskRow({required this.name, required this.status, required this.color});
+  @override Widget build(BuildContext context) => Row(children: [Expanded(child: Text(name, style: const TextStyle(fontSize: 13))), const SizedBox(width: 10), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)), child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))]);
 }
 
 class _LegendDot extends StatelessWidget {
@@ -279,3 +499,6 @@ class _LegendDot extends StatelessWidget {
   const _LegendDot({required this.color, required this.label});
   @override Widget build(BuildContext context) => Row(children: [Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey))]);
 }
+
+class DottedBox extends StatelessWidget { final Widget child; final double? height, width; const DottedBox({super.key, required this.child, this.height, this.width}); @override Widget build(BuildContext context) { return CustomPaint(painter: _DottedPainter(), child: Container(height: height, width: width, alignment: Alignment.center, child: child)); } }
+class _DottedPainter extends CustomPainter { @override void paint(Canvas canvas, Size size) { final paint = Paint()..color = AppColors.primaryBlue.withOpacity(0.5)..strokeWidth = 1.2..style = PaintingStyle.stroke; final path = Path()..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, size.height), const Radius.circular(10))); double dashWidth = 6, dashSpace = 4, distance = 0; final dashedPath = Path(); for (final m in path.computeMetrics()) { while (distance < m.length) { dashedPath.addPath(m.extractPath(distance, distance + dashWidth), Offset.zero); distance += dashWidth + dashSpace; } } canvas.drawPath(dashedPath, paint); } @override bool shouldRepaint(covariant CustomPainter oldDelegate) => false; }

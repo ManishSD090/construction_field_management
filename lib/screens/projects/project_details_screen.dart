@@ -782,28 +782,34 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
               ?.timelines
               .firstOrNull
               ?.id;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => tId != null
-                  ? CreateTimelineVersionScreen(timelineId: tId)
-                  : ct.CreateTimelineScreen(projectId: project.id),
-            ),
-          );
-        } else if (_selectedTab == 'DPR') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateDPRScreen(
-                scrollController: ScrollController(),
-              ),
-            ),
-          );
-        }
-      },
-      backgroundColor: AppColors.primaryBlue,
-      shape: const CircleBorder(),
-      child: const Icon(Icons.add, color: Colors.white),
-    );
-  }
-} // Final closing brace for the State class
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => tId != null
+                ? CreateTimelineVersionScreen(timelineId: tId)
+                : ct.CreateTimelineScreen(projectId: project.id),
+          ),
+        );
+      } else if (_selectedTab == 'DPR') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _selectedReportType == 0
+                ? CreateDPRScreen(
+                  scrollController: ScrollController(),
+                  projectId: project.id, // 🚨 ADD THIS LINE
+                ) // Daily
+                : CreateWPRScreen(
+                    scrollController: ScrollController(),
+                    projectId: project.id, // 🚨 ADD THIS LINE HERE
+                  ),
+          ),
+        );
+      }
+    },
+    backgroundColor: AppColors.primaryBlue,
+    shape: const CircleBorder(),
+    child: const Icon(Icons.add, color: Colors.white),
+  );
+}}
