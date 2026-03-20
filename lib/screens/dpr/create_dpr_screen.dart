@@ -8,7 +8,6 @@ import 'package:file_picker/file_picker.dart';
 
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/dpr/dpr_controller.dart';
-import 'package:construction_erp/screens/dpr/dpr_details.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/models/task.dart';
 import 'package:construction_erp/controllers/task/task_controller.dart';

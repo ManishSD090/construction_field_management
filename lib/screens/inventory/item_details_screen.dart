@@ -533,8 +533,9 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                                 );
                               }
                             } finally {
-                              if (mounted)
+                              if (mounted) {
                                 setModalState(() => isSaving = false);
+                              }
                             }
                           },
                     style: ElevatedButton.styleFrom(
@@ -715,8 +716,9 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                                     value: status, child: Text(status)))
                                 .toList(),
                             onChanged: (val) {
-                              if (val != null)
+                              if (val != null) {
                                 setModalState(() => selectedStatus = val);
+                              }
                             },
                           ),
                         ),
@@ -876,8 +878,9 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                                     DropdownMenuItem(value: o, child: Text(o)))
                                 .toList(),
                             onChanged: (val) {
-                              if (val != null)
+                              if (val != null) {
                                 setModalState(() => selectedOwnership = val);
+                              }
                             },
                           ),
                         ),
@@ -1038,8 +1041,9 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                                       );
                                     }
                                   } finally {
-                                    if (mounted)
+                                    if (mounted) {
                                       setModalState(() => isSaving = false);
+                                    }
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

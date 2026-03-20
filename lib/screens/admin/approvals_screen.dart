@@ -286,7 +286,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Text('Error: $err'),
               data: (items) {
-                if (items.isEmpty)
+                if (items.isEmpty) {
                   return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
@@ -294,6 +294,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                               style: TextStyle(
                                   color: Colors.grey,
                                   fontStyle: FontStyle.italic))));
+                }
                 return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -328,7 +329,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                   return false;
                 }).toList();
 
-                if (filteredItems.isEmpty)
+                if (filteredItems.isEmpty) {
                   return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
@@ -336,6 +337,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                               style: TextStyle(
                                   color: Colors.grey,
                                   fontStyle: FontStyle.italic))));
+                }
                 return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -492,7 +494,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Text('Error: $err'),
               data: (items) {
-                if (items.isEmpty)
+                if (items.isEmpty) {
                   return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
@@ -500,6 +502,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                               style: TextStyle(
                                   color: Colors.grey,
                                   fontStyle: FontStyle.italic))));
+                }
                 return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -533,7 +536,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                   return false;
                 }).toList();
 
-                if (filteredItems.isEmpty)
+                if (filteredItems.isEmpty) {
                   return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
@@ -541,6 +544,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                               style: TextStyle(
                                   color: Colors.grey,
                                   fontStyle: FontStyle.italic))));
+                }
                 return ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),

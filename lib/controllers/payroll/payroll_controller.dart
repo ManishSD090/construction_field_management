@@ -32,9 +32,7 @@ class PayrollController {
     companyId = prefs.getString('companyId') ?? prefs.getString('company_id');
 
     // Fallback for development if needed
-    if (companyId == null) {
-      companyId = "72ad085f-2d70-41a9-ba58-2529a13a5798";
-    }
+    companyId ??= "72ad085f-2d70-41a9-ba58-2529a13a5798";
 
     return {'userId': userId, 'companyId': companyId};
   }

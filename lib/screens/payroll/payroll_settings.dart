@@ -62,7 +62,7 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
 
       _staffSalaryControllers.clear();
       for (var s in staff) {
-        _staffSalaryControllers[s.id!] = TextEditingController(
+        _staffSalaryControllers[s.id] = TextEditingController(
             text: (s.dailyWageRate ?? 0).toInt().toString());
       }
 
@@ -95,16 +95,14 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
       }).toList();
 
       for (var w in laborWorkers) {
-        if (w.id != null) {
-          await ref.read(payrollControllerProvider).createLabourRate(
-                workerType: 'SITE_STAFF',
-                workerId: w.id!,
-                rate: rate,
-                effectiveFrom: DateTime.now(),
-              );
-          await Future.delayed(const Duration(milliseconds: 50));
-        }
-      }
+        await ref.read(payrollControllerProvider).createLabourRate(
+              workerType: 'SITE_STAFF',
+              workerId: w.id!,
+              rate: rate,
+              effectiveFrom: DateTime.now(),
+            );
+        await Future.delayed(const Duration(milliseconds: 50));
+            }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('default_worker_rate', rateText);
@@ -117,9 +115,10 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -133,14 +132,13 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
 
       // 1. Update Backend
       for (var staff in _staffList) {
-        if (staff.id == null) continue;
-        final controller = _staffSalaryControllers[staff.id!];
+        final controller = _staffSalaryControllers[staff.id];
         double newRate = double.tryParse(controller?.text ?? '0') ??
             (staff.dailyWageRate ?? 0).toDouble();
 
         await payrollCtrl.createLabourRate(
           workerType: 'SITE_STAFF',
-          workerId: staff.id!,
+          workerId: staff.id,
           rate: newRate,
           effectiveFrom: DateTime.now(),
         );
@@ -170,9 +168,10 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

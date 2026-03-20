@@ -335,10 +335,10 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
 
       setState(() {
         for (var worker in returnedWorkers) {
-          if (worker.id == null || worker.id!.isEmpty) continue;
+          if (worker.id.isEmpty) continue;
           if (!_workers.any((w) => w.id == worker.id)) {
             _workers.add(WorkerAttendanceLocal(
-              id: worker.id!,
+              id: worker.id,
               name: worker.name ?? 'Unknown',
               workerType: 'SUBCONTRACTOR',
               designation: worker.designation ?? 'Worker',
@@ -721,7 +721,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
                 width: 20,
                 child: CircularProgressIndicator(
                     color: Colors.white, strokeWidth: 2))
-            : Text("Submit ${_selectedRole} Attendance",
+            : Text("Submit $_selectedRole Attendance",
                 style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.bold)),
       ),

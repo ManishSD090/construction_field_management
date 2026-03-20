@@ -25,8 +25,8 @@ class DioClient {
 
   String getBaseUrl() {
     if (Platform.isAndroid) {
-      // return "http://172.16.9.36:5001/api/v1";
-      return "http://192.168.0.189:5001/api/v1";
+      return "http://172.16.9.36:5001/api/v1";
+      // return "http://192.168.0.189:5001/api/v1";
     }
     if (Platform.isIOS) {
       return "http://192.168.1.16:5001/api/v1";

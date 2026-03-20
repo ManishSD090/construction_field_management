@@ -550,7 +550,7 @@ class _EditDPRScreenState extends ConsumerState<EditDPRScreen> {
     }
 
     if (value != null && value.trim().isNotEmpty && !menuItems.any((item) => item.value == value)) {
-      menuItems.add(DropdownMenuItem(value: value, child: Text("$value", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87))));
+      menuItems.add(DropdownMenuItem(value: value, child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87))));
     }
 
     if (menuItems.isEmpty) return _dropdown(value: null, hint: "No tasks assigned", items: [], onChanged: onChanged);

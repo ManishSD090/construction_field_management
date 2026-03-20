@@ -404,7 +404,7 @@ class DPRDetailsScreen extends StatelessWidget {
         
         if (d is DPRPhoto) {
            final parts = d.imageUrl.split('/');
-           name = parts?.last.split('?').first ?? "Document.pdf";
+           name = parts.last.split('?').first ?? "Document.pdf";
            fileUrl = d.imageUrl ?? "";
         } else {
            name = (d as dynamic).fileName ?? "Document.pdf";
