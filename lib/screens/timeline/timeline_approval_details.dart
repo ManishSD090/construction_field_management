@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
-
-// Import BOTH controllers here in the UI layer
+import 'package:construction_erp/core/dio_client.dart';
+import 'package:construction_erp/models/timeline.dart';
+import 'package:construction_erp/models/enums.dart';
+import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/controllers/approval/approval_controller.dart';
 import 'package:construction_erp/controllers/timeline/timeline_controller.dart'; 
 
@@ -21,6 +23,29 @@ class _TimelineApprovalDetailsScreenState extends ConsumerState<TimelineApproval
   final _formKey = GlobalKey<FormState>();
   
   bool _isProcessing = false;
+
+  // ✅ Add a future to hold the detailed fetch
+  late Future<Timeline> _detailedTimelineFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Kick off the fetch immediately when the screen opens
+    _detailedTimelineFuture = _fetchDetailedTimeline();
+  }
+
+  // ✅ Fetch the full timeline with all the tasks nested inside it
+  Future<Timeline> _fetchDetailedTimeline() async {
+    final dio = ref.read(dioClientProvider).dio;
+    final response = await dio.get('/timelines/${widget.approvalItem.timeline.id}');
+    return Timeline.fromJson(response.data['data']);
+  }
+
+  @override
+  void dispose() {
+    _remarksController.dispose();
+    super.dispose();
+  }
 
   Future<void> _processApproval(bool isApproved) async {
     if (!isApproved && _remarksController.text.isEmpty) {
@@ -48,7 +73,6 @@ class _TimelineApprovalDetailsScreenState extends ConsumerState<TimelineApproval
         );
       }
 
-      // ✅ INVALIDATE TIMELINE CACHES HERE IN THE UI INSTEAD!
       ref.invalidate(timelineControllerProvider);
       ref.invalidate(timelineDetailsProvider(widget.approvalItem.timeline.id));
 
@@ -87,22 +111,21 @@ class _TimelineApprovalDetailsScreenState extends ConsumerState<TimelineApproval
     );
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.pop(context); // close dialog
-        Navigator.pop(context); // return to lists
+        Navigator.pop(context); 
+        Navigator.pop(context); 
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final timeline = widget.approvalItem.timeline;
+    // We still use the basic timeline info for the header if needed
+    final basicTimeline = widget.approvalItem.timeline;
     final version = widget.approvalItem.version;
     
-    final tasks = timeline.timelineTasks ?? [];
-    
     final String displayTitle = version != null 
-        ? "${timeline.name} (${version.name})" 
-        : timeline.name;
+        ? "${basicTimeline.name} (${version.name})" 
+        : basicTimeline.name;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -112,92 +135,111 @@ class _TimelineApprovalDetailsScreenState extends ConsumerState<TimelineApproval
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: const Text("Timeline Approvals", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Container(
+      body: FutureBuilder<Timeline>(
+        future: _detailedTimelineFuture,
+        builder: (context, snapshot) {
+          
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text("Error loading details: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+          }
+
+          // Once loaded, we use the detailed timeline object for the tasks
+          final detailedTimeline = snapshot.data!;
+          final tasks = detailedTimeline.timelineTasks ?? [];
+
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(displayTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                const SizedBox(height: 4),
-                Text("Manager: ${timeline.createdBy?.name ?? 'System'}", style: const TextStyle(fontSize: 13, color: Colors.grey)),
-                
-                if (version?.changesSummary != null) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                    child: Text("Changes: ${version!.changesSummary}", style: const TextStyle(color: Colors.orange, fontStyle: FontStyle.italic)),
-                  )
-                ],
-                
-                const SizedBox(height: 20),
-
-                const Row(
+            child: Form(
+              key: _formKey,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 3, child: Text("Task", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                    Expanded(flex: 2, child: Text("Start", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                    Expanded(flex: 2, child: Text("End", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Divider(thickness: 1, color: Colors.grey),
-                const SizedBox(height: 8),
+                    Text(displayTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    const SizedBox(height: 4),
+                    Text("Manager: ${basicTimeline.createdBy?.name ?? 'System'}", style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    
+                    if (version?.changesSummary != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: Text("Changes: ${version!.changesSummary}", style: const TextStyle(color: Colors.orange, fontStyle: FontStyle.italic)),
+                      )
+                    ],
+                    
+                    const SizedBox(height: 20),
 
-                if (tasks.isEmpty)
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: Text("No tasks found.", style: TextStyle(color: Colors.grey))))
-                else
-                  ListView.separated(
-                    shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                    itemCount: tasks.length,
-                    separatorBuilder: (c, i) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final taskItem = tasks[index];
-                      final taskName = taskItem.task?.title ?? 'Untitled';
-                      final startText = taskItem.plannedStartDate != null ? DateFormat('dd MMM').format(taskItem.plannedStartDate!) : '-';
-                      final endText = taskItem.plannedEndDate != null ? DateFormat('dd MMM').format(taskItem.plannedEndDate!) : '-';
-
-                      return Row(
-                        children: [
-                          Expanded(flex: 3, child: Text(taskName, style: const TextStyle(fontSize: 13))),
-                          Expanded(flex: 2, child: Text(startText, style: const TextStyle(fontSize: 13, color: Colors.grey))),
-                          Expanded(flex: 2, child: Text(endText, style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold))),
-                        ],
-                      );
-                    },
-                  ),
-
-                const SizedBox(height: 40),
-
-                const Text("Remarks", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _remarksController, maxLines: 1,
-                  decoration: InputDecoration(hintText: "Approval/Reject Remarks", border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                ),
-                const SizedBox(height: 20),
-
-                _isProcessing 
-                  ? const Center(child: CircularProgressIndicator()) 
-                  : Row(
+                    const Row(
                       children: [
-                        Expanded(child: ElevatedButton(onPressed: () => _processApproval(true), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50)), child: const Text("Approve", style: TextStyle(color: Colors.white)))),
-                        const SizedBox(width: 20),
-                        Expanded(child: ElevatedButton(onPressed: () => _processApproval(false), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350)), child: const Text("Reject", style: TextStyle(color: Colors.white)))),
+                        Expanded(flex: 3, child: Text("Task", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                        Expanded(flex: 2, child: Text("Start", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                        Expanded(flex: 2, child: Text("End", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                       ],
                     ),
-              ],
+                    const SizedBox(height: 8),
+                    const Divider(thickness: 1, color: Colors.grey),
+                    const SizedBox(height: 8),
+
+                    if (tasks.isEmpty)
+                      const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: Text("No tasks found.", style: TextStyle(color: Colors.grey))))
+                    else
+                      ListView.separated(
+                        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                        itemCount: tasks.length,
+                        separatorBuilder: (c, i) => const SizedBox(height: 16),
+                        itemBuilder: (context, index) {
+                          final taskItem = tasks[index];
+                          // Depending on your API, the task name might be inside the 'task' relation
+                          // or directly on the timelineTask (e.g., if you have to map it)
+                          final taskName = taskItem.task?.title ?? 'Timeline Task ${index + 1}';
+                          final startText = taskItem.plannedStartDate != null ? DateFormat('dd MMM').format(taskItem.plannedStartDate!) : '-';
+                          final endText = taskItem.plannedEndDate != null ? DateFormat('dd MMM').format(taskItem.plannedEndDate!) : '-';
+
+                          return Row(
+                            children: [
+                              Expanded(flex: 3, child: Text(taskName, style: const TextStyle(fontSize: 13))),
+                              Expanded(flex: 2, child: Text(startText, style: const TextStyle(fontSize: 13, color: Colors.grey))),
+                              Expanded(flex: 2, child: Text(endText, style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold))),
+                            ],
+                          );
+                        },
+                      ),
+
+                    const SizedBox(height: 40),
+
+                    const Text("Remarks", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _remarksController, maxLines: 1,
+                      decoration: InputDecoration(hintText: "Approval/Reject Remarks", border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                    ),
+                    const SizedBox(height: 20),
+
+                    _isProcessing 
+                      ? const Center(child: CircularProgressIndicator()) 
+                      : Row(
+                          children: [
+                            Expanded(child: ElevatedButton(onPressed: () => _processApproval(true), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0), child: const Text("Approve", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)))),
+                            const SizedBox(width: 20),
+                            Expanded(child: ElevatedButton(onPressed: () => _processApproval(false), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0), child: const Text("Reject", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)))),
+                          ],
+                        ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        }
       ),
     );
   }

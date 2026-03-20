@@ -6,7 +6,7 @@ import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/controllers/admin/dashboard_controller.dart';
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/models/user.dart';
-
+import 'package:construction_erp/screens/inspection/project_list_screen.dart';
 import 'package:construction_erp/screens/admin/approvals_screen.dart';
 import 'package:construction_erp/screens/inventory/inventory_dashboard_screen.dart';
 import 'package:construction_erp/screens/transactions/ledger_screen.dart';
@@ -23,129 +23,63 @@ class DashboardTab extends ConsumerWidget {
     // Watch the dashboard controller provider
     final dashboardAsync = ref.watch(dashboardControllerProvider);
 
-    return RefreshIndicator(
-      color: AppColors.primaryBlue,
-      onRefresh: () async {
-        await ref.read(dashboardControllerProvider.notifier).refresh();
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, ref, user),
-            const SizedBox(height: 20),
+    // ✅ Extract the count here so the floating widget can access it outside the async.when
+    // Adjust the key (e.g., 'pendingInspections') based on your actual backend response.
+    final dashboardState = dashboardAsync.valueOrNull;
+    final pendingDprCount = int.tryParse(
+            dashboardState?.summary?['pendingInspections']?.toString() ?? '21') ??
+        0;
 
-            // Handle Loading, Error, and Data states
-            dashboardAsync.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40.0),
-                  child: CircularProgressIndicator(),
+    return Stack(
+      children: [
+        // ✅ Background: Full scrollable dashboard content
+        RefreshIndicator(
+          onRefresh: () async {
+            await ref.read(dashboardControllerProvider.notifier).refresh();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, ref, user),
+                const SizedBox(height: 20),
+
+                // Handle Loading, Error, and Data states
+                dashboardAsync.when(
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  error: (error, stackTrace) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text(
+                        'Error loading dashboard:\n$error',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                  data: (state) => _buildDashboardContent(context, state),
                 ),
-              ),
-              error: (error, stackTrace) =>
-                  _buildErrorState(context, ref, error),
-              data: (dashboardState) =>
-                  _buildDashboardContent(context, dashboardState),
-            ),
 
-            const SizedBox(height: 80),
-          ],
+                // ✅ Added extra padding so the floating card doesn't block the last item
+                const SizedBox(height: 100),
+              ],
+            ),
+          ),
         ),
-      ),
-    );
-  }
 
-  // ✅ New Error State UI Builder
-  Widget _buildErrorState(BuildContext context, WidgetRef ref, Object error) {
-    String errorMessage = _parseErrorMessage(error);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _getErrorIcon(error),
-                size: 60,
-                color: Colors.red.shade400,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              "Oops! Something went wrong",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              errorMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.grey.shade600, fontSize: 14, height: 1.4),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: () {
-                ref.read(dashboardControllerProvider.notifier).refresh();
-              },
-              icon: const Icon(Icons.refresh, size: 20),
-              label: const Text("Try Again"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF0D6EFD), // AppColors.primaryBlue
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-            ),
-          ],
+        // ✅ Foreground: Fixed floating Inspection widget
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _buildInspectionCard(context, pendingDprCount),
         ),
-      ),
+      ],
     );
-  }
-
-  // ✅ Error Parsing Helper (Handles your Connection Timeouts perfectly)
-  String _parseErrorMessage(Object error) {
-    if (error is DioException) {
-      switch (error.type) {
-        case DioExceptionType.connectionTimeout:
-        case DioExceptionType.sendTimeout:
-        case DioExceptionType.receiveTimeout:
-          return "Opps! Something went wrong. The server is not responding. Please try again later.";
-        case DioExceptionType.connectionError:
-          return "Unable to connect to the server. Please try again later.";
-        case DioExceptionType.badResponse:
-          final statusCode = error.response?.statusCode;
-          final serverMessage = error.response?.data?['message'];
-          return serverMessage ??
-              "Server responded with an error ($statusCode). Please try again later.";
-        default:
-          return "A network error occurred. Please try again.";
-      }
-    }
-    return error.toString().replaceAll('Exception: ', '');
-  }
-
-  IconData _getErrorIcon(Object error) {
-    if (error is DioException) {
-      if (error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.connectionError) {
-        return Icons.wifi_off_rounded;
-      }
-    }
-    return Icons.error_outline_rounded;
   }
 
   Widget _buildDashboardContent(BuildContext context, DashboardState state) {
@@ -255,7 +189,6 @@ class DashboardTab extends ConsumerWidget {
 
   Widget _buildQuickActionsGrid(
       BuildContext context, Map<String, dynamic>? quickActions) {
-    // Safely extract counts and labels, providing fallbacks if null
     final txCount = quickActions?['transactions']?['count']?.toString() ?? '0';
     final txLabel =
         quickActions?['transactions']?['unit']?.toString() ?? 'Requests';
@@ -393,7 +326,6 @@ class DashboardTab extends ConsumerWidget {
         final projectName =
             activity['projectName'] as String? ?? 'Unknown Project';
 
-        // Setup Icon and Color based on Backend activity Type
         IconData icon = Icons.info_outline;
         Color color = Colors.grey;
 
@@ -420,7 +352,6 @@ class DashboardTab extends ConsumerWidget {
             break;
         }
 
-        // Parse timestamp and generate "time ago" string
         String timeAgo = "Just now";
         if (timestampStr.isNotEmpty) {
           try {
@@ -434,7 +365,6 @@ class DashboardTab extends ConsumerWidget {
               timeAgo = "${difference.inMinutes} m ago";
             }
           } catch (e) {
-            // Fallback if parsing fails
             timeAgo = timestampStr.split('T').first;
           }
         }
@@ -511,6 +441,75 @@ class DashboardTab extends ConsumerWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w500)),
         ],
+      ),
+    );
+  }
+
+  // ✅ Updated Reusable Widget for Floating DPR Inspection
+  Widget _buildInspectionCard(BuildContext context, int count) {
+    // Hide completely if there are no pending reports
+    if (count <= 0) return const SizedBox.shrink();
+
+    return Padding(
+      // Padding ensures it sits nicely above the bottom navigation bar and screen edges
+      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+      child: Material(
+        elevation: 8, // ✅ Added slight elevation for floating effect
+        shadowColor: Colors.black.withOpacity(0.4),
+        color: const Color(0xFF0D6EFD), // Matches your header blue
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () {Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProjectListScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.visibility_outlined, 
+                    color: Colors.white, 
+                    size: 24
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min, // Prevents expanding too much vertically
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Inspection",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "$count Pending Progress Reports",
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

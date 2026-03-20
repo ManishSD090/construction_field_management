@@ -341,43 +341,34 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       ]),
       const SizedBox(height: 16),
       InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TransactionHistoryScreen(
-              projectId: project.id, // Passing the project ID
-              budgetId:
-                  "default_budget", // Replace with project.budgetId if available
-            ),
-          ),
-        ),
-        child: const Text(
-          "View Transactions",
-          style: TextStyle(
-            color: AppColors.primaryBlue,
-            decoration: TextDecoration.underline,
-          ),
-        ),
-      ),
-      //   if (!_isHeaderVisible)
-      //     Padding(
-      //         padding: const EdgeInsets.only(top: 20),
-      //         child: SizedBox(
-      //             width: double.infinity,
-      //             child: ElevatedButton(
-      //                 onPressed: () => Navigator.push(
-      //                     context,
-      //                     MaterialPageRoute(
-      //                         builder: (context) => const CreateRequestScreen())),
-      //                 style: ElevatedButton.styleFrom(
-      //                     backgroundColor: AppColors.primaryBlue,
-      //                     shape: RoundedRectangleBorder(
-      //                         borderRadius: BorderRadius.circular(30)),
-      //                     padding: const EdgeInsets.symmetric(vertical: 16)),
-      //                 child: const Text("Create Request",
-      //                     style: TextStyle(
-      //                         color: Colors.white,
-      //                         fontWeight: FontWeight.bold)))))
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => TransactionHistoryScreen(
+                      budgetId: project.budgetId, projectId: project.id))),
+          child: const Text("View Transactions",
+              style: TextStyle(
+                  color: AppColors.primaryBlue,
+                  decoration: TextDecoration.underline))),
+      if (!_isHeaderVisible)
+        Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const CreateRequestScreen())),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                        padding: const EdgeInsets.symmetric(vertical: 16)),
+                    child: const Text("Create Request",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold)))))
     ]);
   }
 
