@@ -25,7 +25,12 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
   late TextEditingController _notesController;
   late TextEditingController _termsController;
 
+  // New Controllers for financial updates
+  late TextEditingController _shippingCostController;
+  late TextEditingController _otherChargesController;
+
   DateTime? _expectedDate;
+  DateTime? _actualDeliveryDate; // New field for actual delivery
   bool _isLoading = false;
 
   @override
@@ -41,7 +46,19 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
         TextEditingController(text: widget.po.deliveryInstructions ?? '');
     _notesController = TextEditingController(text: widget.po.notes ?? '');
     _termsController = TextEditingController(text: widget.po.terms ?? '');
+
+    // New fields initialization
+    _shippingCostController = TextEditingController(
+        text: widget.po.shippingCost != null
+            ? widget.po.shippingCost.toString()
+            : '');
+    // Assuming otherCharges is present in your PO model. If it's stored differently, adjust here.
+    // We use a fallback to empty string if it's null.
+    _otherChargesController = TextEditingController(text: '');
+
     _expectedDate = widget.po.expectedDelivery;
+    // Assuming actualDelivery is present in your PO model
+    // _actualDeliveryDate = widget.po.actualDelivery;
   }
 
   @override
@@ -52,10 +69,12 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
     _deliveryInstructionsController.dispose();
     _notesController.dispose();
     _termsController.dispose();
+    _shippingCostController.dispose();
+    _otherChargesController.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future<void> _selectExpectedDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _expectedDate ?? DateTime.now(),
@@ -81,6 +100,32 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
     }
   }
 
+  Future<void> _selectActualDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _actualDeliveryDate ?? DateTime.now(),
+      firstDate: DateTime(2000), // Actual delivery could be in the past
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0D6EFD),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _actualDeliveryDate = picked;
+      });
+    }
+  }
+
   void _submitUpdate() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,16 +137,29 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
 
     setState(() => _isLoading = true);
 
+    // Build the payload mapping strictly to the backend route expectations
     final payload = <String, dynamic>{
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
       if (_expectedDate != null)
         'expectedDelivery': _expectedDate!.toUtc().toIso8601String(),
+      if (_actualDeliveryDate != null)
+        'actualDelivery': _actualDeliveryDate!.toUtc().toIso8601String(),
       'deliveryAddress': _deliveryAddressController.text.trim(),
       'deliveryInstructions': _deliveryInstructionsController.text.trim(),
       'notes': _notesController.text.trim(),
       'terms': _termsController.text.trim(),
     };
+
+    // Safely parse numbers for shipping and other charges
+    if (_shippingCostController.text.trim().isNotEmpty) {
+      payload['shippingCost'] =
+          double.tryParse(_shippingCostController.text.trim());
+    }
+    if (_otherChargesController.text.trim().isNotEmpty) {
+      payload['otherCharges'] =
+          double.tryParse(_otherChargesController.text.trim());
+    }
 
     try {
       await ref
@@ -245,7 +303,7 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
 
                     _buildLabel("Expected Date"),
                     InkWell(
-                      onTap: () => _selectDate(context),
+                      onTap: () => _selectExpectedDate(context),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
@@ -274,6 +332,57 @@ class _EditPOScreenState extends ConsumerState<EditPOScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    _buildLabel("Actual Delivery Date (Optional)"),
+                    InkWell(
+                      onTap: () => _selectActualDate(context),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF0D6EFD)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _actualDeliveryDate == null
+                                  ? "Select Date"
+                                  : DateFormat('dd MMM yyyy')
+                                      .format(_actualDeliveryDate!),
+                              style: TextStyle(
+                                  color: _actualDeliveryDate == null
+                                      ? Colors.grey[400]
+                                      : Colors.black87,
+                                  fontSize: 14),
+                            ),
+                            const Icon(Icons.check_circle_outline,
+                                size: 18, color: Color(0xFF0D6EFD)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    const Text("Financial Details",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0D6EFD))),
+                    const Divider(),
+                    const SizedBox(height: 8),
+
+                    _buildLabel("Shipping Cost"),
+                    _buildTextField("0.00",
+                        controller: _shippingCostController, isNumber: true),
+                    const SizedBox(height: 16),
+
+                    _buildLabel("Other Charges"),
+                    _buildTextField("0.00",
+                        controller: _otherChargesController, isNumber: true),
                     const SizedBox(height: 24),
 
                     const Text("Delivery & Logistics",

@@ -644,4 +644,56 @@ class ProcurementController extends AsyncNotifier<ProcurementState> {
         .map((e) => PurchaseOrder.fromJson(e))
         .toList();
   }
+
+  // ==========================================================================
+  // PDF & EXPORTS
+  // ==========================================================================
+
+  /// Previews the PO PDF (Returns a base64 encoded string from the server)
+  Future<String> previewPurchaseOrderPDF(String poId) async {
+    final response = await _dioClient.dio.get('$_poPath/$poId/pdf/preview');
+    // Extracts the base64 string returned by the backend in `data.pdf`
+    return response.data['data']['pdf'];
+  }
+
+  /// Downloads a single PO PDF as raw bytes
+  Future<List<int>> downloadPurchaseOrderPDF(String poId) async {
+    final response = await _dioClient.dio.get(
+      '$_poPath/$poId/pdf',
+      options: Options(
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return response.data;
+  }
+
+  /// Bulk downloads multiple POs as a ZIP file (Returns raw bytes)
+  Future<List<int>> downloadMultiplePOsPDF(List<String> poIds) async {
+    final response = await _dioClient.dio.post(
+      '/pdf/bulk-download',
+      data: {'poIds': poIds},
+      options: Options(
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return response.data;
+  }
+
+  /// Previews the GRN PDF (Returns a base64 encoded string from the server)
+  Future<String> previewGRNPDF(String receiptId) async {
+    final response = await _dioClient.dio
+        .get('$_poPath/goods-receipts/$receiptId/pdf/preview');
+    return response.data['data']['pdf'];
+  }
+
+  /// Downloads a single GRN PDF as raw bytes
+  Future<List<int>> downloadGRNPDF(String receiptId) async {
+    final response = await _dioClient.dio.get(
+      '$_poPath/goods-receipts/$receiptId/pdf',
+      options: Options(
+        responseType: ResponseType.bytes,
+      ),
+    );
+    return response.data;
+  }
 }

@@ -1,11 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart'; // Replaced path_provider with file_picker
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import 'package:construction_erp/controllers/inventory/procurement_controller.dart';
 import 'package:construction_erp/models/procurement.dart';
 import 'package:construction_erp/screens/inventory/create_grn_screen.dart';
-import 'package:construction_erp/screens/inventory/edit_po_screen.dart'; // To be implemented
+import 'package:construction_erp/screens/inventory/edit_po_screen.dart';
 
 class PurchaseOrderDetailsScreen extends ConsumerStatefulWidget {
   final String poId;
@@ -400,6 +406,22 @@ class _PurchaseOrderDetailsScreenState
             final canDelete = po.status == 'DRAFT';
 
             return [
+              // PDF Preview Button
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                tooltip: 'Preview & Download PDF',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => POPDFPreviewScreen(
+                        poId: po.id,
+                        poNumber: po.poNumber,
+                      ),
+                    ),
+                  );
+                },
+              ),
               if (canEdit)
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.white),
@@ -753,17 +775,39 @@ class _PurchaseOrderDetailsScreenState
                   "Date: ${DateFormat('dd MMM yyyy').format(receipt.receiptDate)}\nStatus: ${receipt.inspectionStatus}"),
             ),
             isThreeLine: true,
-            trailing: Icon(
-              receipt.inspectionStatus == 'PASSED'
-                  ? Icons.check_circle
-                  : receipt.inspectionStatus == 'FAILED'
-                      ? Icons.cancel
-                      : Icons.pending,
-              color: receipt.inspectionStatus == 'PASSED'
-                  ? const Color(0xFF00B48A)
-                  : receipt.inspectionStatus == 'FAILED'
-                      ? Colors.red
-                      : Colors.orange,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // GRN PDF Preview Button
+                IconButton(
+                  icon:
+                      const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                  tooltip: 'Preview GRN PDF',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GRNPDFPreviewScreen(
+                          receiptId: receipt.id,
+                          grNumber: receipt.grNumber,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Icon(
+                  receipt.inspectionStatus == 'PASSED'
+                      ? Icons.check_circle
+                      : receipt.inspectionStatus == 'FAILED'
+                          ? Icons.cancel
+                          : Icons.pending,
+                  color: receipt.inspectionStatus == 'PASSED'
+                      ? const Color(0xFF00B48A)
+                      : receipt.inspectionStatus == 'FAILED'
+                          ? Colors.red
+                          : Colors.orange,
+                ),
+              ],
             ),
           ),
 
@@ -928,6 +972,262 @@ class _PurchaseOrderDetailsScreenState
       child: Text(text,
           style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+    );
+  }
+}
+
+// ==========================================================================
+// PO PDF PREVIEW & DOWNLOAD SCREEN
+// ==========================================================================
+
+class POPDFPreviewScreen extends ConsumerStatefulWidget {
+  final String poId;
+  final String poNumber;
+
+  const POPDFPreviewScreen({
+    super.key,
+    required this.poId,
+    required this.poNumber,
+  });
+
+  @override
+  ConsumerState<POPDFPreviewScreen> createState() => _POPDFPreviewScreenState();
+}
+
+class _POPDFPreviewScreenState extends ConsumerState<POPDFPreviewScreen> {
+  bool _isLoading = true;
+  Uint8List? _pdfBytes;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPDF();
+  }
+
+  Future<void> _fetchPDF() async {
+    try {
+      // Fetch the base64 string using your preview function
+      final base64String = await ref
+          .read(procurementControllerProvider.notifier)
+          .previewPurchaseOrderPDF(widget.poId);
+
+      setState(() {
+        _pdfBytes = base64Decode(base64String);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Failed to load PDF: $e";
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _downloadPDF() async {
+    if (_pdfBytes == null) return;
+
+    try {
+      // Prompt the user to choose where to save the file
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Purchase Order PDF',
+        fileName: 'PO-${widget.poNumber}.pdf',
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        bytes:
+            _pdfBytes, // FIX: This is strictly required for Android and iOS in file_picker
+      );
+
+      // User canceled the picker
+      if (outputFile == null) {
+        return;
+      }
+
+      // file_picker automatically writes the file on Android, iOS, and Web when bytes are provided.
+      // On Desktop platforms, it only returns the path, so we manually write the bytes.
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        final file = File(outputFile);
+        await file.writeAsBytes(_pdfBytes!);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("PDF saved successfully"),
+          backgroundColor: Color(0xFF00B48A),
+          duration: Duration(seconds: 4),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Failed to save PDF: $e"),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D6EFD),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text("PO-${widget.poNumber}",
+            style: const TextStyle(color: Colors.white)),
+        actions: [
+          if (_pdfBytes != null)
+            IconButton(
+              icon: const Icon(Icons.download, color: Colors.white),
+              tooltip: 'Download PDF',
+              onPressed: _downloadPDF,
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(_errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red)),
+                  ),
+                )
+              : _pdfBytes != null
+                  ? SfPdfViewer.memory(
+                      _pdfBytes!,
+                      canShowScrollHead: false,
+                      canShowScrollStatus: false,
+                    )
+                  : const Center(child: Text("Could not load PDF")),
+    );
+  }
+}
+
+// ==========================================================================
+// GRN PDF PREVIEW & DOWNLOAD SCREEN
+// ==========================================================================
+
+class GRNPDFPreviewScreen extends ConsumerStatefulWidget {
+  final String receiptId;
+  final String grNumber;
+
+  const GRNPDFPreviewScreen({
+    super.key,
+    required this.receiptId,
+    required this.grNumber,
+  });
+
+  @override
+  ConsumerState<GRNPDFPreviewScreen> createState() =>
+      _GRNPDFPreviewScreenState();
+}
+
+class _GRNPDFPreviewScreenState extends ConsumerState<GRNPDFPreviewScreen> {
+  bool _isLoading = true;
+  Uint8List? _pdfBytes;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPDF();
+  }
+
+  Future<void> _fetchPDF() async {
+    try {
+      // Fetch the base64 string using the GRN preview function
+      final base64String = await ref
+          .read(procurementControllerProvider.notifier)
+          .previewGRNPDF(widget.receiptId);
+
+      setState(() {
+        _pdfBytes = base64Decode(base64String);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Failed to load PDF: $e";
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _downloadPDF() async {
+    if (_pdfBytes == null) return;
+
+    try {
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save GRN PDF',
+        fileName: 'GRN-${widget.grNumber}.pdf',
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        bytes: _pdfBytes,
+      );
+
+      if (outputFile == null) {
+        return;
+      }
+
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        final file = File(outputFile);
+        await file.writeAsBytes(_pdfBytes!);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("PDF saved successfully"),
+          backgroundColor: Color(0xFF00B48A),
+          duration: Duration(seconds: 4),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Failed to save PDF: $e"),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D6EFD),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text("GRN-${widget.grNumber}",
+            style: const TextStyle(color: Colors.white)),
+        actions: [
+          if (_pdfBytes != null)
+            IconButton(
+              icon: const Icon(Icons.download, color: Colors.white),
+              tooltip: 'Download PDF',
+              onPressed: _downloadPDF,
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(_errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red)),
+                  ),
+                )
+              : _pdfBytes != null
+                  ? SfPdfViewer.memory(
+                      _pdfBytes!,
+                      canShowScrollHead: false,
+                      canShowScrollStatus: false,
+                    )
+                  : const Center(child: Text("Could not load PDF")),
     );
   }
 }
