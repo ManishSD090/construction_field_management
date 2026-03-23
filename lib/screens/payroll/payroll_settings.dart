@@ -97,7 +97,7 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
       for (var w in laborWorkers) {
         await ref.read(payrollControllerProvider).createLabourRate(
               workerType: 'SITE_STAFF',
-              workerId: w.id!,
+              workerId: w.id,
               rate: rate,
               effectiveFrom: DateTime.now(),
             );

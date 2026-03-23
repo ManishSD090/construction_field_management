@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:construction_erp/controllers/core_providers.dart';
@@ -171,6 +172,32 @@ class DPRController extends AsyncNotifier<DPRState> {
     }
     await refresh();
   }
+
+  // ==========================================
+  // SEND FOR APPROVAL LOGIC
+  // ==========================================
+  Future<void> sendForApproval(String dprId) async {
+    try {
+      // 🚨 CHANGED FROM .post TO .patch
+      final response = await _dioClient.dio.patch(
+        '/dpr/$dprId/approve', 
+        data: {
+          'status': 'REVIEW',
+        }
+      );
+
+      if (response.data['success'] != true) {
+        throw Exception(response.data['message'] ?? 'Failed to send for approval');
+      }
+      
+      await getDPRById(dprId); 
+      ref.invalidateSelf(); 
+      
+    } catch (e) {
+      print('Error sending DPR for approval: $e');
+      rethrow;
+    }
+  }
 }
 
 class DPRState {
@@ -214,3 +241,4 @@ final materialsProvider = FutureProvider<List<dynamic>>((ref) async {
   final response = await dioClient.dio.get('/inventory');
   return response.data['data'] as List<dynamic>;
 });
+

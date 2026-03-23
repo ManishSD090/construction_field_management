@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 
@@ -7,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/dpr.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:construction_erp/controllers/dpr/dpr_controller.dart';
 
 class DPRDetailsScreen extends StatelessWidget {
   final DailyProgressReport dpr;
@@ -462,21 +462,65 @@ class DPRDetailsScreen extends StatelessWidget {
   
   Widget _docBox(String name) => Container(height: 70, width: 90, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 30), const SizedBox(height: 8), Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: Colors.black87)))]));
 
-  Widget _bottomApproveBar(BuildContext context) {
+ Widget _bottomApproveBar(BuildContext context) {
     final status = dpr.status.name.toLowerCase();
+    
+    // Check if it's already approved or already sent for review
     final isApproved = status == "approved" || status == "completed";
+    final isPendingReview = status == "review";
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))]),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))]
+      ),
       child: SizedBox(
         height: 48, width: double.infinity, 
-        child: ElevatedButton(
-          onPressed: isApproved ? null : () {
-            // Add Approval Logic Here
-          }, 
-          style: ElevatedButton.styleFrom(backgroundColor: isApproved ? Colors.grey : const Color(0xFF17A589), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), elevation: 0), 
-          child: Text(isApproved ? "Approved" : "Send For Approval", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))
+        // We need to use Consumer to read the provider
+        child: Consumer(
+          builder: (context, ref, child) {
+            return ElevatedButton(
+              onPressed: (isApproved || isPendingReview) 
+                ? null 
+                : () async {
+                    // --- APPROVAL LOGIC ---
+                    try {
+                      // Show loading circle in the button (optional UX improvement)
+                      showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+                      
+                      // Call the controller
+                      await ref.read(dprControllerProvider.notifier).sendForApproval(dpr.id);
+                      
+                      if (!context.mounted) return;
+                      Navigator.pop(context); // Dismiss loading
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("DPR sent for approval!"), backgroundColor: Colors.green),
+                      );
+                      
+                      // Go back to the list so the user sees the updated status
+                      Navigator.pop(context); 
+                      
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      Navigator.pop(context); // Dismiss loading
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                      );
+                    }
+                  }, 
+              style: ElevatedButton.styleFrom(
+                backgroundColor: (isApproved || isPendingReview) ? Colors.grey : const Color(0xFF17A589), 
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), 
+                elevation: 0
+              ), 
+              child: Text(
+                isApproved ? "Approved" : (isPendingReview ? "Pending Review" : "Send For Approval"), 
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)
+              )
+            );
+          }
         )
       ),
     );

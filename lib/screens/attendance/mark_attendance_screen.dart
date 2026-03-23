@@ -10,7 +10,6 @@ import 'package:construction_erp/models/worker.dart';
 import 'package:construction_erp/controllers/worker/worker_controller.dart';
 import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
-import 'package:construction_erp/core/dio_client.dart';
 import 'add_worker.dart';
 
 class WorkerAttendanceLocal {
