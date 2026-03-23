@@ -204,7 +204,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
       // ==========================================
       final teamAssignments = await ref
           .read(projectControllerProvider.notifier)
-          .getProjectTeam(widget.projectId);
+          .getProjectTeam(widget.projectId, date: _selectedDate);
       final usersResponse =
           await dio.get('/users', queryParameters: {'limit': 500});
       final List<dynamic> allUsers = usersResponse.data['data'] ?? [];

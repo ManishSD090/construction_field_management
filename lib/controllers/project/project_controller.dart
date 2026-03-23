@@ -139,10 +139,13 @@ class ProjectController extends AsyncNotifier<ProjectState> {
   }
 
   /// Fetches the list of users assigned to a specific project (Project Team)
-  Future<List<dynamic>> getProjectTeam(String projectId) async {
+  Future<List<dynamic>> getProjectTeam(String projectId, {DateTime? date}) async {
     try {
       // Note: Assuming your base path for projects is '/projects'
-      final response = await _dioClient.dio.get('$_basePath/$projectId/team');
+      final response = await _dioClient.dio.get(
+        '$_basePath/$projectId/team',
+        queryParameters: date != null ? {'date': date.toIso8601String()} : null,
+      );
 
       // Returns a list of ProjectAssignment objects, which include the nested 'user' data
       return response.data['data'] as List<dynamic>;
