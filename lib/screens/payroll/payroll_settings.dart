@@ -1,14 +1,16 @@
-import 'dart:convert';
+import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
 import 'package:construction_erp/controllers/worker/worker_controller.dart';
-import 'package:construction_erp/models/worker.dart';
+import 'package:construction_erp/core/dio_client.dart'; // Needed for the direct dio call
 
 class PayrollSettingsScreen extends ConsumerStatefulWidget {
-  const PayrollSettingsScreen({super.key});
+  final String projectId; // 🔥 1. Accept projectId from the parent screen
+
+  // 🔥 2. Require projectId in the constructor
+  const PayrollSettingsScreen({super.key, required this.projectId});
 
   @override
   ConsumerState<PayrollSettingsScreen> createState() =>
@@ -16,19 +18,17 @@ class PayrollSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
-  String _selectedRole = 'Workers';
-  bool _isEditingStaff = false;
   bool _isLoading = true;
   bool _isSaving = false;
 
   List<dynamic> _shifts = [];
-  List<Worker> _staffList = [];
+  List<dynamic> _labourRates = [];
+  
+  Set<String> _selectedRateIds = {};
+  Set<String> _selectedShiftIds = {};
 
   final TextEditingController _globalWorkerRateController =
       TextEditingController(text: "500");
-  final Map<String, TextEditingController> _staffSalaryControllers = {};
-
-  final String _projectId = "ca0ee39d-f2e9-46d2-8cec-d3a8bb44b755";
 
   @override
   void initState() {
@@ -39,9 +39,6 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
   @override
   void dispose() {
     _globalWorkerRateController.dispose();
-    for (var controller in _staffSalaryControllers.values) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -49,30 +46,23 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
     setState(() => _isLoading = true);
     try {
       final payrollCtrl = ref.read(payrollControllerProvider);
-      final workerCtrl = ref.read(workerControllerProvider.notifier);
 
-      final prefs = await SharedPreferences.getInstance();
-      final savedRate = prefs.getString('default_worker_rate');
-      if (savedRate != null) {
-        _globalWorkerRateController.text = savedRate;
-      }
-
+      // Load available shifts
       final shifts = await payrollCtrl.getShiftTypes();
-      final staff = await workerCtrl.fetchSystemStaff();
+      
+      // Load available labour rate presets (workerId null implies global preset)
+      final rateHistory = await payrollCtrl.getLabourRates(isCurrent: true);
+      final presets = rateHistory.where((r) => r['siteStaffId'] == null && r['subcontractorWorkerId'] == null).toList();
 
-      _staffSalaryControllers.clear();
-      for (var s in staff) {
-        _staffSalaryControllers[s.id] = TextEditingController(
-            text: (s.dailyWageRate ?? 0).toInt().toString());
-      }
+      if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _shifts = shifts;
-          _staffList = staff;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _shifts = shifts;
+        _labourRates = presets;
+        _isLoading = false;
+        _selectedRateIds.clear();
+        _selectedShiftIds.clear();
+      });
     } catch (e) {
       debugPrint("Error loading settings: $e");
       if (mounted) setState(() => _isLoading = false);
@@ -80,101 +70,8 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
   }
 
   Future<void> _saveWorkerSettings() async {
-    setState(() => _isSaving = true);
-    try {
-      final rateText = _globalWorkerRateController.text;
-      final rate = double.tryParse(rateText) ?? 500.0;
-
-      final allWorkers = await ref
-          .read(workerControllerProvider.notifier)
-          .fetchWorkersForAttendance();
-
-      final laborWorkers = allWorkers.where((w) {
-        final d = w.designation?.toLowerCase() ?? '';
-        return d == 'worker' || d == '';
-      }).toList();
-
-      for (var w in laborWorkers) {
-        await ref.read(payrollControllerProvider).createLabourRate(
-              workerType: 'SITE_STAFF',
-              workerId: w.id,
-              rate: rate,
-              effectiveFrom: DateTime.now(),
-            );
-        await Future.delayed(const Duration(milliseconds: 50));
-            }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('default_worker_rate', rateText);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Worker rates updated successfully!"),
-              backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _saveStaffSettings() async {
-    setState(() => _isSaving = true);
-    try {
-      final payrollCtrl = ref.read(payrollControllerProvider);
-      final prefs = await SharedPreferences.getInstance();
-
-      // 1. Update Backend
-      for (var staff in _staffList) {
-        final controller = _staffSalaryControllers[staff.id];
-        double newRate = double.tryParse(controller?.text ?? '0') ??
-            (staff.dailyWageRate ?? 0).toDouble();
-
-        await payrollCtrl.createLabourRate(
-          workerType: 'SITE_STAFF',
-          workerId: staff.id,
-          rate: newRate,
-          effectiveFrom: DateTime.now(),
-        );
-      }
-
-      // 2. Update Local Project Roster to ensure Attendance screen sees it immediately
-      final rosterKey = 'project_roster_$_projectId';
-      final rosterString = prefs.getString(rosterKey);
-      if (rosterString != null) {
-        List<dynamic> roster = jsonDecode(rosterString);
-        for (var item in roster) {
-          if (_staffSalaryControllers.containsKey(item['id'])) {
-            item['baseRate'] =
-                double.tryParse(_staffSalaryControllers[item['id']]!.text) ??
-                    0.0;
-          }
-        }
-        await prefs.setString(rosterKey, jsonEncode(roster));
-      }
-
-      if (mounted) {
-        setState(() => _isEditingStaff = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Staff monthly salaries updated!"),
-              backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+    // This button now just pops back as we save rates/shifts individually in the new UI flow
+    Navigator.pop(context, true);
   }
 
   // --- UI BUILDING ---
@@ -195,49 +92,12 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _buildRoleToggle(),
                 Expanded(
-                  child: _selectedRole == 'Workers'
-                      ? _buildWorkersContent()
-                      : _buildStaffContent(),
+                  child: _buildWorkersContent(),
                 ),
-                if (_selectedRole == 'Workers') _buildSaveButton(),
+                _buildSaveButton(),
               ],
             ),
-    );
-  }
-
-  Widget _buildRoleToggle() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      height: 48,
-      decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(25)),
-      child: Row(
-        children: ['Workers', 'Staff'].map((role) {
-          bool isSelected = _selectedRole == role;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() {
-                _selectedRole = role;
-                _isEditingStaff = false;
-              }),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color:
-                        isSelected ? AppColors.primaryBlue : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text(role,
-                    style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
     );
   }
 
@@ -247,10 +107,41 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Text("Project Specific Labour Rate",
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold)),
+              const Spacer(),
+              if (_selectedRateIds.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _confirmBulkDeleteRates,
+                  icon: const Icon(Icons.delete_sweep, color: Colors.red, size: 20),
+                  label: Text("Delete (${_selectedRateIds.length})", 
+                      style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
           _buildLabourRateInput(),
-          const SizedBox(height: 30),
-          const Text("Available shifts",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 40),
+          Row(
+            children: [
+              const Text("Global Available Shifts",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Spacer(),
+              if (_selectedShiftIds.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _confirmBulkDeleteShifts,
+                  icon: const Icon(Icons.delete_sweep, color: Colors.red, size: 20),
+                  label: Text("Delete (${_selectedShiftIds.length})", 
+                      style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ),
+            ],
+          ),
           const SizedBox(height: 15),
           _buildShiftList(),
         ],
@@ -259,43 +150,126 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
   }
 
   Widget _buildLabourRateInput() {
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text("Default Rate  ",
-            style: TextStyle(fontWeight: FontWeight.w500)),
-        Container(
-          width: 120,
-          height: 40,
-          decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primaryBlue),
-              borderRadius: BorderRadius.circular(8)),
-          child: Row(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 8.0),
-                child: Text("₹",
-                    style: TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold)),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _globalWorkerRateController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Text("  per Day", style: TextStyle(color: AppColors.primaryBlue)),
+        ..._labourRates.map((rate) {
+          final isSelected = _selectedRateIds.contains(rate['id']);
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selectedRateIds.remove(rate['id']);
+                } else {
+                  _selectedRateIds.add(rate['id']);
+                }
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF00B69B).withOpacity(0.1) : Colors.transparent,
+                  border: Border.all(color: isSelected ? const Color(0xFF00B69B) : Colors.grey.withOpacity(0.3), width: isSelected ? 2 : 1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text("₹${rate['rate']}",
+                  style: TextStyle(
+                      color: const Color(0xFF00B69B),
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+            ),
+          );
+        }),
+        GestureDetector(
+            onTap: _showCreateLabourRateDialog,
+            child: const Icon(Icons.add_circle,
+                color: Color(0xFF00B69B), size: 36)),
       ],
+    );
+  }
+
+  void _confirmBulkDeleteRates() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Labour Rates"),
+        content: Text("Are you sure you want to delete ${_selectedRateIds.length} labour rates?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() => _isLoading = true);
+              try {
+                await ref.read(payrollControllerProvider).bulkDeleteLabourRates(_selectedRateIds.toList());
+                await _loadSettingsData();
+              } catch (e) {
+                debugPrint("Error bulk deleting labour rates: $e");
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateLabourRateDialog() {
+    final rateController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Add Labour Rate"),
+        content: TextField(
+          controller: rateController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(hintText: "e.g. 600"),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (rateController.text.isNotEmpty) {
+                final rate = double.tryParse(rateController.text);
+                if (rate == null) return;
+
+                Navigator.pop(context);
+                setState(() => _isLoading = true);
+                
+                try {
+                  // For a global preset, siteStaffId and subcontractorWorkerId are left null
+                  // We use SITE_STAFF as a placeholder workerType, but with null IDs it's a global preset
+                  await ref.read(payrollControllerProvider).createLabourRate(
+                      workerType: 'SITE_STAFF', 
+                      workerId: '', // Setting to empty string indicates preset in our new backend logic
+                      rate: rate,
+                      effectiveFrom: DateTime.now());
+                  await _loadSettingsData();
+                } catch (e) {
+                  debugPrint("Error creating labour rate: $e");
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text("Create"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -305,22 +279,31 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
       runSpacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        ..._shifts.map((shift) => GestureDetector(
-              onLongPress: () =>
-                  _confirmDeleteShift(shift['id'], "x${shift['multiplier']}"),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.05),
-                    border: Border.all(color: AppColors.primaryBlue),
-                    borderRadius: BorderRadius.circular(10)),
-                child: Text("x${shift['multiplier']}",
-                    style: const TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.bold)),
-              ),
-            )),
+        ..._shifts.map((shift) {
+          final isSelected = _selectedShiftIds.contains(shift['id']);
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selectedShiftIds.remove(shift['id']);
+                } else {
+                  _selectedShiftIds.add(shift['id']);
+                }
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryBlue.withOpacity(0.1) : Colors.blue.withOpacity(0.05),
+                  border: Border.all(color: isSelected ? AppColors.primaryBlue : AppColors.primaryBlue.withOpacity(0.5), width: isSelected ? 2 : 1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text("x${shift['multiplier']}",
+                  style: TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+            ),
+          );
+        }),
         GestureDetector(
             onTap: _showCreateShiftDialog,
             child: const Icon(Icons.add_circle,
@@ -329,98 +312,31 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
     );
   }
 
-  Widget _buildStaffContent() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Staff Monthly Salaries",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              _isEditingStaff
-                  ? IconButton(
-                      icon: const Icon(Icons.check_circle,
-                          color: Colors.green, size: 28),
-                      onPressed: _isSaving ? null : _saveStaffSettings)
-                  : IconButton(
-                      icon:
-                          const Icon(Icons.edit, color: Colors.blue, size: 24),
-                      onPressed: () => setState(() => _isEditingStaff = true)),
-            ],
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _staffList.length,
-              itemBuilder: (context, index) {
-                final staff = _staffList[index];
-                final controller = _staffSalaryControllers[staff.id];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(staff.name ?? '',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
-                            Text(staff.designation ?? '',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                      _isEditingStaff
-                          ? SizedBox(
-                              width: 110,
-                              child: TextField(
-                                  controller: controller,
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.right,
-                                  decoration: const InputDecoration(
-                                    prefixText: "₹ ",
-                                    suffixText: "/mo",
-                                    isDense: true,
-                                  )))
-                          : Text("₹${controller?.text ?? '0'}/mo",
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primaryBlue)),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDeleteShift(String id, String name) {
+  void _confirmBulkDeleteShifts() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Shift"),
-        content: Text("Are you sure you want to delete '$name'?"),
+        title: const Text("Delete Shifts"),
+        content: Text("Are you sure you want to delete ${_selectedShiftIds.length} shift types?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(ctx);
               setState(() => _isLoading = true);
-              await ref.read(payrollControllerProvider).deleteShiftType(id);
-              await _loadSettingsData();
+              try {
+                await ref.read(payrollControllerProvider).bulkDeleteShiftTypes(_selectedShiftIds.toList());
+                await _loadSettingsData();
+              } catch (e) {
+                debugPrint("Error bulk deleting shift types: $e");
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
@@ -448,12 +364,25 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
           ElevatedButton(
             onPressed: () async {
               if (multiplierController.text.isNotEmpty) {
+                final mult = double.tryParse(multiplierController.text);
+                if (mult == null) return;
+
                 Navigator.pop(context);
                 setState(() => _isLoading = true);
-                await ref.read(payrollControllerProvider).createShiftType(
-                    name: "x${multiplierController.text}",
-                    multiplier: double.parse(multiplierController.text));
-                _loadSettingsData();
+                try {
+                  await ref.read(payrollControllerProvider).createShiftType(
+                      name: "x${multiplierController.text}",
+                      multiplier: mult);
+                  await _loadSettingsData();
+                } catch (e) {
+                  debugPrint("Error creating shift: $e");
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                    );
+                  }
+                }
               }
             },
             child: const Text("Create"),
@@ -474,7 +403,11 @@ class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30))),
         child: _isSaving
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
             : const Text("Save Worker Settings",
                 style: TextStyle(
                     color: Colors.white, fontWeight: FontWeight.bold)),

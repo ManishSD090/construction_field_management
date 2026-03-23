@@ -29,7 +29,7 @@ class _PayrollListScreenState extends State<PayrollListScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const PayrollSettingsScreen()));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const PayrollSettingsScreen(projectId: '',)));
             },
             icon: const Icon(Icons.settings_outlined, color: Colors.white),
           )

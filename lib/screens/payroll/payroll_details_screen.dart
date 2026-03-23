@@ -6,7 +6,9 @@ import 'package:construction_erp/screens/payroll/payroll_settings.dart';
 import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
 
 class PayrollDetailsScreen extends ConsumerStatefulWidget {
-  const PayrollDetailsScreen({super.key});
+  final String projectId;
+
+  const PayrollDetailsScreen({super.key, required this.projectId});
 
   @override
   ConsumerState<PayrollDetailsScreen> createState() =>
@@ -21,8 +23,7 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
   Map<String, dynamic>? _rawPayrollData;
   List<Map<String, dynamic>> _groupedData = [];
   double _grandTotal = 0;
-
-  final String _projectId = "ca0ee39d-f2e9-46d2-8cec-d3a8bb44b755";
+  int _fetchId = 0;
 
   @override
   void initState() {
@@ -37,17 +38,30 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
   Future<void> _fetchPayroll() async {
     setState(() => _isLoading = true);
     try {
-      // 🚨 FIX: Fetch the whole month instead of just 24 hours
-      // This ensures the Weekly and Monthly tabs have data to display
-      DateTime start = DateTime(_selectedDate.year, _selectedDate.month, 1);
-      DateTime end =
-          DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+      final int currentFetchId = ++_fetchId;
+      // Always fetch from Jan 1 to get full history for the year
+      DateTime start = DateTime(_selectedDate.year, 1, 1);
+      DateTime end;
+
+      if (_selectedTab == 'Daily') {
+        end = DateTime(_selectedDate.year, _selectedDate.month,
+            _selectedDate.day, 23, 59, 59);
+      } else if (_selectedTab == 'Monthly') {
+        end = DateTime(
+            _selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+      } else {
+        // Weekly
+        end = DateTime(
+            _selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+      }
 
       final data = await ref.read(payrollControllerProvider).calculatePayroll(
             periodFrom: start,
             periodTo: end,
-            projectId: _projectId,
+            projectId: widget.projectId,
           );
+
+      if (currentFetchId != _fetchId) return;
 
       setState(() {
         _rawPayrollData = data;
@@ -69,51 +83,89 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
     if (_rawPayrollData == null || _rawPayrollData!['workers'] == null) return;
 
     final workers = _rawPayrollData!['workers'] as List<dynamic>;
-    Map<DateTime, double> tempGroups = {};
+    Map<String, double> tempGroups = {}; // Use String key for robust comparison
     double totalAmount = 0;
 
+    // Pre-populate missing gaps
+    if (_selectedTab == 'Daily') {
+      DateTime current = DateTime(_selectedDate.year, 1, 1);
+      DateTime endDate =
+          DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      while (current.isBefore(endDate) || current.isAtSameMomentAs(endDate)) {
+        tempGroups[DateFormat('yyyy-MM-dd').format(current)] = 0.0;
+        current = current.add(const Duration(days: 1));
+      }
+    } else if (_selectedTab == 'Weekly') {
+      DateTime current = DateTime(_selectedDate.year, 1, 1);
+      DateTime endDate =
+          DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
+      while (current.isBefore(endDate) || current.isAtSameMomentAs(endDate)) {
+        int weekNum = ((current.day - 1) / 7).floor() + 1;
+        String key = "${DateFormat('yyyy-MM').format(current)}-$weekNum";
+        tempGroups[key] = 0.0;
+        current = current.add(const Duration(days: 1));
+      }
+    } else {
+      DateTime current = DateTime(_selectedDate.year, 1, 1);
+      DateTime endDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      while (current.isBefore(endDate) || current.isAtSameMomentAs(endDate)) {
+        tempGroups[DateFormat('yyyy-MM-01').format(current)] = 0.0;
+        current = DateTime(current.year, current.month + 1, 1);
+      }
+    }
+
     for (var worker in workers) {
-      final attendances = worker['attendances'] as List<dynamic>? ?? [];
+      final attendances = worker['dailyBreakdown'] as List<dynamic>? ?? [];
+      final wName = worker['workerName'] ?? worker['name'] ?? 'Unknown';
+      debugPrint("Worker: $wName, records: ${attendances.length}");
 
       for (var att in attendances) {
-        // 🚨 FIX 1: Extract the ACTUAL date of the attendance, not today's date
-        DateTime recordDate = DateTime.parse(att['date']).toLocal();
-
-        // Normalize to midnight to group correctly
-        DateTime dayOnly =
-            DateTime(recordDate.year, recordDate.month, recordDate.day);
-
-        // Use totalPayable from the DB record
-        double amount = (att['totalPayable'] ?? 0).toDouble();
+        // Parse date-only string to avoid timezone shifts
+        String dateStr = att['date'].toString().split('T')[0];
+        DateTime recordDate = DateFormat('yyyy-MM-dd').parse(dateStr);
+        
+        double amount = (att['amount'] ?? 0).toDouble();
+        String key;
 
         if (_selectedTab == 'Daily') {
-          tempGroups[dayOnly] = (tempGroups[dayOnly] ?? 0) + amount;
+          key = dateStr; // Already yyyy-MM-dd
         } else if (_selectedTab == 'Weekly') {
-          DateTime weekMonday =
-              dayOnly.subtract(Duration(days: dayOnly.weekday - 1));
-          tempGroups[weekMonday] = (tempGroups[weekMonday] ?? 0) + amount;
+          int weekNum = ((recordDate.day - 1) / 7).floor() + 1;
+          key = "${DateFormat('yyyy-MM').format(recordDate)}-$weekNum";
         } else {
-          DateTime monthStart = DateTime(dayOnly.year, dayOnly.month, 1);
-          tempGroups[monthStart] = (tempGroups[monthStart] ?? 0) + amount;
+          key = DateFormat('yyyy-MM-01').format(recordDate);
         }
+
+        debugPrint("Match found: $key, amount: $amount");
+        tempGroups[key] = (tempGroups[key] ?? 0) + amount;
         totalAmount += amount;
       }
     }
 
-    var sortedDates = tempGroups.keys.toList()..sort((a, b) => b.compareTo(a));
+    var sortedKeys = tempGroups.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    // Calculate grand total from the grouped data to ensure perfection
+    double finalTotal = 0;
+    tempGroups.forEach((k, v) => finalTotal += v);
 
     setState(() {
-      _grandTotal = totalAmount;
-      _groupedData = sortedDates.map((date) {
+      _grandTotal = finalTotal;
+      _groupedData = sortedKeys.map((key) {
         String title;
         if (_selectedTab == 'Daily') {
+          DateTime date = DateFormat('yyyy-MM-dd').parse(key);
           title = DateFormat('dd MMM yyyy').format(date).toUpperCase();
         } else if (_selectedTab == 'Weekly') {
-          title = "WEEK OF ${DateFormat('dd MMM').format(date).toUpperCase()}";
+          // Key format: YYYY-MM-WeekNum
+          List<String> parts = key.split('-');
+          DateTime date = DateTime(int.parse(parts[0]), int.parse(parts[1]), 1);
+          String monthName = DateFormat('MMM yyyy').format(date).toUpperCase();
+          title = "$monthName, WEEK ${parts[2]}";
         } else {
+          DateTime date = DateFormat('yyyy-MM-dd').parse(key);
           title = DateFormat('MMM yyyy').format(date).toUpperCase();
         }
-        return {'title': title, 'amount': tempGroups[date]};
+        return {'title': title, 'amount': tempGroups[key]};
       }).toList();
     });
   }
@@ -132,8 +184,15 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
         backgroundColor: AppColors.primaryBlue,
         elevation: 0,
         centerTitle: true,
-        title: const Text("Payroll Details",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Column(
+          children: [
+            const Text("Payroll Details",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            if (widget.projectId != null)
+              Text("Project ID: ${widget.projectId}", 
+                style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -142,10 +201,11 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
           IconButton(
             onPressed: () {
               Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const PayrollSettingsScreen()))
-                  .then((_) => _fetchPayroll());
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => PayrollSettingsScreen(
+                            projectId: widget.projectId,
+                          ))).then((_) => _fetchPayroll());
             },
             icon: const Icon(Icons.settings_outlined, color: Colors.white),
           )
@@ -184,10 +244,12 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
           return Expanded(
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  _selectedTab = period;
-                });
-                _processData(); // Recalculate groups immediately without refetching
+                if (_selectedTab != period) {
+                  setState(() {
+                    _selectedTab = period;
+                  });
+                  _fetchPayroll(); // Refetch boundaries
+                }
               },
               child: Container(
                 alignment: Alignment.center,
@@ -217,7 +279,12 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
   }
 
   Widget _buildFilterRow() {
-    String displayText = DateFormat('MMM yyyy').format(_selectedDate);
+    String displayText;
+    if (_selectedTab == 'Daily') {
+      displayText = DateFormat('dd-MM-yyyy').format(_selectedDate);
+    } else {
+      displayText = DateFormat('MMM yyyy').format(_selectedDate);
+    }
 
     return InkWell(
       onTap: () async {
@@ -300,8 +367,8 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
   }
 
   Widget _buildTotalFooter() {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 10),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -310,7 +377,7 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87)),
-          Text("₹1,21,600",
+          Text(_formatCurrency(_grandTotal),
               style: TextStyle(
                   fontSize: 20,
                   color: AppColors.primaryBlue,

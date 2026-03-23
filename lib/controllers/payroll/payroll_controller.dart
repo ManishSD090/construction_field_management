@@ -136,6 +136,93 @@ class PayrollController {
     );
   }
 
+  Future<void> bulkUpdateLabourRates({
+    required List<Map<String, dynamic>> rates,
+    required DateTime effectiveFrom,
+    String? reason,
+  }) async {
+    final dio = ref.read(dioClientProvider).dio;
+    final auth = await _getAuthData();
+
+    await dio.post(
+      '$_basePath/labour-rates/bulk',
+      data: {
+        'rates': rates,
+        'effectiveFrom': effectiveFrom.toIso8601String(),
+        'reason': reason,
+      },
+      options: Options(headers: {
+        'x-company-id': auth['companyId'],
+        if (auth['userId'] != null) 'x-user-id': auth['userId'],
+      }),
+    );
+  }
+
+  Future<List<dynamic>> getLabourRates({String? workerType, String? workerId, bool? isCurrent}) async {
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final auth = await _getAuthData();
+
+      final response = await dio.get(
+        '$_basePath/labour-rates',
+        queryParameters: {
+          if (workerType != null) 'workerType': workerType,
+          if (workerId != null) 'workerId': workerId,
+          if (isCurrent != null) 'isCurrent': isCurrent.toString(),
+        },
+        options: Options(headers: {
+          'x-company-id': auth['companyId'],
+          if (auth['userId'] != null) 'x-user-id': auth['userId'],
+        }),
+      );
+      return response.data['data'] ?? [];
+    } catch (e) {
+      debugPrint("Error fetching labour rates: $e");
+      return [];
+    }
+  }
+
+  Future<void> deleteLabourRate(String id) async {
+    final dio = ref.read(dioClientProvider).dio;
+    final auth = await _getAuthData();
+
+    await dio.delete(
+      '$_basePath/labour-rates/$id',
+      options: Options(headers: {
+        'x-company-id': auth['companyId'],
+        if (auth['userId'] != null) 'x-user-id': auth['userId'],
+      }),
+    );
+  }
+
+  Future<void> bulkDeleteLabourRates(List<String> ids) async {
+    final dio = ref.read(dioClientProvider).dio;
+    final auth = await _getAuthData();
+
+    await dio.post(
+      '$_basePath/labour-rates/bulk-delete',
+      data: {'ids': ids},
+      options: Options(headers: {
+        'x-company-id': auth['companyId'],
+        if (auth['userId'] != null) 'x-user-id': auth['userId'],
+      }),
+    );
+  }
+
+  Future<void> bulkDeleteShiftTypes(List<String> ids) async {
+    final dio = ref.read(dioClientProvider).dio;
+    final auth = await _getAuthData();
+
+    await dio.post(
+      '$_basePath/shift-types/bulk-delete',
+      data: {'ids': ids},
+      options: Options(headers: {
+        'x-company-id': auth['companyId'],
+        if (auth['userId'] != null) 'x-user-id': auth['userId'],
+      }),
+    );
+  }
+
   // ==========================================================================
   // 4. CALCULATION & CREATION
   // ==========================================================================

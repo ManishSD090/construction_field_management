@@ -3,20 +3,22 @@ import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dio/dio.dart'; // 🔥 Needed for Options and DioException
+import 'package:shared_preferences/shared_preferences.dart'; // Only kept to pull the global base rate
+import 'package:dio/dio.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/models/worker.dart';
 import 'package:construction_erp/controllers/worker/worker_controller.dart';
 import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
 import 'add_worker.dart';
+import 'package:construction_erp/screens/payroll/payroll_details_screen.dart';
 
 class WorkerAttendanceLocal {
   final String id;
   final String name;
   final String workerType;
   final String designation;
+  final bool isManagement;
   String status;
   String? shiftTypeId;
   double shiftMultiplier;
@@ -27,6 +29,7 @@ class WorkerAttendanceLocal {
     required this.id,
     required this.name,
     required this.workerType,
+    required this.isManagement,
     this.designation = 'Worker',
     this.status = 'Present',
     this.shiftTypeId,
@@ -40,38 +43,6 @@ class WorkerAttendanceLocal {
       return 0.0;
     }
     return baseRate * shiftMultiplier;
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'workerType': workerType,
-        'designation': designation,
-        'status': status,
-        'shiftTypeId': shiftTypeId,
-        'shiftMultiplier': shiftMultiplier,
-        'baseRate': baseRate,
-        'attendanceRecordId': attendanceRecordId,
-      };
-
-  factory WorkerAttendanceLocal.fromJson(Map<String, dynamic> json) {
-    String safeWorkerType = json['workerType'] ?? '';
-    if (safeWorkerType.isEmpty) {
-      String desig = (json['designation'] ?? '').toString().toLowerCase();
-      safeWorkerType = desig == 'worker' ? 'SUBCONTRACTOR' : 'SITE_STAFF';
-    }
-
-    return WorkerAttendanceLocal(
-      id: json['id'] ?? '',
-      name: json['name'] ?? 'Unknown',
-      workerType: safeWorkerType,
-      designation: json['designation'] ?? 'Worker',
-      status: json['status'] ?? 'Present',
-      shiftTypeId: json['shiftTypeId'],
-      shiftMultiplier: (json['shiftMultiplier'] ?? 1.0).toDouble(),
-      baseRate: (json['baseRate'] ?? 0.0).toDouble(),
-      attendanceRecordId: json['attendanceRecordId'],
-    );
   }
 }
 
@@ -98,6 +69,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
   double _globalDefaultRate = 500.0;
   final List<WorkerAttendanceLocal> _workers = [];
   List<Map<String, dynamic>> _dynamicShifts = [];
+  List<dynamic> _labourRatePresets = [];
 
   final List<String> _statusOptions = [
     'Present',
@@ -113,28 +85,49 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadGlobalSettings();
       await _fetchDynamicShifts();
-      setState(() => _isStaffSubmitted = true);
       await _loadExistingAttendance();
     });
   }
 
   Future<void> _loadGlobalSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedRate = prefs.getString('default_worker_rate');
+
+    // 🔥 THE FIX: Make the local storage key strictly project-specific!
+    final savedRate =
+        prefs.getString('default_worker_rate_${widget.projectId}');
+
     if (savedRate != null) {
       setState(() {
         _globalDefaultRate = double.tryParse(savedRate) ?? 500.0;
+      });
+    } else {
+      // Fallback if this specific project hasn't had a rate set yet
+      setState(() {
+        _globalDefaultRate = 500.0;
       });
     }
   }
 
   Future<void> _fetchDynamicShifts() async {
-    final shifts = await ref.read(payrollControllerProvider).getShiftTypes();
+    final payrollCtrl = ref.read(payrollControllerProvider);
+    final shifts = await payrollCtrl.getShiftTypes();
+    
+    // Load available labour rate presets
+    final rateHistory = await payrollCtrl.getLabourRates(isCurrent: true);
+    final presets = rateHistory.where((r) => r['siteStaffId'] == null && r['subcontractorWorkerId'] == null).toList();
+
     setState(() {
+      _labourRatePresets = presets;
+      if (presets.isNotEmpty) {
+        // 🔥 Update the global default rate to the latest preset found
+        _globalDefaultRate = (presets.first['rate'] as num).toDouble();
+      }
       _dynamicShifts = shifts
           .map((e) => {
                 'id': e['id'],
-                'multiplier': (e['multiplier'] as num).toDouble()
+                'multiplier': (e['multiplier'] as num).toDouble(),
+                'name':
+                    'x${e['multiplier']}', // 🔥 FORCED CLEAN FORMATTING (e.g., x1.0, x0.5)
               })
           .toList();
     });
@@ -177,27 +170,38 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
 
     try {
       final dio = ref.read(dioClientProvider).dio;
+      // Fixed Date Formatting
+      final String formattedDate =
+          DateFormat("yyyy-MM-dd'T'00:00:00").format(_selectedDate);
 
+      // 1. LOAD ASSIGNED WORKERS FROM DB
       // ==========================================
-      // 1. LOAD WORKERS & STAFF BASICS
-      // ==========================================
-      final prefs = await SharedPreferences.getInstance();
-      final rosterKey = 'project_roster_${widget.projectId}';
-      final rosterString = prefs.getString(rosterKey);
+      final assignedWorkers = await ref
+          .read(workerControllerProvider.notifier)
+          .fetchWorkersForAttendance(
+              projectId: widget.projectId, date: _selectedDate);
+      final defaultShift = _getDefaultShift();
 
-      if (rosterString != null) {
-        final List<dynamic> decoded = jsonDecode(rosterString);
-        final List<WorkerAttendanceLocal> loadedRoster =
-            decoded.map((e) => WorkerAttendanceLocal.fromJson(e)).toList();
-        for (var w in loadedRoster) {
-          if (w.workerType == 'SUBCONTRACTOR') {
-            if (w.baseRate == 0) w.baseRate = _globalDefaultRate;
-            w.status = 'Present';
-            _workers.add(w);
-          }
-        }
+      for (var worker in assignedWorkers) {
+        _workers.add(WorkerAttendanceLocal(
+          id: worker.id,
+          name: worker.name ?? 'Unknown',
+          workerType: worker.workerType,
+          isManagement: false,
+          designation: worker.designation ?? 'Worker',
+          baseRate: worker.dailyWageRate > 0
+              ? worker.dailyWageRate
+              : _globalDefaultRate,
+          status: 'Present',
+          shiftTypeId: defaultShift?['id'],
+          shiftMultiplier:
+              (defaultShift?['multiplier'] as num?)?.toDouble() ?? 1.0,
+        ));
       }
 
+      // ==========================================
+      // 2. LOAD STAFF FROM DB
+      // ==========================================
       final teamAssignments = await ref
           .read(projectControllerProvider.notifier)
           .getProjectTeam(widget.projectId);
@@ -205,7 +209,6 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
           await dio.get('/users', queryParameters: {'limit': 500});
       final List<dynamic> allUsers = usersResponse.data['data'] ?? [];
       final salaryMap = {for (var u in allUsers) u['id']: u};
-      final defaultShift = _getDefaultShift();
 
       for (var assignment in teamAssignments) {
         final user = assignment['user'];
@@ -216,12 +219,17 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
         double rawSalary = (fullUser?['salary'] as num?)?.toDouble() ?? 0.0;
         String salaryType = fullUser?['salaryType']?.toString() ?? 'MONTHLY';
 
+        final designation =
+            user['designation'] ?? assignment['role']?['name'] ?? 'Staff';
+        if (designation.toString().toLowerCase().contains('company admin'))
+          continue;
+
         _workers.add(WorkerAttendanceLocal(
           id: userId,
           name: user['name'] ?? 'Unknown',
           workerType: 'SITE_STAFF',
-          designation:
-              user['designation'] ?? assignment['role']?['name'] ?? 'Staff',
+          isManagement: true, // Management staff
+          designation: designation,
           baseRate: _calculateDailyRate(rawSalary, salaryType),
           status: 'Present',
           shiftTypeId: defaultShift?['id'],
@@ -231,41 +239,56 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
       }
 
       // ==========================================
-      // 2. FETCH EXISTING WORKER ATTENDANCE
+      // 3. APPLY EXISTING WORKER ATTENDANCE FROM DB
       // ==========================================
       final savedWorkerRecords = await ref
           .read(workerControllerProvider.notifier)
           .getSavedAttendance(projectId: widget.projectId, date: _selectedDate);
 
+      int workersMarkedCount = 0;
+      int totalSubcontractors =
+          _workers.where((w) => !w.isManagement).length;
+
       for (var record in savedWorkerRecords) {
-        final String workerId = record['workerId']?.toString() ??
-            record['subcontractorWorkerId']?.toString() ??
-            '';
-        final existingIndex = _workers.indexWhere(
-            (w) => w.id == workerId && w.workerType == 'SUBCONTRACTOR');
+        // 🔥 THE FIX: Extract all possible IDs from the backend record
+        final String siteStaffId = record['siteStaffId']?.toString() ?? '';
+        final String subId = record['subcontractorWorkerId']?.toString() ?? '';
+        final String recordId = record['id']?.toString() ?? '';
+
+        // Match against SUBCONTRACTOR role using either ID
+        final existingIndex = _workers.indexWhere((w) =>
+            !w.isManagement &&
+            (w.id == siteStaffId || w.id == subId));
 
         if (existingIndex >= 0) {
+          workersMarkedCount++;
           final String backendStatus =
               record['status']?.toString().toUpperCase() ?? 'PRESENT';
           _workers[existingIndex].status =
               backendStatus == 'ABSENT' ? 'Absent' : 'Present';
-          if (record['shiftTypeId'] != null) {
+          _workers[existingIndex].attendanceRecordId = recordId;
+
+          if (record['wageRate'] != null)
+            _workers[existingIndex].baseRate =
+                (record['wageRate'] as num).toDouble();
+          if (record['shiftTypeId'] != null)
             _workers[existingIndex].shiftTypeId =
                 record['shiftTypeId'].toString();
-          }
-          if (record['shiftMultiplier'] != null) {
+          if (record['shiftMultiplier'] != null)
             _workers[existingIndex].shiftMultiplier =
                 (record['shiftMultiplier'] as num).toDouble();
-          }
         }
       }
 
-      // ==========================================
-      // 3. 🔥 FETCH EXISTING STAFF ATTENDANCE
-      // ==========================================
-      final String formattedDate =
-          DateFormat('yyyy-MM-dd').format(_selectedDate);
+      // Hide Worker submit button if DB says all are marked
+      if (totalSubcontractors > 0 &&
+          workersMarkedCount == totalSubcontractors) {
+        _isWorkersSubmitted = true;
+      }
 
+      // ==========================================
+      // 4. APPLY EXISTING STAFF ATTENDANCE FROM DB
+      // ==========================================
       try {
         final staffAttResponse = await dio.get(
           '/attendance/team',
@@ -277,46 +300,47 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
 
         final List<dynamic> allStaffRecords =
             staffAttResponse.data['data'] ?? [];
-
-        // Since projectId may be stripped by backend validation, filter locally
         final List<dynamic> savedStaffRecords = allStaffRecords.where((record) {
           final recordProjectId = record['project']?['id']?.toString() ??
               record['projectId']?.toString();
           return recordProjectId == widget.projectId;
         }).toList();
 
+        int staffMarkedCount = 0;
+        int totalStaff =
+            _workers.where((w) => w.isManagement).length;
+
         for (var record in savedStaffRecords) {
           final String staffId = record['user']?['id']?.toString() ??
               record['userId']?.toString() ??
               '';
-
           final existingIndex = _workers.indexWhere(
-            (w) => w.id == staffId && w.workerType == 'SITE_STAFF',
-          );
+              (w) => w.id == staffId && w.isManagement);
 
           if (existingIndex >= 0) {
+            staffMarkedCount++;
             _workers[existingIndex].attendanceRecordId =
                 record['id']?.toString();
 
             final String backendStatus =
                 record['status']?.toString().toUpperCase() ?? 'PRESENT';
-
             if (backendStatus == 'ABSENT') {
               _workers[existingIndex].status = 'Absent';
-            } else if (backendStatus == 'ON_LEAVE') {
+            } else if (['ON_LEAVE', 'PAID_LEAVE', 'WEEK_OFF']
+                .contains(backendStatus)) {
               _workers[existingIndex].status = 'On Leave';
-            } else if (backendStatus == 'WEEK_OFF') {
-              _workers[existingIndex].status = 'Week Off';
             } else {
               _workers[existingIndex].status = 'Present';
             }
           }
         }
+
+        // Hide Staff submit button if DB says all are marked
+        if (totalStaff > 0 && staffMarkedCount == totalStaff) {
+          _isStaffSubmitted = true;
+        }
       } on DioException catch (e) {
-        debugPrint(
-            "Staff GET 500 Error safely caught: Backend crashed fetching team attendance. Skipping fetch, relying on fallback. Error: ${e.message}");
-      } catch (e) {
-        debugPrint("Other error processing staff attendance: $e");
+        debugPrint("Staff GET error safely caught: ${e.message}");
       }
     } catch (e) {
       debugPrint("Error loading attendance: $e");
@@ -326,30 +350,20 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
   }
 
   void _navigateToAddWorkers() async {
-    final result = await Navigator.push(context,
-        MaterialPageRoute(builder: (context) => const AddWorkerScreen()));
-    if (result != null && result is List) {
-      final returnedWorkers = result.whereType<Worker>().toList();
-      final defaultShift = _getDefaultShift();
+    // 🔥 Grab the IDs of everyone currently assigned
+    final assignedWorkerIds = _workers.map((w) => w.id).toList();
 
-      setState(() {
-        for (var worker in returnedWorkers) {
-          if (worker.id.isEmpty) continue;
-          if (!_workers.any((w) => w.id == worker.id)) {
-            _workers.add(WorkerAttendanceLocal(
-              id: worker.id,
-              name: worker.name ?? 'Unknown',
-              workerType: 'SUBCONTRACTOR',
-              designation: worker.designation ?? 'Worker',
-              baseRate: worker.dailyWageRate.toDouble(),
-              shiftTypeId: defaultShift?['id'],
-              shiftMultiplier:
-                  (defaultShift?['multiplier'] as num?)?.toDouble() ?? 1.0,
-            ));
-          }
-        }
-      });
-      _saveRoster();
+    final didAdd = await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => AddWorkerScreen(
+                  projectId: widget.projectId,
+                  assignedWorkerIds:
+                      assignedWorkerIds, // 🔥 Pass them to the screen
+                )));
+    // If a worker was successfully assigned in the DB, fetch the fresh DB list
+    if (didAdd == true) {
+      _loadExistingAttendance();
     }
   }
 
@@ -358,15 +372,6 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
       _workers.removeWhere((w) => w.id == id);
       _activeDeleteId = null;
     });
-    _saveRoster();
-  }
-
-  Future<void> _saveRoster() async {
-    final prefs = await SharedPreferences.getInstance();
-    final subcontractors =
-        _workers.where((w) => w.workerType == 'SUBCONTRACTOR').toList();
-    await prefs.setString('project_roster_${widget.projectId}',
-        jsonEncode(subcontractors.map((w) => w.toJson()).toList()));
   }
 
   Color _getStatusColor(String s) {
@@ -379,9 +384,11 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _workers.where((w) {
-      return _selectedRole == 'Staff'
-          ? w.workerType == 'SITE_STAFF'
-          : w.workerType == 'SUBCONTRACTOR';
+      if (_selectedRole == 'Staff') {
+        return w.isManagement;
+      } else {
+        return !w.isManagement;
+      }
     }).toList();
 
     double totalPayroll =
@@ -492,7 +499,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
       setState(() {
         _selectedDate = DateTime(picked.year, picked.month, picked.day);
       });
-      _loadExistingAttendance();
+      _loadExistingAttendance(); // 🔥 FETCh DB IMMEDIATELY
     }
   }
 
@@ -531,7 +538,7 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
                 final now = DateTime.now();
                 _selectedDate = DateTime(now.year, now.month, now.day);
               });
-              _loadExistingAttendance();
+              _loadExistingAttendance(); // 🔥 FETCH DB IMMEDIATELY
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -555,6 +562,9 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
 
   Widget _buildListHeader(int present, int total) {
     bool isStaffTab = _selectedRole == 'Staff';
+    bool hideButton = (_selectedRole == 'Staff' && _isStaffSubmitted) ||
+        (_selectedRole == 'Workers' && _isWorkersSubmitted);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
@@ -563,7 +573,8 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
           Text("$present/$total Present",
               style: const TextStyle(
                   fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
-          if (!isStaffTab)
+          // 🔥 Hide the "Add Workers" button if the UI is frozen!
+          if (!isStaffTab && !hideButton)
             GestureDetector(
               onTap: _navigateToAddWorkers,
               child: const Text("+ Add Workers",
@@ -577,6 +588,16 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
   }
 
   Widget _buildList(List<WorkerAttendanceLocal> list) {
+    if (list.isEmpty) {
+      return Center(
+          child: Text(
+              "No assigned ${_selectedRole.toLowerCase()} found for this date."));
+    }
+
+    // 🔥 Calculate the frozen state right here
+    bool isFrozen = (_selectedRole == 'Staff' && _isStaffSubmitted) ||
+        (_selectedRole == 'Workers' && _isWorkersSubmitted);
+
     return ListView.builder(
       itemCount: list.length,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -586,29 +607,36 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
         final isStaffTab = _selectedRole == 'Staff';
 
         return GestureDetector(
-          onLongPress: isStaffTab
+          // UI FREEZE: Disable Long Press delete if already submitted
+          onLongPress: (isStaffTab || isFrozen)
               ? null
               : () => setState(() => _activeDeleteId = worker.id),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDeleting ? Colors.red.shade50 : Colors.white,
+              color: isDeleting
+                  ? Colors.red.shade50
+                  : (isFrozen ? Colors.grey.shade50 : Colors.white),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                   color:
-                      isDeleting ? Colors.red.shade200 : Colors.grey.shade100),
+                      isDeleting ? Colors.red.shade200 : Colors.grey.shade200),
             ),
             child: Row(
               children: [
                 Expanded(
-                  flex: 4,
+                  flex: 2,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(worker.name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isFrozen
+                                  ? Colors.grey.shade700
+                                  : Colors.black),
                           overflow: TextOverflow.ellipsis),
                       Text(worker.designation,
                           style: const TextStyle(
@@ -617,18 +645,21 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
                   ),
                 ),
                 if (!isDeleting) ...[
-                  Container(
-                    width: 50,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                        "₹${worker.currentRate < 1 && worker.currentRate > 0 ? worker.currentRate.toStringAsFixed(1) : worker.currentRate.toStringAsFixed(0)}",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13)),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(width: 70, child: _buildShiftDropdown(worker)),
-                  const SizedBox(width: 8),
-                  SizedBox(width: 95, child: _buildStatusDropdown(worker)),
+                  if (!isStaffTab) ...[
+                    SizedBox(
+                      width: 65,
+                      child: _buildRateDropdown(worker, isFrozen),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: _buildShiftDropdown(
+                            worker, isFrozen)), // Passing isFrozen instead
+                    const SizedBox(width: 8),
+                  ],
+                  SizedBox(
+                      width: 85,
+                      child: _buildStatusDropdown(
+                          worker, isFrozen)), // Passing isFrozen instead
                 ] else
                   IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
@@ -641,64 +672,156 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
     );
   }
 
-  Widget _buildShiftDropdown(WorkerAttendanceLocal worker) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-          border: Border.all(color: Colors.blue.shade100),
-          borderRadius: BorderRadius.circular(8)),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: worker.shiftTypeId ?? _getDefaultShift()?['id'],
-          isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down, size: 20),
-          items: _dynamicShifts
-              .map((s) => DropdownMenuItem(
-                  value: s['id'] as String,
-                  child: Text("x${s['multiplier']}",
-                      style: const TextStyle(fontSize: 12))))
-              .toList(),
-          onChanged: (val) {
-            final shift = _dynamicShifts.firstWhere((s) => s['id'] == val);
-            setState(() {
-              worker.shiftTypeId = val;
-              worker.shiftMultiplier = shift['multiplier'];
-              if (_selectedRole == 'Staff') _isStaffSubmitted = false;
-              if (_selectedRole == 'Workers') _isWorkersSubmitted = false;
-            });
-          },
+  Widget _buildRateDropdown(WorkerAttendanceLocal worker, bool isFrozen) {
+    final isNonPresent =
+        ['Absent', 'Week Off', 'Paid Leave', 'On Leave'].contains(worker.status);
+    final effectiveIsFrozen = isFrozen || isNonPresent;
+
+    return IgnorePointer(
+      ignoring: effectiveIsFrozen,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+            color: effectiveIsFrozen ? Colors.grey.shade100 : Colors.white,
+            border: Border.all(
+                color: effectiveIsFrozen
+                    ? Colors.grey.shade300
+                    : Colors.blue.shade100),
+            borderRadius: BorderRadius.circular(8)),
+        child: isNonPresent
+            ? Center(
+                child: Text("₹0",
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600)))
+            : DropdownButtonHideUnderline(
+                child: DropdownButton<double>(
+                  value: _labourRatePresets.any((r) =>
+                          (r['rate'] as num).toDouble() == worker.baseRate)
+                      ? worker.baseRate
+                      : (_labourRatePresets.isNotEmpty
+                          ? (_labourRatePresets.first['rate'] as num).toDouble()
+                          : null),
+                  isExpanded: true,
+                  icon: Icon(Icons.arrow_drop_down,
+                      size: 20,
+                      color: effectiveIsFrozen
+                          ? Colors.transparent
+                          : Colors.grey),
+                  items: _labourRatePresets
+                      .map((r) => DropdownMenuItem<double>(
+                          value: (r['rate'] as num).toDouble(),
+                          child: Text("₹${(r['rate'] as num).toInt()}",
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: effectiveIsFrozen
+                                      ? Colors.grey.shade700
+                                      : Colors.black))))
+                      .toList(),
+                  selectedItemBuilder: (context) {
+                    return _labourRatePresets.map((r) {
+                      return Center(
+                        child: Text(
+                          "₹${((r['rate'] as num).toDouble() * worker.shiftMultiplier).toInt()}",
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: effectiveIsFrozen
+                                  ? Colors.grey.shade700
+                                  : Colors.black),
+                        ),
+                      );
+                    }).toList();
+                  },
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        worker.baseRate = val;
+                      });
+                    }
+                  },
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildShiftDropdown(WorkerAttendanceLocal worker, bool isFrozen) {
+    return IgnorePointer(
+      ignoring: isFrozen, // 🛡️ Glass shield blocks taps
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+            color: isFrozen ? Colors.grey.shade100 : Colors.white,
+            border: Border.all(
+                color: isFrozen ? Colors.grey.shade300 : Colors.blue.shade100),
+            borderRadius: BorderRadius.circular(8)),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: worker.shiftTypeId ?? _getDefaultShift()?['id'],
+            isExpanded: true,
+            icon: Icon(Icons.arrow_drop_down,
+                size: 20, color: isFrozen ? Colors.transparent : Colors.grey),
+            items: _dynamicShifts
+                .map((s) => DropdownMenuItem(
+                    value: s['id'] as String,
+                    child: Text(s['name'] as String,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                isFrozen ? Colors.grey.shade700 : Colors.black),
+                        overflow: TextOverflow.ellipsis)))
+                .toList(),
+            onChanged: (val) {
+              final shift = _dynamicShifts.firstWhere((s) => s['id'] == val);
+              setState(() {
+                worker.shiftTypeId = val;
+                worker.shiftMultiplier = shift['multiplier'];
+              });
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusDropdown(WorkerAttendanceLocal worker) {
+  // 🔥 UI FREEZE: Accepts isFrozen flag and uses IgnorePointer to preserve text visibility
+  Widget _buildStatusDropdown(WorkerAttendanceLocal worker, bool isFrozen) {
     final options =
         _selectedRole == 'Staff' ? _staffStatusOptions : _statusOptions;
-    final color = _getStatusColor(worker.status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8)),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: worker.status,
-          isExpanded: true,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.bold, fontSize: 11),
-          items: options
-              .map((o) => DropdownMenuItem(
-                  value: o,
-                  child: Text(o, style: const TextStyle(fontSize: 11))))
-              .toList(),
-          onChanged: (val) {
-            setState(() {
-              worker.status = val!;
-              if (_selectedRole == 'Staff') _isStaffSubmitted = false;
-              if (_selectedRole == 'Workers') _isWorkersSubmitted = false;
-            });
-          },
+    final color = isFrozen ? Colors.grey : _getStatusColor(worker.status);
+
+    return IgnorePointer(
+      ignoring: isFrozen, // 🛡️ Glass shield blocks taps
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+            color: isFrozen ? Colors.grey.shade100 : color.withOpacity(0.1),
+            border: Border.all(
+                color: isFrozen ? Colors.grey.shade300 : Colors.transparent),
+            borderRadius: BorderRadius.circular(8)),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: worker.status,
+            isExpanded: true,
+            icon: Icon(Icons.arrow_drop_down,
+                size: 20, color: isFrozen ? Colors.transparent : color),
+            style: TextStyle(
+                color: isFrozen ? Colors.grey.shade700 : color,
+                fontWeight: FontWeight.bold,
+                fontSize: 11),
+            items: options
+                .map((o) => DropdownMenuItem(
+                    value: o,
+                    child: Text(o, style: const TextStyle(fontSize: 11))))
+                .toList(),
+            onChanged: (val) {
+              setState(() {
+                worker.status = val!;
+              });
+            },
+          ),
         ),
       ),
     );
@@ -732,47 +855,104 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
     try {
       final dio = ref.read(dioClientProvider).dio;
       final String formattedDate =
-          DateFormat('yyyy-MM-dd').format(_selectedDate);
+          DateFormat("yyyy-MM-dd'T'00:00:00").format(_selectedDate);
 
       if (_selectedRole == 'Workers') {
         final workerList =
-            _workers.where((w) => w.workerType == 'SUBCONTRACTOR').toList();
-        final workerData = workerList
-            .map((w) => {
-                  'workerType': w.workerType,
-                  'workerId': w.id,
-                  'status': (w.status == 'Present') ? 'PRESENT' : 'ABSENT',
-                  'shiftMultiplier': w.shiftMultiplier,
-                  'wageRate': w.baseRate,
-                  'shiftTypeId': w.shiftTypeId,
-                  'notes': 'Daily Worker Attendance',
-                })
-            .toList();
+            _workers.where((w) => !w.isManagement).toList();
+        final toCreate =
+            workerList.where((w) => w.attendanceRecordId == null).toList();
+        final toUpdate =
+            workerList.where((w) => w.attendanceRecordId != null).toList();
 
-        await ref.read(workerControllerProvider.notifier).submitBulkAttendance(
-              projectId: widget.projectId,
-              date: _selectedDate,
-              attendanceData: workerData,
-            );
+        // 1. UPDATE Workers (PUT)
+        for (var w in toUpdate) {
+          String backendStatus = w.status == 'Present' ? 'PRESENT' : 'ABSENT';
+          await dio.put('/workers/attendance/${w.attendanceRecordId}', data: {
+            'status': backendStatus,
+            'date': formattedDate,
+            'projectId': widget.projectId,
+            'shiftTypeId': w.shiftTypeId,
+            'shiftMultiplier': w.shiftMultiplier,
+            'wageRate': w.baseRate,
+          });
+        }
+
+        // 2. CREATE Workers (POST)
+        if (toCreate.isNotEmpty) {
+          final workerData = toCreate
+              .map((w) => {
+                    'workerType': w.workerType,
+                    'workerId': w.id,
+                    'status': (w.status == 'Present') ? 'PRESENT' : 'ABSENT',
+                    'shiftMultiplier': w.shiftMultiplier,
+                    'wageRate': w.baseRate,
+                    'shiftTypeId': w.shiftTypeId,
+                    'notes': 'Daily Worker Attendance',
+                  })
+              .toList();
+
+          final response = await dio.post('/workers/attendance/bulk', data: {
+            'projectId': widget.projectId,
+            'date': formattedDate,
+            'attendanceData': workerData,
+          });
+
+          // Fallback logic
+          if (response.data['errors'] != null) {
+            for (var err in response.data['errors']) {
+              if (err['error'] == "Attendance already marked for this date") {
+                final String existingId = err['existingAttendanceId'];
+                final String targetUserId = err['workerId'];
+                final idx = _workers.indexWhere((w) => w.id == targetUserId);
+                if (idx >= 0) {
+                  _workers[idx].attendanceRecordId = existingId;
+                  String fallbackStatus =
+                      _workers[idx].status == 'Present' ? 'PRESENT' : 'ABSENT';
+                  await dio.put('/workers/attendance/$existingId', data: {
+                    'status': fallbackStatus,
+                    'date': formattedDate,
+                    'projectId': widget.projectId,
+                    'shiftTypeId': _workers[idx].shiftTypeId,
+                    'shiftMultiplier': _workers[idx].shiftMultiplier,
+                  });
+                }
+              }
+            }
+          }
+        }
 
         setState(() => _isWorkersSubmitted = true);
+        await _loadExistingAttendance(); // 🔥 DB REFRESH
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Workers Attendance Saved!"),
+                backgroundColor: Colors.green),
+          );
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => PayrollDetailsScreen(
+                        projectId: widget.projectId,
+                      )));
+        }
       } else {
         // --- STAFF LOGIC ---
         final staffList =
-            _workers.where((w) => w.workerType == 'SITE_STAFF').toList();
-
+            _workers.where((w) => w.isManagement).toList();
         final toCreate =
             staffList.where((w) => w.attendanceRecordId == null).toList();
         final toUpdate =
             staffList.where((w) => w.attendanceRecordId != null).toList();
 
-        // 1. Process Updates (PUT) for staff we already know about
+        // 1. UPDATE Staff
         for (var w in toUpdate) {
           String backendStatus = 'PRESENT';
           if (w.status == 'Absent') backendStatus = 'ABSENT';
-          if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status)) {
+          if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status))
             backendStatus = 'ON_LEAVE';
-          }
 
           await dio.put('/attendance/${w.attendanceRecordId}', data: {
             'status': backendStatus,
@@ -781,14 +961,13 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
           });
         }
 
-        // 2. Try to create the rest (POST)
+        // 2. CREATE Staff
         if (toCreate.isNotEmpty) {
           final staffData = toCreate.map((w) {
             String backendStatus = 'PRESENT';
             if (w.status == 'Absent') backendStatus = 'ABSENT';
-            if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status)) {
+            if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status))
               backendStatus = 'ON_LEAVE';
-            }
             return {
               'userId': w.id,
               'status': backendStatus,
@@ -796,36 +975,31 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
             };
           }).toList();
 
-          final response = await dio.post('/attendance/mark-bulk', data: {
+          final response = await dio.post('/attendance/mark', data: {
             'date': formattedDate,
             'projectId': widget.projectId,
-            'attendanceData': staffData,
+            'attendanceRecords': staffData,
           });
 
-          // 3. THE MAGICAL FALLBACK: If they already exist, extract their IDs and force an update!
+          // Fallback logic
           if (response.data['errors'] != null) {
-            final List<dynamic> errors = response.data['errors'];
-            for (var err in errors) {
+            for (var err in response.data['errors']) {
               if (err['error'] == "Attendance already marked for this date") {
                 final String targetUserId = err['userId'];
                 final String existingId = err['existingAttendanceId'];
 
-                // Find the worker locally and update their ID
                 final idx = _workers.indexWhere((w) => w.id == targetUserId);
                 if (idx >= 0) {
                   _workers[idx].attendanceRecordId = existingId;
-
-                  // Figure out what status you were trying to send
                   String fallbackStatus = 'PRESENT';
-                  if (_workers[idx].status == 'Absent') {
+                  if (_workers[idx].status == 'Absent')
                     fallbackStatus = 'ABSENT';
-                  }
-                  if (['On Leave', 'Paid Leave', 'Week Off']
-                      .contains(_workers[idx].status)) {
-                    fallbackStatus = 'ON_LEAVE';
-                  }
+                  if ([
+                    'On Leave',
+                    'Paid Leave',
+                    'Week Off'
+                  ].contains(_workers[idx].status)) fallbackStatus = 'ON_LEAVE';
 
-                  // 🔥 Instantly update it now that we know the ID!
                   await dio.put('/attendance/$existingId', data: {
                     'status': fallbackStatus,
                     'date': formattedDate,
@@ -837,30 +1011,38 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
           }
         }
 
-        setState(() {
-          _isStaffSubmitted = true;
-        });
+        setState(() => _isStaffSubmitted = true);
+        await _loadExistingAttendance(); // 🔥 DB REFRESH
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Staff Attendance Saved Successfully!"),
+                backgroundColor: Colors.green),
+          );
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => PayrollDetailsScreen(
+                        projectId: widget.projectId,
+                      )));
+        }
       }
 
       ref.invalidate(payrollControllerProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("$_selectedRole Attendance Saved Successfully!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     } catch (e) {
       debugPrint("Submit Error: $e");
-      // We swallow the error UI to green because our fallback handles the duplicates
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("$_selectedRole Attendance Synced!"),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        String errMsg = e.toString();
+        if (e is DioException) {
+          errMsg = e.response?.data['message'] ?? e.message ?? e.toString();
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Submission Error: $errMsg"),
+              backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

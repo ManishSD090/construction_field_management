@@ -4,6 +4,7 @@ class Worker {
   final String name;
   final String? designation;
   final double dailyWageRate;
+  final String workerType;
   String? currentStatus; // PRESENT, ABSENT, etc.
   String multiplier;
 
@@ -11,6 +12,7 @@ class Worker {
     required this.id,
     required this.workerId,
     required this.name,
+    this.workerType = 'SITE_STAFF', // Default to SITE_STAFF
     this.designation,
     this.dailyWageRate = 600.0,
     this.currentStatus,
@@ -22,6 +24,7 @@ class Worker {
       id: json['id']?.toString() ?? '',
       workerId: json['workerId']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Unknown',
+      workerType: json['workerType']?.toString() ?? 'SITE_STAFF',
       designation: json['designation']?.toString(),
       dailyWageRate: (json['dailyWageRate'] as num?)?.toDouble() ?? 600.0,
       currentStatus: json['todayAttendance']?['status'],

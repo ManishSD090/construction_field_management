@@ -44,6 +44,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   bool _isHeaderVisible = true;
   bool _isLoading = false;
   bool _isInit = false;
+  Map<String, dynamic>? _projectStats;
+  bool _isLoadingStats = false;
 
   @override
   void didChangeDependencies() {
@@ -53,11 +55,35 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
       if (args is Project) {
         project = args;
         _isInit = true;
+        _fetchProjectStats();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ref
               .read(timelineControllerProvider.notifier)
               .refresh(projectId: project.id);
         });
+      }
+    }
+  }
+
+  Future<void> _fetchProjectStats() async {
+    if (!mounted) return;
+    setState(() => _isLoadingStats = true);
+    try {
+      debugPrint("Fetching stats for project: ${project.id}");
+      final stats = await ref
+          .read(projectControllerProvider.notifier)
+          .getStatistics(project.id);
+      debugPrint("Received stats: $stats");
+      if (mounted) {
+        setState(() {
+          _projectStats = stats;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching stats: $e");
+      if (mounted) {
+        setState(() => _isLoadingStats = false);
       }
     }
   }
@@ -334,17 +360,30 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
   }
 
   Widget _buildAttendanceTabUI() {
+    if (_isLoadingStats) {
+      return const Center(
+          child: Padding(
+        padding: EdgeInsets.all(40.0),
+        child: CircularProgressIndicator(),
+      ));
+    }
+
+    final honors = _projectStats?['workforce'] ?? {};
+    final laborCount = honors['labors'] ?? 0;
+    final staffCount = honors['staff'] ?? 0;
+    final totalWorkforce = honors['total'] ?? 0;
+
     return Column(children: [
       Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Expanded(
             flex: 5,
             child: Column(children: [
-              _buildStatCard("Labors", 50, const Color(0xFF3B71CA)),
+              _buildStatCard("Labors", laborCount, const Color(0xFF3B71CA)),
               const SizedBox(height: 12),
-              _buildStatCard("Staff", 26, const Color(0xFF4CAF50))
+              _buildStatCard("Staff", staffCount, const Color(0xFF4CAF50))
             ])),
         const SizedBox(width: 15),
-        Expanded(flex: 4, child: _buildAttendanceGauge(76)),
+        Expanded(flex: 4, child: _buildAttendanceGauge(totalWorkforce)),
       ]),
       const SizedBox(height: 25),
       _buildPayrollSummaryCard(),
@@ -574,7 +613,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
             height: 130,
             width: 130,
             child: CircularProgressIndicator(
-                value: 0.76,
+                value: 1.0, // Assuming full circle for visualization
                 strokeWidth: 14,
                 backgroundColor: Colors.blue.shade50,
                 valueColor: const AlwaysStoppedAnimation(Color(0xFF0D6EFD)),
@@ -606,39 +645,45 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
             style:
                 TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: c))
       ]));
-  Widget _buildPayrollSummaryCard() => Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.grey.shade200)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text("Overall Payroll: ₹21,600",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          InkWell(
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const PayrollDetailsScreen())),
-              child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: const Text("View",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold))))
-        ]),
-        const SizedBox(height: 15),
-        _rowText("Labours:", "₹10,600"),
-        const SizedBox(height: 8),
-        _rowText("Staff:", "₹11,000")
-      ]));
+  Widget _buildPayrollSummaryCard() {
+    final payroll = _projectStats?['payroll'] ?? {};
+    final laborPayroll = (payroll['labors'] ?? 0).toDouble();
+
+    return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.grey.shade200)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text("Labor Payroll: ₹${NumberFormat('#,##,##0').format(laborPayroll)}",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            InkWell(
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => PayrollDetailsScreen(projectId: project.id))),
+                child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF0D6EFD),
+                        borderRadius: BorderRadius.circular(20)),
+                    child: const Text("View",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold))))
+          ]),
+          const SizedBox(height: 15),
+          const Text(
+            "This reflects the total labor costs for the current month.",
+            style: TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ]));
+  }
   Widget _buildBudgetCard(String t, String a, Color c) => Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),

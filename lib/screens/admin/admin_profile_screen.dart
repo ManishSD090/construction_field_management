@@ -79,9 +79,6 @@ class AdminProfileScreen extends ConsumerWidget {
                 _buildSettingsList(context, user),
                 const SizedBox(height: 24),
 
-                // --- Floating Style Check-in Button ---
-                _buildCheckInButton(context),
-                const SizedBox(height: 16),
 
                 // --- Log Out Button ---
                 Center(
@@ -228,29 +225,6 @@ class AdminProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCheckInButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          // Logic for check-in
-        },
-        icon: const Icon(Icons.history_toggle_off, color: Colors.white),
-        label: const Text("Check-in",
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryBlue,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          elevation: 0,
-        ),
-      ),
-    );
-  }
 
   // --- Helpers ---
 
