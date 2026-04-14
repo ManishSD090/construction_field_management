@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart'; // ✅ Added Dio import for error handling
 
 import 'package:construction_erp/screens/inventory/purchase_order_list_screen.dart';
 import 'package:construction_erp/controllers/inventory/inventory_controller.dart';
-import 'package:construction_erp/controllers/finance/financial_controller.dart'; // Added financial controller import
-import 'package:construction_erp/models/budget.dart'; // Added budget model import
+import 'package:construction_erp/controllers/finance/financial_controller.dart';
+import 'package:construction_erp/models/budget.dart';
 
 // A unified model to hold mixed activity data for the UI
 class ActivityData {
@@ -51,6 +52,7 @@ class _ProjectInventoryDashboardScreenState
       NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
   bool _isLoadingActivities = true;
+  String? _activityError; // ✅ Track specific errors for recent activities
   List<ActivityData> _recentActivities = [];
 
   @override
@@ -68,6 +70,7 @@ class _ProjectInventoryDashboardScreenState
   Future<void> _fetchRecentActivities() async {
     setState(() {
       _isLoadingActivities = true;
+      _activityError = null;
     });
 
     try {
@@ -99,12 +102,8 @@ class _ProjectInventoryDashboardScreenState
         ));
       }
 
-      // 2. Process Low Stock Alerts (Pin them to 'now' so they show at the top)
+      // 2. Process Low Stock Alerts
       for (var item in lowStockItems) {
-        // Fallback for the generic currentStock vs currentGlobalStock depending on if backend is fully updated
-        // final currentStock =
-        //     item['currentStock'] ?? item['currentGlobalStock'] ?? 0;
-
         combined.add(ActivityData(
           title:
               "${item['status'].toString().replaceAll('_', ' ').split(' ').map((word) {
@@ -113,7 +112,7 @@ class _ProjectInventoryDashboardScreenState
           }).join(' ')}: ${item['name']}",
           subtitle:
               "Available: ${item['currentStock']} ${item['unit']} (Min: ${item['minimumStock']})",
-          date: DateTime.now(), // Display as "Just now" to keep attention on it
+          date: DateTime.now(),
           icon: Icons.warning_amber_rounded,
           color: Colors.orange,
         ));
@@ -132,6 +131,7 @@ class _ProjectInventoryDashboardScreenState
       if (mounted) {
         setState(() {
           _isLoadingActivities = false;
+          _activityError = _parseErrorMessage(e); // ✅ Capture the error
         });
       }
     }
@@ -204,61 +204,69 @@ class _ProjectInventoryDashboardScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Watch the inventory state
     final inventoryStateAsync = ref.watch(inventoryControllerProvider);
-
-    // Watch the active budget for this project
     final activeBudgetAsync =
         ref.watch(activeProjectBudgetProvider(widget.projectId));
 
-    // Removed Material, RefreshIndicator, and SingleChildScrollView.
-    // Since ProjectDetailsScreen already handles the scrolling, returning a Column
-    // fixes the nested scroll bug and allows dragging anywhere on the screen!
+    final bool isReloading =
+        inventoryStateAsync.isLoading || inventoryStateAsync.isRefreshing;
+
     return inventoryStateAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 40.0),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stack) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
-              const SizedBox(height: 16),
-              Text("Failed to load project inventory:\n$error",
-                  textAlign: TextAlign.center),
-              TextButton(
-                onPressed: () {
-                  ref.read(inventoryControllerProvider.notifier).refresh();
-                  _fetchRecentActivities();
-                },
-                child: const Text("Retry"),
-              )
-            ],
-          ),
-        ),
-      ),
+      // ✅ Using the centralized beautiful error builder
+      error: (error, stack) => _buildMainErrorState(error, isReloading),
       data: (state) {
-        // Extract dynamic summary values from the controller state
         final summary = state.summary;
         final double equipValue =
             (summary['totalEquipmentValue'] ?? 0).toDouble();
         final double matValue = (summary['totalMaterialValue'] ?? 0).toDouble();
         final double totalValue = (summary['totalValue'] ?? 0).toDouble();
 
-        // Removed the Padding widget because the parent ProjectDetailsScreen
-        // already applies 20px padding around the tab content.
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header with Refresh Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Inventory Overview",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                isReloading
+                    ? Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: primaryBlue),
+                        ),
+                      )
+                    : IconButton(
+                        icon: Icon(Icons.refresh, color: primaryBlue),
+                        onPressed: () {
+                          ref
+                              .read(inventoryControllerProvider.notifier)
+                              .refresh();
+                          _fetchRecentActivities();
+                        },
+                        tooltip: 'Refresh Dashboard',
+                      ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             // 1. Dynamic Inventory Summary Card
             _buildInventorySummaryCard(equipValue, matValue, totalValue),
 
             const SizedBox(height: 24),
 
-            // 2. Budget Section (Included in Project Dashboard)
+            // 2. Budget Section
             _buildBudgetSection(activeBudgetAsync),
 
             const SizedBox(height: 24),
@@ -302,15 +310,116 @@ class _ProjectInventoryDashboardScreenState
     );
   }
 
+  // --- Beautiful Main Error UI ---
+  Widget _buildMainErrorState(Object error, bool isReloading) {
+    String errorMessage = _parseErrorMessage(error);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 60.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getErrorIcon(error),
+                size: 60,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Oops! Something went wrong",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: isReloading
+                  ? null
+                  : () {
+                      ref.read(inventoryControllerProvider.notifier).refresh();
+                      _fetchRecentActivities();
+                    },
+              icon: isReloading
+                  ? Container(
+                      width: 20,
+                      height: 20,
+                      padding: const EdgeInsets.all(2),
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.refresh, size: 20),
+              label: Text(isReloading ? "Retrying..." : "Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: primaryBlue.withOpacity(0.7),
+                disabledForegroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Error Parsing Logic ---
+  String _parseErrorMessage(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return "Connection timed out. Please check your internet connection or make sure the server is running.";
+        case DioExceptionType.connectionError:
+          return "Unable to connect to the server. Please verify your network and server IP address.";
+        case DioExceptionType.badResponse:
+          final statusCode = error.response?.statusCode;
+          final serverMessage = error.response?.data?['message'];
+          return serverMessage ??
+              "Server responded with an error ($statusCode). Please try again later.";
+        default:
+          return "A network error occurred. Please try again.";
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  IconData _getErrorIcon(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return Icons.wifi_off_rounded;
+      }
+    }
+    return Icons.error_outline_rounded;
+  }
+
   // --- Widgets ---
 
   Widget _buildInventorySummaryCard(
       double equipValue, double matValue, double totalValue) {
-    // Calculate percentages for the pie chart
     double equipPercent = totalValue > 0 ? (equipValue / totalValue) * 100 : 0;
     double matPercent = totalValue > 0 ? (matValue / totalValue) * 100 : 100;
 
-    // Provide default gray chart if everything is 0
     if (totalValue == 0) {
       equipPercent = 0;
       matPercent = 100;
@@ -331,19 +440,16 @@ class _ProjectInventoryDashboardScreenState
       ),
       child: Row(
         children: [
-          // Left: Dynamic Donut Chart
           SizedBox(
             height: 120,
             width: 120,
             child: PieChart(
               PieChartData(
-                // Disabled pieTouchData so the chart doesn't swallow vertical scroll gestures
                 pieTouchData: PieTouchData(enabled: false),
                 sectionsSpace: 0,
                 centerSpaceRadius: 40,
                 startDegreeOffset: -90,
                 sections: [
-                  // Equipment Segment (Teal)
                   PieChartSectionData(
                     color: totalValue > 0 ? tealColor : Colors.grey.shade300,
                     value: equipPercent,
@@ -351,7 +457,6 @@ class _ProjectInventoryDashboardScreenState
                     radius: 12,
                     showTitle: false,
                   ),
-                  // Material Segment (Blue)
                   PieChartSectionData(
                     color: totalValue > 0 ? primaryBlue : Colors.grey.shade200,
                     value: matPercent,
@@ -364,7 +469,6 @@ class _ProjectInventoryDashboardScreenState
             ),
           ),
           const SizedBox(width: 16),
-          // Right: Dynamic Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,7 +490,6 @@ class _ProjectInventoryDashboardScreenState
                   height: 36,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigate to Inventory List Screen
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -451,10 +554,28 @@ class _ProjectInventoryDashboardScreenState
                 child: CircularProgressIndicator(),
               ),
             ),
-            error: (error, stack) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text("Error loading budget: $error",
-                  style: const TextStyle(color: Colors.red)),
+            // ✅ Inline localized error state for budget
+            error: (error, stack) => Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade100),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      color: Colors.red.shade400, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Failed to load budget. Pull down to refresh.",
+                      style:
+                          TextStyle(color: Colors.red.shade700, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
             ),
             data: (budget) {
               if (budget == null) {
@@ -469,14 +590,10 @@ class _ProjectInventoryDashboardScreenState
               }
 
               final double totalAmount = (budget.totalApproved ?? 0).toDouble();
-
-              // Depending on your actual Budget model, calculate remaining and used.
-              // Assuming 'remainingAmount' exists, or 'consumedAmount'/'committedAmount'.
               final double remainingAmount =
                   (budget.totalRemaining ?? totalAmount).toDouble();
               final double usedAmount = totalAmount - remainingAmount;
 
-              // Calculate percentages for the UI
               final double usedPercent = totalAmount > 0
                   ? (usedAmount / totalAmount).clamp(0.0, 1.0)
                   : 0.0;
@@ -486,12 +603,11 @@ class _ProjectInventoryDashboardScreenState
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Custom Progress Bar
                   Container(
                     height: 35,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFCDE1FF), // Light blue background
+                      color: const Color(0xFFCDE1FF),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -509,8 +625,7 @@ class _ProjectInventoryDashboardScreenState
                         if (flexRemaining > 0)
                           Expanded(
                             flex: flexRemaining,
-                            child:
-                                const SizedBox(), // Transparent/Light blue background shows
+                            child: const SizedBox(),
                           ),
                       ],
                     ),
@@ -568,6 +683,35 @@ class _ProjectInventoryDashboardScreenState
             padding: EdgeInsets.symmetric(vertical: 20.0),
             child: Center(child: CircularProgressIndicator()),
           )
+        // ✅ Localized beautiful error state just for activities
+        else if (_activityError != null)
+          Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade100),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.red.shade400, size: 32),
+                  const SizedBox(height: 8),
+                  Text(_activityError!,
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(color: Colors.red.shade700, fontSize: 13)),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: _fetchRecentActivities,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text("Retry"),
+                    style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade700),
+                  )
+                ],
+              ))
         else if (_recentActivities.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20.0),
@@ -652,8 +796,6 @@ class _ProjectInventoryDashboardScreenState
     );
   }
 
-  // --- Helper Methods for Formatting Activity Data ---
-
   IconData _getIconForTransaction(String type) {
     if (type.contains('INIT') || type.contains('OPENING')) {
       return Icons.inventory_2_outlined;
@@ -671,7 +813,6 @@ class _ProjectInventoryDashboardScreenState
     if (type == 'TRANSFER_OUT') return "Stock Transferred Out";
     if (type == 'TRANSFER_IN') return "Stock Transferred In";
 
-    // Capitalize fallback words
     return type.replaceAll('_', ' ').split(' ').map((word) {
       if (word.isEmpty) return '';
       return word[0].toUpperCase() + word.substring(1).toLowerCase();

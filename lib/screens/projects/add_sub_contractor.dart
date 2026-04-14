@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:construction_erp/screens/sub_contractor/create_sub_contractor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart'; // ✅ Added Dio import for error handling
+
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/subcontractor/subcontractor_controller.dart';
 import 'package:construction_erp/models/contractor.dart';
@@ -23,6 +25,8 @@ class _AddSubContractorScreenState
   int? _expandedIndex;
   Timer? _debounce;
   final _searchController = TextEditingController();
+
+  bool _isSearchLoading = false; // ✅ Track search loading state
 
   // Assignment Form Controllers
   final _titleController = TextEditingController();
@@ -61,8 +65,14 @@ class _AddSubContractorScreenState
   // Handle Search with Debounce (500ms)
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      ref.read(subcontractorControllerProvider.notifier).refresh(search: query);
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      setState(() => _isSearchLoading = true);
+      await ref
+          .read(subcontractorControllerProvider.notifier)
+          .refresh(search: query);
+      if (mounted) {
+        setState(() => _isSearchLoading = false);
+      }
     });
   }
 
@@ -97,7 +107,10 @@ class _AddSubContractorScreenState
 
   @override
   Widget build(BuildContext context) {
-    final subState = ref.watch(subcontractorControllerProvider);
+    final subStateAsync = ref.watch(subcontractorControllerProvider);
+    final bool isReloading = _isSearchLoading ||
+        subStateAsync.isLoading ||
+        subStateAsync.isRefreshing;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -154,72 +167,264 @@ class _AddSubContractorScreenState
             ),
           ),
 
+          // ✅ Linear Progress Bar for Searches
+          if (_isSearchLoading)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                backgroundColor: AppColors.primaryBlue.withOpacity(0.15),
+                color: AppColors.primaryBlue,
+              ),
+            )
+          else
+            const SizedBox(height: 3),
+
           // --- Subcontractor List ---
           Expanded(
-            child: subState.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text("Error: $err")),
+            child: subStateAsync.when(
+              skipLoadingOnReload: true, // ✅ Prevent screen wiping
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryBlue),
+              ),
+              error: (err, stack) => _buildErrorState(err, isReloading),
               data: (state) {
                 if (state.subcontractors.isEmpty) {
-                  return const Center(child: Text("No subcontractors found."));
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: state.subcontractors.length,
-                  itemBuilder: (context, index) {
-                    final contractor = state.subcontractors[index];
-                    final isExpanded = _expandedIndex == index;
-
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isExpanded
-                              ? AppColors.primaryBlue
-                              : AppColors.primaryBlue.withValues(alpha: 0.5),
-                          width: isExpanded ? 1.5 : 1,
+                  return RefreshIndicator(
+                    color: AppColors.primaryBlue,
+                    onRefresh: () => ref
+                        .read(subcontractorControllerProvider.notifier)
+                        .refresh(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 20.0),
+                          child: _buildEmptyState(),
                         ),
-                        color: isExpanded
-                            ? AppColors.primaryBlue.withOpacity(0.02)
-                            : Colors.white,
-                      ),
-                      child: Column(
-                        children: [
-                          ListTile(
-                            title: Text(
-                              contractor.name,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              "Type: ${contractor.type.name} • Rating: ${contractor.rating} ⭐",
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Icon(
-                              isExpanded
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                              color: isExpanded
-                                  ? AppColors.primaryBlue
-                                  : Colors.grey,
-                            ),
-                            onTap: () => _toggleExpand(index, contractor),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  color: AppColors.primaryBlue,
+                  onRefresh: () => ref
+                      .read(subcontractorControllerProvider.notifier)
+                      .refresh(),
+                  child: ListView.builder(
+                    physics:
+                        const AlwaysScrollableScrollPhysics(), // ✅ Enables pull-to-refresh
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: state.subcontractors.length,
+                    itemBuilder: (context, index) {
+                      final contractor = state.subcontractors[index];
+                      final isExpanded = _expandedIndex == index;
+
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isExpanded
+                                ? AppColors.primaryBlue
+                                : AppColors.primaryBlue.withOpacity(0.5),
+                            width: isExpanded ? 1.5 : 1,
                           ),
-                          if (isExpanded) _buildAssignmentForm(contractor),
-                        ],
-                      ),
-                    );
-                  },
+                          color: isExpanded
+                              ? AppColors.primaryBlue.withOpacity(0.02)
+                              : Colors.white,
+                        ),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              title: Text(
+                                contractor.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                "Type: ${contractor.type.name} • Rating: ${contractor.rating} ⭐",
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              trailing: Icon(
+                                isExpanded
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: isExpanded
+                                    ? AppColors.primaryBlue
+                                    : Colors.grey,
+                              ),
+                              onTap: () => _toggleExpand(index, contractor),
+                            ),
+                            if (isExpanded) _buildAssignmentForm(contractor),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 35),
+          const SizedBox(height: 35), // Space for FAB
         ],
       ),
     );
+  }
+
+  // --- Beautiful Error State ---
+  Widget _buildErrorState(Object error, bool isReloading) {
+    String errorMessage = _parseErrorMessage(error);
+
+    return RefreshIndicator(
+      color: AppColors.primaryBlue,
+      onRefresh: () =>
+          ref.read(subcontractorControllerProvider.notifier).refresh(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _getErrorIcon(error),
+                    size: 48,
+                    color: Colors.red.shade400,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Oops! Something went wrong",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  errorMessage,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.grey.shade600, fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: isReloading
+                      ? null
+                      : () {
+                          ref
+                              .read(subcontractorControllerProvider.notifier)
+                              .refresh();
+                        },
+                  icon: isReloading
+                      ? Container(
+                          width: 16,
+                          height: 16,
+                          padding: const EdgeInsets.all(2),
+                          child: const CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.refresh, size: 18),
+                  label: Text(isReloading ? "Retrying..." : "Try Again"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.primaryBlue.withOpacity(0.7),
+                    disabledForegroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- Beautiful Empty State ---
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.engineering_outlined,
+              size: 60, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text("No subcontractors found",
+              style: TextStyle(
+                  color: Colors.grey.shade800,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(
+              _searchController.text.isNotEmpty
+                  ? "Try adjusting your search terms."
+                  : "Pull down to refresh or create a new sub-contractor.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  // --- Error Parsing Logic ---
+  String _parseErrorMessage(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return "Connection timed out. Please check your internet connection.";
+        case DioExceptionType.connectionError:
+          return "Unable to connect to the server. Please verify your network.";
+        case DioExceptionType.badResponse:
+          final serverMessage = error.response?.data?['message'];
+          return serverMessage ?? "Server error occurred. Please try again.";
+        default:
+          return "A network error occurred. Please try again.";
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  IconData _getErrorIcon(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return Icons.wifi_off_rounded;
+      }
+    }
+    return Icons.error_outline_rounded;
   }
 
   Widget _buildAssignmentForm(Contractor contractor) {
@@ -419,7 +624,9 @@ class _AddSubContractorScreenState
     // Basic validation
     if (_titleController.text.isEmpty || _rawStartDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter Title and Start Date")),
+        const SnackBar(
+            content: Text("Please enter Title and Start Date"),
+            backgroundColor: AppColors.alertRed),
       );
       return;
     }
@@ -450,13 +657,17 @@ class _AddSubContractorScreenState
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("Sub-contractor Assigned Successfully!")),
+              content: Text("Sub-contractor Assigned Successfully!"),
+              backgroundColor: AppColors.successGreen),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}")),
+          SnackBar(
+            content: Text("Error: ${_parseErrorMessage(e)}"),
+            backgroundColor: AppColors.alertRed,
+          ),
         );
       }
     }

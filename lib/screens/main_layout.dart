@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ Added for SystemNavigator.pop()
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/routes.dart';
@@ -21,6 +22,9 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
   int _selectedIndex = 0;
   DashboardPopupType _currentPopup = DashboardPopupType.none;
   bool _isInit = false;
+
+  // ✅ Variable to track the last time the back button was pressed
+  DateTime? _lastPressedAt;
 
   final Map<String, int> _tabRouteMap = {
     'dashboard': 0,
@@ -83,77 +87,104 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Colors.grey[50],
-          // Display the widget corresponding to the selected index
-          body: _pages[_selectedIndex],
+    // ✅ PopScope with double-press-to-exit logic
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
 
-          bottomNavigationBar: NavigationBarTheme(
-            data: NavigationBarThemeData(
-              labelTextStyle: WidgetStateProperty.all(
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        final now = DateTime.now();
+        // If it's the first press or more than 2 seconds since the last press
+        if (_lastPressedAt == null ||
+            now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
+          _lastPressedAt = now;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit the app'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+
+        // If pressed twice within 2 seconds, exit the app
+        SystemNavigator.pop();
+      },
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: Colors.grey[50],
+            // Display the widget corresponding to the selected index
+            body: _pages[_selectedIndex],
+
+            bottomNavigationBar: NavigationBarTheme(
+              data: NavigationBarThemeData(
+                labelTextStyle: WidgetStateProperty.all(
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ),
+              child: NavigationBar(
+                height: 70,
+                elevation: 0,
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                indicatorColor: Colors.blue.shade100,
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: (index) {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home, color: Color(0xFF0D6EFD)),
+                    label: 'Dashboard',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.inventory_2_outlined),
+                    selectedIcon:
+                        Icon(Icons.inventory_2, color: Color(0xFF0D6EFD)),
+                    label: 'Project',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.note_alt_outlined),
+                    selectedIcon:
+                        Icon(Icons.note_alt, color: Color(0xFF0D6EFD)),
+                    label: 'Operation',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person, color: Color(0xFF0D6EFD)),
+                    label: 'Profile',
+                  ),
+                ],
               ),
             ),
-            child: NavigationBar(
-              height: 70,
-              elevation: 0,
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
-              indicatorColor: Colors.blue.shade100,
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home, color: Color(0xFF0D6EFD)),
-                  label: 'Dashboard',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.inventory_2_outlined),
-                  selectedIcon:
-                      Icon(Icons.inventory_2, color: Color(0xFF0D6EFD)),
-                  label: 'Project',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.note_alt_outlined),
-                  selectedIcon: Icon(Icons.note_alt, color: Color(0xFF0D6EFD)),
-                  label: 'Operation',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person, color: Color(0xFF0D6EFD)),
-                  label: 'Profile',
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // --- POPUP LAYERS ---
-        if (_currentPopup != DashboardPopupType.none)
-          GestureDetector(
-            onTap: _closePopup,
-            child: Container(
-              color: Colors.black.withOpacity(0.5),
-              width: double.infinity,
-              height: double.infinity,
-            ),
           ),
 
-        if (_currentPopup != DashboardPopupType.none)
-          Positioned(
-            bottom: 30,
-            left: 20,
-            right: 20,
-            child: Center(child: _buildDynamicPopupContent()),
-          ),
-      ],
+          // --- POPUP LAYERS ---
+          if (_currentPopup != DashboardPopupType.none)
+            GestureDetector(
+              onTap: _closePopup,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+
+          if (_currentPopup != DashboardPopupType.none)
+            Positioned(
+              bottom: 30,
+              left: 20,
+              right: 20,
+              child: Center(child: _buildDynamicPopupContent()),
+            ),
+        ],
+      ),
     );
   }
 

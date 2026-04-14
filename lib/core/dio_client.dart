@@ -28,7 +28,8 @@ class DioClient {
       // Do not change the URL, comment it out if needed.
       // return "http://172.16.2.21:5000/api/v1";
       // return "http://192.168.1.7:5000/api/v1";
-      return "http://192.168.1.16:5001/api/v1";
+      // return "http://192.168.1.16:5001/api/v1";
+      return "http://192.168.0.109:5000/api/v1";
     }
     if (Platform.isIOS) {
       return "http://172.16.12.249:5001/api/v1";

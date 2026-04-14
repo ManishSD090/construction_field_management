@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart'; // ✅ Added Dio import for error handling
+
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/controllers/admin/dashboard_controller.dart';
 import 'package:construction_erp/routes.dart';
 import 'package:construction_erp/models/user.dart';
-// ✅ Import the new screen
+
 import 'package:construction_erp/screens/admin/approvals_screen.dart';
 import 'package:construction_erp/screens/inventory/inventory_dashboard_screen.dart';
 import 'package:construction_erp/screens/transactions/ledger_screen.dart';
+import 'package:construction_erp/core/services/app_colors.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -21,6 +24,7 @@ class DashboardTab extends ConsumerWidget {
     final dashboardAsync = ref.watch(dashboardControllerProvider);
 
     return RefreshIndicator(
+      color: AppColors.primaryBlue,
       onRefresh: () async {
         await ref.read(dashboardControllerProvider.notifier).refresh();
       },
@@ -40,16 +44,8 @@ class DashboardTab extends ConsumerWidget {
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (error, stackTrace) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text(
-                    'Error loading dashboard:\n$error',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
-              ),
+              error: (error, stackTrace) =>
+                  _buildErrorState(context, ref, error),
               data: (dashboardState) =>
                   _buildDashboardContent(context, dashboardState),
             ),
@@ -59,6 +55,97 @@ class DashboardTab extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  // ✅ New Error State UI Builder
+  Widget _buildErrorState(BuildContext context, WidgetRef ref, Object error) {
+    String errorMessage = _parseErrorMessage(error);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getErrorIcon(error),
+                size: 60,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Oops! Something went wrong",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: () {
+                ref.read(dashboardControllerProvider.notifier).refresh();
+              },
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text("Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    const Color(0xFF0D6EFD), // AppColors.primaryBlue
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ Error Parsing Helper (Handles your Connection Timeouts perfectly)
+  String _parseErrorMessage(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return "Opps! Something went wrong. The server is not responding. Please try again later.";
+        case DioExceptionType.connectionError:
+          return "Unable to connect to the server. Please try again later.";
+        case DioExceptionType.badResponse:
+          final statusCode = error.response?.statusCode;
+          final serverMessage = error.response?.data?['message'];
+          return serverMessage ??
+              "Server responded with an error ($statusCode). Please try again later.";
+        default:
+          return "A network error occurred. Please try again.";
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  IconData _getErrorIcon(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return Icons.wifi_off_rounded;
+      }
+    }
+    return Icons.error_outline_rounded;
   }
 
   Widget _buildDashboardContent(BuildContext context, DashboardState state) {
@@ -81,7 +168,7 @@ class DashboardTab extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 25),
+        const SizedBox(height: 35),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
@@ -210,7 +297,6 @@ class DashboardTab extends ConsumerWidget {
                 builder: (context) => const InventoryDashboardScreen()),
           );
         }),
-        // ✅ CLICKABLE APPROVALS CARD
         _buildActionCard(Icons.description_outlined, Colors.orange[50]!,
             Colors.orange, "Approvals", "$appCount $appLabel", () {
           Navigator.push(
@@ -227,7 +313,6 @@ class DashboardTab extends ConsumerWidget {
     );
   }
 
-  // ✅ Updated to accept `onTap`
   Widget _buildActionCard(IconData icon, Color bgColor, Color iconColor,
       String title, String subtitle, VoidCallback onTap) {
     return InkWell(
@@ -240,10 +325,10 @@ class DashboardTab extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.04),
                 spreadRadius: 1,
-                blurRadius: 6,
-                offset: const Offset(0, 2)),
+                blurRadius: 8,
+                offset: const Offset(0, 3)),
           ],
         ),
         child: Column(
@@ -272,11 +357,29 @@ class DashboardTab extends ConsumerWidget {
 
   Widget _buildRecentActivityList(List<dynamic> activities) {
     if (activities.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 30.0),
-        child: Center(
-          child: Text("No recent activities found.",
-              style: TextStyle(color: Colors.grey, fontSize: 15)),
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_toggle_off,
+                size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text("No recent activities",
+                style: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text("Things are looking quiet right now.",
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+          ],
         ),
       );
     }
@@ -348,27 +451,28 @@ class DashboardTab extends ConsumerWidget {
   Widget _buildActivityItem(IconData icon, Color color, String title,
       String subtitle, String time, String projectName) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.03),
               spreadRadius: 1,
-              blurRadius: 5),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10)),
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,16 +480,16 @@ class DashboardTab extends ConsumerWidget {
                 Text(title,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(subtitle,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 12, color: Colors.blueGrey),
+                    const Icon(Icons.location_on_rounded,
+                        size: 13, color: Colors.blueGrey),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(projectName,
@@ -401,7 +505,11 @@ class DashboardTab extends ConsumerWidget {
               ],
             ),
           ),
-          Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(time,
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );

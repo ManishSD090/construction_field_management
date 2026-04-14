@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart'; // ✅ Added Dio import for error handling
 
 import 'package:construction_erp/models/project.dart';
 import 'package:construction_erp/models/budget.dart';
@@ -35,119 +36,114 @@ class ProjectFinancialsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Fetch ALL budgets for this project to check for Drafts/Pending as fallback
+    // Fetch ALL budgets for this project
     final budgetsAsync = ref.watch(projectBudgetsProvider(project.id));
 
+    // ✅ Track if Riverpod is actively fetching data
+    final bool isReloading =
+        budgetsAsync.isLoading || budgetsAsync.isRefreshing;
+
     return budgetsAsync.when(
+      skipLoadingOnReload: true, // ✅ Prevents screen wipe on refresh
       loading: () => const Center(
         child: Padding(
           padding: EdgeInsets.all(32.0),
           child: CircularProgressIndicator(),
         ),
       ),
-      error: (err, stack) => Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Failed to load financials: $err',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () =>
-                    ref.invalidate(projectBudgetsProvider(project.id)),
-                icon: const Icon(Icons.refresh),
-                label: const Text("Retry"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
-                ),
-              )
-            ],
-          ),
-        ),
-      ),
+      error: (err, stack) => _buildErrorState(err, isReloading, ref),
       data: (budgets) {
         if (budgets.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Icon(
-                      Icons.folder,
-                      size: 80,
-                      color: AppColors.primaryBlue,
-                    ),
-                    Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      child: const Icon(
-                        Icons.search,
-                        size: 34,
-                        color: Colors.white,
+          return Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const Icon(
+                            Icons.folder,
+                            size: 80,
+                            color: AppColors.primaryBlue,
+                          ),
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            child: const Icon(
+                              Icons.search,
+                              size: 34,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Budget Not Found!",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 26),
-                SizedBox(
-                  width: 200,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              CreateBudgetScreen(project: project),
+                      const SizedBox(height: 20),
+                      const Text(
+                        "Budget Not Found!",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      "Create Budget",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      const SizedBox(height: 26),
+                      SizedBox(
+                        width: 200,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    CreateBudgetScreen(project: project),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            "Create Budget",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: isReloading
+                            ? null
+                            : () => ref
+                                .invalidate(projectBudgetsProvider(project.id)),
+                        icon: isReloading
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.grey))
+                            : const Icon(Icons.refresh, size: 18),
+                        label: Text(isReloading ? "Refreshing..." : "Refresh"),
+                      ),
+                      const SizedBox(height: 40),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () =>
-                      ref.invalidate(projectBudgetsProvider(project.id)),
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text("Refresh"),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+              ),
+            ],
           );
         }
 
-        // Smart Selection: Try to find the active budget, otherwise fallback to the most recent one (Draft/Pending)
+        // Smart Selection: Try to find the active budget, otherwise fallback to the most recent one
         final Budget budget = budgets.firstWhere(
           (b) => b.isActive || b.status == BudgetStatus.active,
           orElse: () => budgets.first,
@@ -161,235 +157,358 @@ class ProjectFinancialsTab extends ConsumerWidget {
         final bool isChartEmpty =
             spentVal == 0 && committedVal == 0 && remainingVal == 0;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Column(
-            children: [
-              // Row with status and Refresh Button
-              Row(
+        return Column(
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+              child: Column(
                 children: [
-                  Expanded(child: _buildStatusBanner(budget.status)),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () {
-                      ref.invalidate(projectBudgetsProvider(project.id));
-                      ref.invalidate(projectCashboxProvider(project.id));
-                      ref.invalidate(activeProjectBudgetProvider(project.id));
-                    },
-                    icon:
-                        const Icon(Icons.refresh, color: AppColors.primaryBlue),
-                    tooltip: "Refresh Financials",
+                  // Row with status and Refresh Button
+                  Row(
+                    children: [
+                      Expanded(child: _buildStatusBanner(budget.status)),
+                      const SizedBox(width: 8),
+                      // ✅ Seamless Refresh Spinner
+                      isReloading
+                          ? const Padding(
+                              padding: EdgeInsets.all(12.0),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primaryBlue),
+                              ),
+                            )
+                          : IconButton(
+                              onPressed: () {
+                                ref.invalidate(
+                                    projectBudgetsProvider(project.id));
+                                ref.invalidate(
+                                    projectCashboxProvider(project.id));
+                                ref.invalidate(
+                                    activeProjectBudgetProvider(project.id));
+                              },
+                              icon: const Icon(Icons.refresh,
+                                  color: AppColors.primaryBlue),
+                              tooltip: "Refresh Financials",
+                            ),
+                    ],
                   ),
-                ],
-              ),
+                  const SizedBox(height: 16),
 
-              // Top Approved Budget Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Total Approved Budget",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatCurrency(budget.totalApproved),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                  // Top Approved Budget Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                BudgetScreen(project: project),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        "View Budget",
-                        style: TextStyle(
-                          color: AppColors.primaryBlue,
-                          decoration: TextDecoration.underline,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    )
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Middle Section: Cards & Pie Chart
-              Row(
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: Column(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _buildBudgetCard(
-                          title: "Total Expenses",
-                          amount: _formatCurrency(budget.totalSpent),
-                          color: AppColors.alertRed,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Total Approved Budget",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatCurrency(budget.totalApproved),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        _buildBudgetCard(
-                          title: "Available Balance",
-                          amount: _formatCurrency(budget.totalRemaining),
-                          color: AppColors.primaryBlue,
-                        ),
+                        const SizedBox(width: 12),
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    BudgetScreen(project: project),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "View Budget",
+                            style: TextStyle(
+                              color: AppColors.primaryBlue,
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        )
                       ],
                     ),
                   ),
-                  Expanded(
-                    flex: 6,
-                    child: SizedBox(
-                      height: 160,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          PieChart(
-                            PieChartData(
-                              sectionsSpace: 2,
-                              centerSpaceRadius: 40,
-                              sections: isChartEmpty
-                                  ? [
-                                      PieChartSectionData(
-                                        color: Colors.grey.shade200,
-                                        value: 100,
-                                        radius: 12,
-                                        showTitle: false,
-                                      ),
-                                    ]
-                                  : [
-                                      if (spentVal > 0)
-                                        PieChartSectionData(
-                                          color: AppColors.alertRed,
-                                          value: spentVal,
-                                          radius: 12,
-                                          showTitle: false,
-                                        ),
-                                      if (committedVal > 0)
-                                        PieChartSectionData(
-                                          color: const Color(
-                                              0xFF00C4B4), // Reserved
-                                          value: committedVal,
-                                          radius: 12,
-                                          showTitle: false,
-                                        ),
-                                      if (remainingVal > 0)
-                                        PieChartSectionData(
-                                          color: AppColors.primaryBlue,
-                                          value: remainingVal,
-                                          radius: 12,
-                                          showTitle: false,
-                                        ),
-                                    ],
+                  const SizedBox(height: 20),
+
+                  // Middle Section: Cards & Pie Chart
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          children: [
+                            _buildBudgetCard(
+                              title: "Total Expenses",
+                              amount: _formatCurrency(budget.totalSpent),
+                              color: AppColors.alertRed,
                             ),
-                          ),
-                          if (isChartEmpty)
-                            Text(
-                              "No Data",
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade400,
+                            const SizedBox(height: 12),
+                            _buildBudgetCard(
+                              title: "Available Balance",
+                              amount: _formatCurrency(budget.totalRemaining),
+                              color: AppColors.primaryBlue,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 6,
+                        child: SizedBox(
+                          height: 160,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              PieChart(
+                                PieChartData(
+                                  sectionsSpace: 2,
+                                  centerSpaceRadius: 40,
+                                  sections: isChartEmpty
+                                      ? [
+                                          PieChartSectionData(
+                                            color: Colors.grey.shade200,
+                                            value: 100,
+                                            radius: 12,
+                                            showTitle: false,
+                                          ),
+                                        ]
+                                      : [
+                                          if (spentVal > 0)
+                                            PieChartSectionData(
+                                              color: AppColors.alertRed,
+                                              value: spentVal,
+                                              radius: 12,
+                                              showTitle: false,
+                                            ),
+                                          if (committedVal > 0)
+                                            PieChartSectionData(
+                                              color: const Color(
+                                                  0xFF00C4B4), // Reserved
+                                              value: committedVal,
+                                              radius: 12,
+                                              showTitle: false,
+                                            ),
+                                          if (remainingVal > 0)
+                                            PieChartSectionData(
+                                              color: AppColors.primaryBlue,
+                                              value: remainingVal,
+                                              radius: 12,
+                                              showTitle: false,
+                                            ),
+                                        ],
+                                ),
                               ),
-                            ),
-                        ],
+                              if (isChartEmpty)
+                                Text(
+                                  "No Data",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // View Transactions Link
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TransactionHistoryScreen(
+                            budgetId: budget.id,
+                            projectId: project.id,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "View Transactions",
+                      style: TextStyle(
+                        color: AppColors.primaryBlue,
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  )
+                  ),
+
+                  // Conditional Action Button
+                  if (!isHeaderVisible && budget.status == BudgetStatus.active)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddRecordScreen(
+                                    budgetId: budget.id,
+                                    initialType: RecordType.expense),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text(
+                            "Add Record",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // View Transactions Link
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TransactionHistoryScreen(
-                        budgetId: budget.id,
-                        projectId: project.id,
-                      ),
-                    ),
-                  );
-                },
-                child: const Text(
-                  "View Transactions",
-                  style: TextStyle(
-                    color: AppColors.primaryBlue,
-                    decoration: TextDecoration.underline,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-
-              // Conditional Action Button
-              if (!isHeaderVisible && budget.status == BudgetStatus.active)
-                Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AddRecordScreen(
-                                budgetId: budget.id,
-                                initialType: RecordType.expense),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text(
-                        "Add Record",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
+  }
+
+  // --- Beautiful Main Error UI ---
+  Widget _buildErrorState(Object error, bool isReloading, WidgetRef ref) {
+    String errorMessage = _parseErrorMessage(error);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getErrorIcon(error),
+                size: 60,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Oops! Something went wrong",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: isReloading
+                  ? null
+                  : () {
+                      ref.invalidate(projectBudgetsProvider(project.id));
+                    },
+              icon: isReloading
+                  ? Container(
+                      width: 20,
+                      height: 20,
+                      padding: const EdgeInsets.all(2),
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.refresh, size: 20),
+              label: Text(isReloading ? "Retrying..." : "Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.7),
+                disabledForegroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Error Parsing Logic ---
+  String _parseErrorMessage(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return "Connection timed out. Please check your internet connection or make sure the server is running.";
+        case DioExceptionType.connectionError:
+          return "Unable to connect to the server. Please verify your network and server IP address.";
+        case DioExceptionType.badResponse:
+          final statusCode = error.response?.statusCode;
+          final serverMessage = error.response?.data?['message'];
+          return serverMessage ??
+              "Server responded with an error ($statusCode). Please try again later.";
+        default:
+          return "A network error occurred. Please try again.";
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  IconData _getErrorIcon(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return Icons.wifi_off_rounded;
+      }
+    }
+    return Icons.error_outline_rounded;
   }
 
   Widget _buildStatusBanner(BudgetStatus status) {

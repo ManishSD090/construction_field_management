@@ -346,10 +346,10 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           projectId: project.id, // 🚨 Pass the current project's ID
           onTypeChanged: (index) {
             setState(() {
-              _selectedReportType = index; 
+              _selectedReportType = index;
             });
           },
-      );
+        );
       case 'Timeline':
         return _buildTimelineTab();
       case 'Overview':
@@ -507,14 +507,40 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
     ]);
   }
 
-  Widget _buildMetricsRow() => Row(children: [
-        _metricCard(Icons.payments_outlined,
-            "₹${project.estimatedBudget.toInt()}", "Budget"),
+  Widget _buildMetricsRow() {
+    // Default values before the API response arrives
+    String budgetText =
+        "₹${NumberFormat.compact().format(project.estimatedBudget)}";
+    String daysLeftText = "...";
+    String tasksText = "...";
+
+    // Once stats are loaded, extract the new data
+    if (_projectStats != null) {
+      // 1. Budget
+      final budget =
+          _projectStats!['budget']?['estimated'] ?? project.estimatedBudget;
+      budgetText = "₹${NumberFormat.compact().format(budget)}";
+
+      // 2. Days Left
+      final daysLeft = _projectStats!['timeline']?['daysLeft'] ?? 0;
+      daysLeftText = "$daysLeft Days";
+
+      // 3. Tasks Left out of Total
+      final tasksCompleted = _projectStats!['tasks']?['completed'] ?? 0;
+      final tasksTotal = _projectStats!['tasks']?['total'] ?? 0;
+      tasksText = "$tasksCompleted / $tasksTotal";
+    }
+
+    return Row(
+      children: [
+        _metricCard(Icons.payments_outlined, budgetText, "Budget"),
         const SizedBox(width: 12),
-        _metricCard(Icons.timer_outlined, "1395 Days", "Left"),
+        _metricCard(Icons.timer_outlined, daysLeftText, "Left"),
         const SizedBox(width: 12),
-        _metricCard(Icons.analytics_outlined, "6", "Tasks")
-      ]);
+        _metricCard(Icons.analytics_outlined, tasksText, "Tasks"),
+      ],
+    );
+  }
 
   Widget _buildTabBar() {
     final tabs = [
@@ -658,13 +684,16 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
             border: Border.all(color: Colors.grey.shade200)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("Labor Payroll: ₹${NumberFormat('#,##,##0').format(laborPayroll)}",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+                "Labor Payroll: ₹${NumberFormat('#,##,##0').format(laborPayroll)}",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             InkWell(
                 onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => PayrollDetailsScreen(projectId: project.id))),
+                        builder: (context) =>
+                            PayrollDetailsScreen(projectId: project.id))),
                 child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -684,6 +713,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
           ),
         ]));
   }
+
   Widget _buildBudgetCard(String t, String a, Color c) => Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -800,19 +830,13 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
 
   Widget? _buildFab() {
     // 1. Check if the current tab should have a FAB
-    if (!['Tasks', 'Sub-contractor', 'Timeline', 'DPR']
-        .contains(_selectedTab)) {
+    if (!['Sub-contractor', 'Timeline', 'DPR'].contains(_selectedTab)) {
       return null;
     }
 
     return FloatingActionButton(
       onPressed: () {
-        if (_selectedTab == 'Tasks') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreateTaskScreen()),
-          );
-        } else if (_selectedTab == 'Sub-contractor') {
+        if (_selectedTab == 'Sub-contractor') {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -828,33 +852,34 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
               .firstOrNull
               ?.id;
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => tId != null
-                ? CreateTimelineVersionScreen(timelineId: tId)
-                : ct.CreateTimelineScreen(projectId: project.id),
-          ),
-        );
-      } else if (_selectedTab == 'DPR') {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => _selectedReportType == 0
-                ? CreateDPRScreen(
-                  scrollController: ScrollController(),
-                  projectId: project.id, // 🚨 ADD THIS LINE
-                ) // Daily
-                : CreateWPRScreen(
-                    scrollController: ScrollController(),
-                    projectId: project.id, // 🚨 ADD THIS LINE HERE
-                  ),
-          ),
-        );
-      }
-    },
-    backgroundColor: AppColors.primaryBlue,
-    shape: const CircleBorder(),
-    child: const Icon(Icons.add, color: Colors.white),
-  );
-}}
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => tId != null
+                  ? CreateTimelineVersionScreen(timelineId: tId)
+                  : ct.CreateTimelineScreen(projectId: project.id),
+            ),
+          );
+        } else if (_selectedTab == 'DPR') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => _selectedReportType == 0
+                  ? CreateDPRScreen(
+                      scrollController: ScrollController(),
+                      projectId: project.id, // 🚨 ADD THIS LINE
+                    ) // Daily
+                  : CreateWPRScreen(
+                      scrollController: ScrollController(),
+                      projectId: project.id, // 🚨 ADD THIS LINE HERE
+                    ),
+            ),
+          );
+        }
+      },
+      backgroundColor: AppColors.primaryBlue,
+      shape: const CircleBorder(),
+      child: const Icon(Icons.add, color: Colors.white),
+    );
+  }
+}

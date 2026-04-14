@@ -1,11 +1,13 @@
+import 'dart:async'; // ✅ Added for Timer (Debounce)
 import 'package:construction_erp/screens/sub_contractor/create_sub_contractor.dart';
 import 'package:construction_erp/screens/sub_contractor/sub_contractor_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart'; // ✅ Added Dio import for error handling
+
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/subcontractor/subcontractor_controller.dart';
 import 'package:construction_erp/models/contractor.dart';
-// import 'package:construction_erp/screens/subcontractor/subcontractor_details.dart';
 
 class SubcontractorListScreen extends ConsumerStatefulWidget {
   const SubcontractorListScreen({super.key});
@@ -18,6 +20,10 @@ class SubcontractorListScreen extends ConsumerStatefulWidget {
 class _SubcontractorListScreenState
     extends ConsumerState<SubcontractorListScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+
+  Timer? _debounce;
+  bool _isSearchLoading = false; // ✅ Track local search state
 
   @override
   void initState() {
@@ -33,12 +39,38 @@ class _SubcontractorListScreenState
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  // ✅ Handle Debounced Search
+  void _onSearchChanged(String value) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      setState(() => _isSearchLoading = true);
+      await ref
+          .read(subcontractorControllerProvider.notifier)
+          .refresh(search: value);
+      if (mounted) {
+        setState(() => _isSearchLoading = false);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final subState = ref.watch(subcontractorControllerProvider);
+    final subStateAsync = ref.watch(subcontractorControllerProvider);
+    final subState = subStateAsync.value;
+    final contractors = subState?.subcontractors ?? [];
+
+    final bool isReloading = _isSearchLoading ||
+        subStateAsync.isLoading ||
+        subStateAsync.isRefreshing;
+    final bool showLinearLoader =
+        _isSearchLoading || (isReloading && contractors.isNotEmpty);
+    final bool isLoadingInitial =
+        isReloading && contractors.isEmpty && !subStateAsync.hasError;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,51 +85,96 @@ class _SubcontractorListScreenState
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
         ),
       ),
-      body: subState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text("Error: $err")),
-        data: (state) {
-          if (state.subcontractors.isEmpty) {
-            return const Center(child: Text("No subcontractors found."));
-          }
+      body: Column(
+        children: [
+          // ✅ MOVED OUTSIDE: Search Bar and Header are now permanently rendered
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            child: _buildSearchBar(),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildListHeader(),
+          ),
 
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(subcontractorControllerProvider.notifier).refresh(),
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    _buildSearchBar(ref),
-                    const SizedBox(height: 25),
-                    _buildListHeader(),
-                    const SizedBox(height: 15),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: state.subcontractors.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 15),
-                      itemBuilder: (context, index) {
-                        return _SubcontractorCard(
-                            contractor: state.subcontractors[index]);
-                      },
-                    ),
-                    if (state.isLoadingMore)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: CircularProgressIndicator(),
-                      ),
-                    const SizedBox(height: 80),
-                  ],
-                ),
+          // ✅ Top Loading Indicator for seamless searches/reloads
+          if (showLinearLoader)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                backgroundColor: AppColors.primaryBlue.withOpacity(0.15),
+                color: AppColors.primaryBlue,
               ),
+            )
+          else
+            const SizedBox(height: 15),
+
+          // ✅ EXPANDED DATA SECTION
+          Expanded(
+            child: subStateAsync.when(
+              skipLoadingOnReload: true, // Prevents screen wipe
+              loading: () => const Center(
+                  child:
+                      CircularProgressIndicator(color: AppColors.primaryBlue)),
+              error: (err, stack) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: _buildErrorState(err, isReloading),
+              ),
+              data: (state) {
+                // Empty state handling
+                if (state.subcontractors.isEmpty && !state.isLoadingMore) {
+                  return RefreshIndicator(
+                    color: AppColors.primaryBlue,
+                    onRefresh: () => ref
+                        .read(subcontractorControllerProvider.notifier)
+                        .refresh(),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: _buildEmptyState(),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Standard List View
+                return RefreshIndicator(
+                  color: AppColors.primaryBlue,
+                  onRefresh: () => ref
+                      .read(subcontractorControllerProvider.notifier)
+                      .refresh(),
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    padding:
+                        const EdgeInsets.only(left: 20, right: 20, bottom: 80),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: state.subcontractors.length +
+                        (state.isLoadingMore ? 1 : 0),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 15),
+                    itemBuilder: (context, index) {
+                      if (index == state.subcontractors.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                              child: CircularProgressIndicator(
+                                  color: AppColors.primaryBlue)),
+                        );
+                      }
+                      return _SubcontractorCard(
+                          contractor: state.subcontractors[index]);
+                    },
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -113,7 +190,7 @@ class _SubcontractorListScreenState
     );
   }
 
-  Widget _buildSearchBar(WidgetRef ref) {
+  Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       height: 50,
@@ -129,12 +206,9 @@ class _SubcontractorListScreenState
         ],
       ),
       child: TextField(
+        controller: _searchController,
         textAlignVertical: TextAlignVertical.center,
-        onChanged: (value) {
-          ref
-              .read(subcontractorControllerProvider.notifier)
-              .refresh(search: value);
-        },
+        onChanged: _onSearchChanged, // ✅ Uses debounced search
         decoration: const InputDecoration(
           hintText: "Search by name or trade...",
           hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 16),
@@ -172,6 +246,150 @@ class _SubcontractorListScreenState
       ],
     );
   }
+
+  // --- Beautiful Error State ---
+  Widget _buildErrorState(Object error, bool isReloading) {
+    String errorMessage = _parseErrorMessage(error);
+
+    return Center(
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 20.0),
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getErrorIcon(error),
+                size: 48,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Oops! Something went wrong",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: isReloading
+                  ? null
+                  : () {
+                      ref
+                          .read(subcontractorControllerProvider.notifier)
+                          .refresh();
+                    },
+              icon: isReloading
+                  ? Container(
+                      width: 16,
+                      height: 16,
+                      padding: const EdgeInsets.all(2),
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.refresh, size: 18),
+              label: Text(isReloading ? "Retrying..." : "Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.7),
+                disabledForegroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Beautiful Empty State ---
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.engineering_outlined,
+              size: 60, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text("No subcontractors found",
+              style: TextStyle(
+                  color: Colors.grey.shade800,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(
+            _searchController.text.isNotEmpty
+                ? "Try adjusting your search terms."
+                : "Tap the + button to add a new subcontractor.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Error Parsing Logic ---
+  String _parseErrorMessage(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return "Connection timed out. Please check your internet connection.";
+        case DioExceptionType.connectionError:
+          return "Unable to connect to the server. Please verify your network.";
+        case DioExceptionType.badResponse:
+          final serverMessage = error.response?.data?['message'];
+          return serverMessage ?? "Server error occurred. Please try again.";
+        default:
+          return "A network error occurred. Please try again.";
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  IconData _getErrorIcon(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return Icons.wifi_off_rounded;
+      }
+    }
+    return Icons.error_outline_rounded;
+  }
 }
 
 class _SubcontractorCard extends StatelessWidget {
@@ -183,9 +401,6 @@ class _SubcontractorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navigating to details.
-        // Note: SubContractorDetailsScreen usually expects a contractorProjectId.
-        // If you are viewing a general profile, you may need a different route.
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -215,7 +430,9 @@ class _SubcontractorCard extends StatelessWidget {
                   radius: 24,
                   backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
                   child: Text(
-                    contractor.name[0].toUpperCase(),
+                    contractor.name.isNotEmpty
+                        ? contractor.name[0].toUpperCase()
+                        : '?',
                     style: const TextStyle(
                         color: AppColors.primaryBlue,
                         fontWeight: FontWeight.bold),
@@ -235,10 +452,13 @@ class _SubcontractorCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        contractor.workTypes
-                            .map((e) =>
-                                e.name[0].toUpperCase() + e.name.substring(1))
-                            .join(", "),
+                        contractor.workTypes.isNotEmpty
+                            ? contractor.workTypes
+                                .map((e) =>
+                                    e.name[0].toUpperCase() +
+                                    e.name.substring(1))
+                                .join(", ")
+                            : "No Work Types Assigned",
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textGrey),
                         maxLines: 1,
@@ -258,10 +478,8 @@ class _SubcontractorCard extends StatelessWidget {
                   children: [
                     _buildInfoChip(Icons.business_center, contractor.type.name),
                     const SizedBox(width: 10),
-                    // _buildStatusTag(contractor.isBlacklisted),
                   ],
                 ),
-                // ✅ Right arrow added beside the info/status section
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 16,
@@ -302,26 +520,6 @@ class _SubcontractorCard extends StatelessWidget {
         Text(label.toUpperCase(),
             style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
       ],
-    );
-  }
-
-  Widget _buildStatusTag(bool isBlacklisted) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(
-        color: isBlacklisted
-            ? AppColors.alertRed.withOpacity(0.1)
-            : Colors.green.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        isBlacklisted ? "BLACKLISTED" : "ACTIVE",
-        style: TextStyle(
-          color: isBlacklisted ? AppColors.alertRed : Colors.green,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
     );
   }
 }

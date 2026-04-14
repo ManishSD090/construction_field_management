@@ -1,6 +1,8 @@
+import 'dart:async'; // ✅ Added for Timer (Debounce)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart'; // ✅ Added Dio import for error handling
 
 import 'package:construction_erp/screens/tasks/task_details.dart'; // Adjust if needed
 import 'package:construction_erp/core/services/app_colors.dart';
@@ -26,15 +28,31 @@ class ProjectTasksTab extends ConsumerStatefulWidget {
 }
 
 class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
+  Timer? _debounce; // ✅ Added Timer for search debouncing
+
+  // ✅ Separate local states to distinguish between search loading and button loading
+  bool _isSearchLoading = false;
+  bool _isButtonLoading = false;
+
   @override
   void initState() {
     super.initState();
     // Fetch the initial data when the tab is loaded
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(taskControllerProvider.notifier).refresh(
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      setState(() => _isSearchLoading = true);
+      await ref.read(taskControllerProvider.notifier).refresh(
             projectId: widget.projectId,
           );
+      if (mounted) {
+        setState(() => _isSearchLoading = false);
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel(); // ✅ Cancel timer to prevent memory leaks
+    super.dispose();
   }
 
   // Helper to format the task dates safely
@@ -73,7 +91,17 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
     final taskStateAsync = ref.watch(taskControllerProvider);
     final taskState = taskStateAsync.value;
     final tasks = taskState?.tasks ?? [];
-    final isLoadingInitial = taskStateAsync.isLoading && tasks.isEmpty;
+
+    // ✅ Logic to determine which loader to show
+    final bool isRiverpodLoading =
+        taskStateAsync.isLoading || taskStateAsync.isRefreshing;
+    final bool showLinearLoader =
+        _isSearchLoading || (isRiverpodLoading && !_isButtonLoading);
+
+    final bool isAnyLoading =
+        _isSearchLoading || _isButtonLoading || isRiverpodLoading;
+    final bool isLoadingInitial =
+        isAnyLoading && tasks.isEmpty && !taskStateAsync.hasError;
 
     Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,13 +123,26 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
           ),
           child: TextField(
             onChanged: (value) {
-              ref.read(taskControllerProvider.notifier).refresh(search: value);
+              // ✅ Debounce Logic: Wait 500ms after the user stops typing
+              if (_debounce?.isActive ?? false) _debounce!.cancel();
+              _debounce = Timer(const Duration(milliseconds: 500), () async {
+                setState(() => _isSearchLoading = true);
+                await ref.read(taskControllerProvider.notifier).refresh(
+                      projectId: widget.projectId,
+                      search: value,
+                    );
+                if (mounted) {
+                  setState(() => _isSearchLoading = false);
+                }
+              });
             },
             decoration: const InputDecoration(
               icon: Icon(Icons.search, color: AppColors.textGrey, size: 26),
               hintText: "Search Tasks",
               hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 16),
               border: InputBorder.none,
+              isCollapsed: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 14),
               suffixIcon:
                   Icon(Icons.mic_none, color: AppColors.textGrey, size: 26),
             ),
@@ -126,16 +167,31 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
               children: [
                 // Manual Refresh Button for embedded view
                 if (!widget.showAppBar)
-                  IconButton(
-                    onPressed: () {
-                      ref
-                          .read(taskControllerProvider.notifier)
-                          .refresh(projectId: widget.projectId);
-                    },
-                    icon:
-                        const Icon(Icons.refresh, color: AppColors.primaryBlue),
-                    tooltip: "Refresh Tasks",
-                  ),
+                  // ✅ Rotating refresh button strictly tied to button press
+                  _isButtonLoading
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.primaryBlue),
+                          ),
+                        )
+                      : IconButton(
+                          onPressed: () async {
+                            setState(() => _isButtonLoading = true);
+                            await ref
+                                .read(taskControllerProvider.notifier)
+                                .refresh(projectId: widget.projectId);
+                            if (mounted) {
+                              setState(() => _isButtonLoading = false);
+                            }
+                          },
+                          icon: const Icon(Icons.refresh,
+                              color: AppColors.primaryBlue),
+                          tooltip: "Refresh Tasks",
+                        ),
 
                 // Filter Button
                 InkWell(
@@ -175,7 +231,19 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
             )
           ],
         ),
-        const SizedBox(height: 15),
+
+        // ✅ Top Loading Indicator strictly for Search or background loads
+        if (showLinearLoader && tasks.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: LinearProgressIndicator(
+              minHeight: 3,
+              backgroundColor: AppColors.primaryBlue.withOpacity(0.15),
+              color: AppColors.primaryBlue,
+            ),
+          )
+        else
+          const SizedBox(height: 15),
 
         // --- LIST VIEW (Riverpod State) ---
         if (isLoadingInitial)
@@ -184,22 +252,18 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
             child: Center(
                 child: CircularProgressIndicator(color: AppColors.primaryBlue)),
           )
-        else if (taskStateAsync.hasError)
+        else if (taskStateAsync.hasError && tasks.isEmpty)
+          // ✅ Show Beautiful Error State
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            child: Center(
-              child: Text("Error loading tasks\n${taskStateAsync.error}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.alertRed)),
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child:
+                _buildErrorState(taskStateAsync.error!, _isButtonLoading, ref),
           )
         else if (tasks.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 60),
-            child: Center(
-              child: Text("No tasks found.",
-                  style: TextStyle(color: AppColors.textGrey, fontSize: 16)),
-            ),
+          // ✅ Show Beautiful Empty State
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: _buildEmptyState(),
           )
         else
           ListView.builder(
@@ -292,9 +356,15 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
         ),
         body: RefreshIndicator(
           color: AppColors.primaryBlue,
-          onRefresh: () => ref
-              .read(taskControllerProvider.notifier)
-              .refresh(projectId: widget.projectId),
+          onRefresh: () async {
+            setState(() => _isButtonLoading = true);
+            await ref
+                .read(taskControllerProvider.notifier)
+                .refresh(projectId: widget.projectId);
+            if (mounted) {
+              setState(() => _isButtonLoading = false);
+            }
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding:
@@ -305,10 +375,150 @@ class _ProjectTasksTabState extends ConsumerState<ProjectTasksTab> {
       );
     } else {
       // EMBEDDED MODE (Inside ProjectDetailsScreen)
-      // Return ONLY the column. No nested SingleChildScrollView, no padding, no RefreshIndicator.
-      // The parent ProjectDetailsScreen provides the scrolling context and the 20px padding.
       return content;
     }
+  }
+
+  // --- Beautiful Error State ---
+  Widget _buildErrorState(Object error, bool isButtonLoading, WidgetRef ref) {
+    String errorMessage = _parseErrorMessage(error);
+
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getErrorIcon(error),
+                size: 48,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Oops! Something went wrong",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.grey.shade600, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: isButtonLoading
+                  ? null
+                  : () async {
+                      setState(() => _isButtonLoading = true);
+                      await ref.read(taskControllerProvider.notifier).refresh(
+                            projectId: widget.projectId,
+                          );
+                      if (mounted) {
+                        setState(() => _isButtonLoading = false);
+                      }
+                    },
+              icon: isButtonLoading
+                  ? Container(
+                      width: 16,
+                      height: 16,
+                      padding: const EdgeInsets.all(2),
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.refresh, size: 18),
+              label: Text(isButtonLoading ? "Retrying..." : "Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.7),
+                disabledForegroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Beautiful Empty State ---
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.assignment_outlined,
+              size: 60, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text("No tasks found",
+              style: TextStyle(
+                  color: Colors.grey.shade800,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text("Try adjusting your search or add a new task.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  // --- Error Parsing Logic ---
+  String _parseErrorMessage(Object error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return "Connection timed out. Please check your internet connection.";
+        case DioExceptionType.connectionError:
+          return "Unable to connect to the server. Please verify your network.";
+        case DioExceptionType.badResponse:
+          final serverMessage = error.response?.data?['message'];
+          return serverMessage ?? "Server error occurred. Please try again.";
+        default:
+          return "A network error occurred. Please try again.";
+      }
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  IconData _getErrorIcon(Object error) {
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        return Icons.wifi_off_rounded;
+      }
+    }
+    return Icons.error_outline_rounded;
   }
 }
 

@@ -7,6 +7,7 @@ import 'routes.dart';
 import 'package:construction_erp/controllers/auth/auth_controller.dart';
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/widgets/common/error/no_internet_widget.dart';
+import 'package:construction_erp/core/services/app_colors.dart';
 
 void main() async {
   // 1. Ensure bindings are initialized first
@@ -73,6 +74,10 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         textTheme: GoogleFonts.lexendTextTheme(Theme.of(context).textTheme),
+        progressIndicatorTheme: const ProgressIndicatorThemeData(
+    color: AppColors.primaryBlue, // The spinner color
+    refreshBackgroundColor: Colors.white, // The background circle color
+  ),
       ),
       routes: AppRoutes.routes,
       // --- ADD THIS BUILDER ---
