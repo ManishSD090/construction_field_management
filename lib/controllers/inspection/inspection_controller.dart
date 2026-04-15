@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/dio_client.dart';
 import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:construction_erp/models/dpr.dart';
+import 'package:construction_erp/models/wpr.dart'; 
 import 'package:construction_erp/models/enums.dart';
 
-// ==========================================================================
-// WPR DATA DTO (Data Transfer Object)
-// ==========================================================================
 class WprData {
   final Map<String, dynamic> projectInfo;
   final Map<String, dynamic> weekInfo;
@@ -64,20 +62,13 @@ class WprData {
   }
 }
 
-// ==========================================================================
-// 1. DATA FETCH PROVIDERS
-// ==========================================================================
-
-/// Fetches the Project List using the WPR Summary endpoint.
 final projectInspectionSummaryProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final dioClient = ref.read(dioClientProvider);
   final response = await dioClient.dio.get('/wpr/summary');
   return response.data['data'] as List<dynamic>;
 });
 
-/// Fetches the list of DPRs for a specific project.
-/// ✅ FIXED: Added queryParameters to satisfy backend validation
-final dprListProvider = FutureProvider.autoDispose.family<List<DailyProgressReport>, String>((ref, projectId) async {
+final pendingInspectionDprProvider = FutureProvider.autoDispose.family<List<DailyProgressReport>, String>((ref, projectId) async {
   if (projectId.isEmpty) return [];
   
   final dioClient = ref.read(dioClientProvider);
@@ -86,31 +77,26 @@ final dprListProvider = FutureProvider.autoDispose.family<List<DailyProgressRepo
     queryParameters: {
       'page': 1,
       'limit': 100,
-      'status': 'REVIEW', // 🚨 FIX 1: Fetch only DPRs pending inspection
+      'status': 'REVIEW', 
     },
+    data: {}, // 🚨 Bypass backend crash on 'undefined' body
   );
   
   final List<dynamic> listJson = response.data['data']['dprs'] ?? [];
   return listJson.map((json) => DailyProgressReport.fromJson(json)).toList();
 });
 
-/// Fetches the specific DPR Details
 final dprDetailsProvider = FutureProvider.autoDispose.family<DailyProgressReport, String>((ref, dprId) async {
   final dioClient = ref.read(dioClientProvider);
   final response = await dioClient.dio.get('/dpr/$dprId');
   return DailyProgressReport.fromJson(response.data['data']);
 });
 
-/// Fetches the Weekly Progress Report for a specific project.
 final wprReportProvider = FutureProvider.autoDispose.family<WprData, String>((ref, projectId) async {
   final dioClient = ref.read(dioClientProvider);
   final response = await dioClient.dio.get('/wpr', queryParameters: {'projectId': projectId});
   return WprData.fromJson(response.data['data']);
 });
-
-// ==========================================================================
-// 2. ACTION CONTROLLER (Approvals)
-// ==========================================================================
 
 final inspectionActionProvider = AsyncNotifierProvider<InspectionActionController, void>(() {
   return InspectionActionController();
@@ -126,18 +112,22 @@ class InspectionActionController extends AsyncNotifier<void> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       
-      final payload = {
-        // 🚨 FIX 2: Change to IN_PROGRESS so backend doesn't reject the payload
-        'status': isApproved ? 'COMPLETED' : 'IN_PROGRESS', 
-      };
+      final statusStr = isApproved ? 'COMPLETED' : 'IN_PROGRESS';
       
-      if (comments != null && comments.isNotEmpty) {
-        payload['comments'] = comments;
-      }
+      final payload = {
+        'status': statusStr, 
+        if (comments != null && comments.isNotEmpty) 'comments': comments,
+        
+        'params': { 'id': dprId },
+        'body': {
+          'status': statusStr,
+          if (comments != null && comments.isNotEmpty) 'comments': comments,
+        }
+      };
 
       await _dioClient.dio.patch('/dpr/$dprId/approve', data: payload);
       
-      ref.invalidate(dprListProvider);
+      ref.invalidate(pendingInspectionDprProvider);
       ref.invalidate(dprDetailsProvider);
       ref.invalidate(projectInspectionSummaryProvider);
     });

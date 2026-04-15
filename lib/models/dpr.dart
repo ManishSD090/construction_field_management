@@ -1,7 +1,6 @@
 import 'package:construction_erp/models/enums.dart';
 import 'package:construction_erp/models/user.dart';
 
-// 🚨 NEW CLASSES FOR MATERIAL TRACKING
 class MaterialDetail {
   final String name;
   MaterialDetail({required this.name});
@@ -63,7 +62,7 @@ class DPRTask {
       name: (json['name'] ?? '') as String,
       percent: DailyProgressReport._toInt(json['percent']),
       status: json['status'] != null
-          ? TaskStatus.fromJson(json['status'] as String?)
+          ? DailyProgressReport._parseTaskStatus(json['status'] as String?)
           : null,
       subtasks: json['subtasks'] is List
           ? (json['subtasks'] as List)
@@ -77,7 +76,7 @@ class DPRTask {
         'id': id,
         'name': name,
         'percent': percent,
-        'status': status?.toJson(),
+        'status': status?.name,
         'subtasks': subtasks.map((e) => e.toJson()).toList(),
       };
 }
@@ -312,7 +311,6 @@ class DailyProgressReport {
   final List<DPRMaterial> materials;
   final List<DPREquipment> equipments;
 
-  // 🚨 NEW INTEGRATED FIELDS (Correctly exposed as getters/properties)
   final Map<String, dynamic>? attendanceSummary;
   final List<MaterialConsumption>? materialConsumptions;
 
@@ -321,6 +319,7 @@ class DailyProgressReport {
 
   final String? nextDayTaskName;
   final String? nextDayNotes;
+  final String? nextDayPlan; 
 
   final String? equipmentUsed;
   final String? materialsUsed;
@@ -340,7 +339,11 @@ class DailyProgressReport {
   final TaskStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String? nextDayPlan;
+  
+  final double? materialsCost;
+  final double? laborCost;
+  final double? equipmentCost;
+  final double? budgetUsed;
 
   final List<DPRPhoto> photos;
   final List<DPRDocument> documents;
@@ -349,6 +352,10 @@ class DailyProgressReport {
     required this.id,
     required this.reportNo,
     required this.projectId,
+    this.materialsCost,
+    this.laborCost,
+    this.equipmentCost,
+    this.budgetUsed,
     this.projectName,
     this.projectManagerId,
     this.projectManager,
@@ -440,7 +447,6 @@ class DailyProgressReport {
       staffPresent: _toInt(json['staffPresent']),
       staffTotal: _toInt(json['staffTotal']),
 
-      // 🚨 MAPPING NEW FIELDS
       attendanceSummary: json['attendanceSummary'],
       materialConsumptions: json['materialConsumptions'] != null
           ? (json['materialConsumptions'] as List)
@@ -483,7 +489,8 @@ class DailyProgressReport {
       nextDayNotes: json['nextDayNotes'] as String? ??
           (json['nextDayPlanning'] is Map
               ? json['nextDayPlanning']['description'] as String?
-              : json['nextDayPlan'] as String?), // 🚨 This catches your backend's "nextDayPlan" key!
+              : null), 
+      nextDayPlan: json['nextDayPlan'] as String?,
       equipmentUsed: json['equipmentUsed'] as String?,
       materialsUsed: json['materialsUsed'] as String?,
       materialsReceived: json['materialsReceived'] as String?,
@@ -494,14 +501,19 @@ class DailyProgressReport {
       issuesFound: json['issuesFound'] as String?,
       notes: json['notes'] as String?,
       approvedById: json['approvedById'] as String?,
-      approvedBy:
-          json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
-      approvedAt: json['approvedAt'] != null
-          ? DateTime.parse(json['approvedAt'])
-          : null,
-      status: TaskStatus.fromJson(json['status'] as String?),
+      approvedBy: json['approvedBy'] != null ? User.fromJson(json['approvedBy']) : null,
+      approvedAt: json['approvedAt'] != null ? DateTime.parse(json['approvedAt']) : null,
+      
+      status: _parseTaskStatus(json['status'] as String?),
+      
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
+      
+      materialsCost: (json['materialsCost'] as num?)?.toDouble(),
+      laborCost: (json['laborCost'] as num?)?.toDouble(),
+      equipmentCost: (json['equipmentCost'] as num?)?.toDouble(),
+      budgetUsed: (json['budgetUsed'] as num?)?.toDouble(),
+
       photos: json['photos'] is List
           ? (json['photos'] as List)
               .map((e) => DPRPhoto.fromJson(Map<String, dynamic>.from(e)))
@@ -530,5 +542,13 @@ class DailyProgressReport {
     if (value is int) return value;
     if (value is double) return value.toInt();
     return int.tryParse(value.toString());
+  }
+
+  static TaskStatus _parseTaskStatus(String? status) {
+    if (status == null) return TaskStatus.values.first;
+    return TaskStatus.values.firstWhere(
+      (e) => e.name.toUpperCase() == status.toUpperCase(),
+      orElse: () => TaskStatus.values.first,
+    );
   }
 }

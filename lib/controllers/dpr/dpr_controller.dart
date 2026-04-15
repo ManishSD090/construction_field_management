@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:construction_erp/controllers/core_providers.dart';
@@ -26,7 +25,6 @@ class DPRController extends AsyncNotifier<DPRState> {
     return _fetchPage(page: 1, isRefresh: true);
   }
 
-  // --- PRIVATE FETCH LOGIC ---
   Future<DPRState> _fetchPage({
     required int page,
     required bool isRefresh,
@@ -71,8 +69,6 @@ class DPRController extends AsyncNotifier<DPRState> {
     }
   }
 
-  // --- PUBLIC ACTIONS ---
-
   Future<void> refresh({
     String? search,
     String? status,
@@ -105,16 +101,20 @@ class DPRController extends AsyncNotifier<DPRState> {
   Future<DailyProgressReport> createDPR(Map<String, dynamic> payload) async {
     final response = await _dioClient.dio.post(_basePath, data: payload);
     final newDpr = DailyProgressReport.fromJson(response.data['data']);
-    await refresh(); // Immediate UI update
+    await refresh();
     return newDpr;
   }
 
   Future<DailyProgressReport> updateDPR(String id, Map<String, dynamic> payload) async {
-    // Matches backend PUT /api/v1/dpr/:id
-    final response = await _dioClient.dio.put('$_basePath/$id', data: payload);
+    final wrappedPayload = {
+      ...payload,
+      'params': { 'id': id },
+      'body': payload,
+    };
+
+    final response = await _dioClient.dio.put('$_basePath/$id', data: wrappedPayload);
     final updatedDpr = DailyProgressReport.fromJson(response.data['data']);
     
-    // Refresh to ensure list reflects calculated changes (budget, labor cost, etc.)
     await refresh();
     return updatedDpr;
   }
@@ -125,19 +125,25 @@ class DPRController extends AsyncNotifier<DPRState> {
   }
 
   Future<DailyProgressReport> approveDPR(String id, {String status = 'COMPLETED', String? comments}) async {
-    final response = await _dioClient.dio.patch(
-      '$_basePath/$id/approve',
-      data: {
+    final payload = {
+      'status': status,
+      if (comments != null) 'comments': comments,
+      
+      'params': { 'id': id },
+      'body': {
         'status': status,
         if (comments != null) 'comments': comments,
-      },
+      }
+    };
+
+    final response = await _dioClient.dio.patch(
+      '$_basePath/$id/approve',
+      data: payload,
     );
     final result = DailyProgressReport.fromJson(response.data['data']);
     await refresh();
     return result;
   }
-
-  // --- PHOTO LOGIC ---
 
   Future<DPRPhoto> uploadDPRPhoto({
     required String dprId,
@@ -172,32 +178,6 @@ class DPRController extends AsyncNotifier<DPRState> {
     }
     await refresh();
   }
-
-  // ==========================================
-  // SEND FOR APPROVAL LOGIC
-  // ==========================================
-  Future<void> sendForApproval(String dprId) async {
-    try {
-      // 🚨 CHANGED FROM .post TO .patch
-      final response = await _dioClient.dio.patch(
-        '/dpr/$dprId/approve', 
-        data: {
-          'status': 'REVIEW',
-        }
-      );
-
-      if (response.data['success'] != true) {
-        throw Exception(response.data['message'] ?? 'Failed to send for approval');
-      }
-      
-      await getDPRById(dprId); 
-      ref.invalidateSelf(); 
-      
-    } catch (e) {
-      print('Error sending DPR for approval: $e');
-      rethrow;
-    }
-  }
 }
 
 class DPRState {
@@ -228,8 +208,6 @@ class DPRState {
   }
 }
 
-// --- EXTERNAL DATA PROVIDERS ---
-
 final projectsProvider = FutureProvider<List<dynamic>>((ref) async {
   final dioClient = ref.watch(dioClientProvider);
   final response = await dioClient.dio.get('/projects');
@@ -241,4 +219,3 @@ final materialsProvider = FutureProvider<List<dynamic>>((ref) async {
   final response = await dioClient.dio.get('/inventory');
   return response.data['data'] as List<dynamic>;
 });
-
