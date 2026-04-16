@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Only kept to pull the global base rate
 import 'package:dio/dio.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
-import 'package:construction_erp/models/worker.dart';
 import 'package:construction_erp/controllers/worker/worker_controller.dart';
 import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
 import 'package:construction_erp/controllers/project/project_controller.dart';
@@ -221,8 +219,9 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
 
         final designation =
             user['designation'] ?? assignment['role']?['name'] ?? 'Staff';
-        if (designation.toString().toLowerCase().contains('company admin'))
+        if (designation.toString().toLowerCase().contains('company admin')) {
           continue;
+        }
 
         _workers.add(WorkerAttendanceLocal(
           id: userId,
@@ -268,15 +267,18 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
               backendStatus == 'ABSENT' ? 'Absent' : 'Present';
           _workers[existingIndex].attendanceRecordId = recordId;
 
-          if (record['wageRate'] != null)
+          if (record['wageRate'] != null) {
             _workers[existingIndex].baseRate =
                 (record['wageRate'] as num).toDouble();
-          if (record['shiftTypeId'] != null)
+          }
+          if (record['shiftTypeId'] != null) {
             _workers[existingIndex].shiftTypeId =
                 record['shiftTypeId'].toString();
-          if (record['shiftMultiplier'] != null)
+          }
+          if (record['shiftMultiplier'] != null) {
             _workers[existingIndex].shiftMultiplier =
                 (record['shiftMultiplier'] as num).toDouble();
+          }
         }
       }
 
@@ -951,8 +953,9 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
         for (var w in toUpdate) {
           String backendStatus = 'PRESENT';
           if (w.status == 'Absent') backendStatus = 'ABSENT';
-          if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status))
+          if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status)) {
             backendStatus = 'ON_LEAVE';
+          }
 
           await dio.put('/attendance/${w.attendanceRecordId}', data: {
             'status': backendStatus,
@@ -966,8 +969,9 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
           final staffData = toCreate.map((w) {
             String backendStatus = 'PRESENT';
             if (w.status == 'Absent') backendStatus = 'ABSENT';
-            if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status))
+            if (['On Leave', 'Paid Leave', 'Week Off'].contains(w.status)) {
               backendStatus = 'ON_LEAVE';
+            }
             return {
               'userId': w.id,
               'status': backendStatus,
@@ -992,13 +996,16 @@ class _MarkAttendanceScreenState extends ConsumerState<MarkAttendanceScreen> {
                 if (idx >= 0) {
                   _workers[idx].attendanceRecordId = existingId;
                   String fallbackStatus = 'PRESENT';
-                  if (_workers[idx].status == 'Absent')
+                  if (_workers[idx].status == 'Absent') {
                     fallbackStatus = 'ABSENT';
+                  }
                   if ([
                     'On Leave',
                     'Paid Leave',
                     'Week Off'
-                  ].contains(_workers[idx].status)) fallbackStatus = 'ON_LEAVE';
+                  ].contains(_workers[idx].status)) {
+                    fallbackStatus = 'ON_LEAVE';
+                  }
 
                   await dio.put('/attendance/$existingId', data: {
                     'status': fallbackStatus,

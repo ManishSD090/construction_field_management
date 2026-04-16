@@ -1,10 +1,8 @@
-import 'package:construction_erp/controllers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:construction_erp/core/services/app_colors.dart';
 import 'package:construction_erp/controllers/payroll/payroll_controller.dart';
-import 'package:construction_erp/controllers/worker/worker_controller.dart';
-import 'package:construction_erp/core/dio_client.dart'; // Needed for the direct dio call
+// Needed for the direct dio call
 
 class PayrollSettingsScreen extends ConsumerStatefulWidget {
   final String projectId; // 🔥 1. Accept projectId from the parent screen
@@ -19,13 +17,13 @@ class PayrollSettingsScreen extends ConsumerStatefulWidget {
 
 class _PayrollSettingsScreenState extends ConsumerState<PayrollSettingsScreen> {
   bool _isLoading = true;
-  bool _isSaving = false;
+  final bool _isSaving = false;
 
   List<dynamic> _shifts = [];
   List<dynamic> _labourRates = [];
   
-  Set<String> _selectedRateIds = {};
-  Set<String> _selectedShiftIds = {};
+  final Set<String> _selectedRateIds = {};
+  final Set<String> _selectedShiftIds = {};
 
   final TextEditingController _globalWorkerRateController =
       TextEditingController(text: "500");

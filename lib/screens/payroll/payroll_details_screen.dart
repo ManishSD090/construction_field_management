@@ -188,9 +188,8 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
           children: [
             const Text("Payroll Details",
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            if (widget.projectId != null)
-              Text("Project ID: ${widget.projectId}", 
-                style: const TextStyle(color: Colors.white70, fontSize: 10)),
+            Text("Project ID: ${widget.projectId}", 
+              style: const TextStyle(color: Colors.white70, fontSize: 10)),
           ],
         ),
         leading: IconButton(
@@ -372,13 +371,13 @@ class _PayrollDetailsScreenState extends ConsumerState<PayrollDetailsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("Total Payroll:",
+          const Text("Total Payroll:",
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87)),
           Text(_formatCurrency(_grandTotal),
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: 20,
                   color: AppColors.primaryBlue,
                   fontWeight: FontWeight.bold)),

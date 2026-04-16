@@ -482,7 +482,7 @@ class _RowInfo extends StatelessWidget {
   final String label, value;
   final Color? valueColor;
   final bool isBold;
-  const _RowInfo({required this.label, required this.value, this.valueColor,this.isBold = false});
+  const _RowInfo({required this.label, required this.value, this.valueColor, this.isBold = false});
   @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)), Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: valueColor ?? AppColors.textDark))]));
 }
 

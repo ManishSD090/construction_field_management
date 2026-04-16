@@ -31,9 +31,7 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
     final prefs = await SharedPreferences.getInstance();
     companyId = prefs.getString('companyId') ?? prefs.getString('company_id');
 
-    if (companyId == null) {
-      companyId = "72ad085f-2d70-41a9-ba58-2529a13a5798"; // Fallback
-    }
+    companyId ??= "72ad085f-2d70-41a9-ba58-2529a13a5798";
 
     return {
       'userId': userId,
@@ -86,8 +84,9 @@ class WorkerController extends AsyncNotifier<List<Worker>> {
 // Add this inside WorkerController class
 // 2. PERMANENTLY ASSIGN WORKER TO DB
   Future<void> assignWorkerToProject(String workerId, String projectId) async {
-    if (projectId.isEmpty || workerId.isEmpty)
+    if (projectId.isEmpty || workerId.isEmpty) {
       throw Exception("Project ID or Worker ID is missing");
+    }
 
     final dio = ref.read(dioClientProvider).dio;
     final auth = await getAuthData();
